@@ -1,0 +1,963 @@
+{
+  "schemaVersion": "2026.07.11.0",
+  "skillProvenance": {
+    "schema_version": "1.0",
+    "name": "solo-design",
+    "version": "2026.07.22.00.00.00",
+    "release": "prompt-base-cloud-ssot-migration",
+    "version_source": "skill-release-manifest.json",
+    "read_status": "ok"
+  },
+  "project": {
+    "projectName": "LVGL 控制台",
+    "deviceType": "desktop",
+    "dashboardMode": true,
+    "resolvedLane": "library_bound",
+    "intentProfile": "embedded-console-launcher-feature-pages-st7789",
+    "selectedIntentWorkflowRead": true,
+    "contextRequirementsLoaded": [
+      {
+        "path": "intent-workflows/intent-page-library-bound/INTENT_WORKFLOW.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-07-31T10:00:00Z"
+      },
+      {
+        "path": "intent-workflows/intent-page-library-bound/start-library-bound-project.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-07-31T10:00:00Z"
+      },
+      {
+        "path": "intent-workflows/intent-page-library-bound/dispatch-contract.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-07-31T10:00:00Z"
+      },
+      {
+        "path": "intent-workflows/intent-page-library-bound/library-bound-page-runtime.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-07-31T10:00:00Z"
+      },
+      {
+        "path": "intent-workflows/intent-page-library-bound/orchestration-summary-fields.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-07-31T10:00:00Z"
+      },
+      {
+        "path": "intent-workflows/intent-page-library-bound/design-token-fidelity-rules.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-07-31T10:00:00Z"
+      },
+      {
+        "path": "intent-workflows/intent-page-library-bound/component-conformance-rules.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-07-31T10:00:00Z"
+      },
+      {
+        "path": "intent-workflows/intent-page-library-bound/icon-source-priority-rules.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-07-31T10:00:00Z"
+      },
+      {
+        "path": "intent-workflows/intent-page-library-bound/design-library-ingestion.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-07-31T10:00:00Z"
+      },
+      {
+        "path": "shared-runtime/runtime-boundaries/lane-runtime-contracts.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-07-31T10:00:00Z"
+      },
+      {
+        "path": "shared-runtime/agent-dispatch-runtime/lane-dispatch-index.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-07-31T10:00:00Z"
+      },
+      {
+        "path": "shared-runtime/orchestration-summary-contract/orchestration-summary-contract.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-07-31T10:00:00Z"
+      },
+      {
+        "path": "shared-runtime/orchestration-summary-contract/generalized-flow-control-fields.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-07-31T10:00:00Z"
+      },
+      {
+        "path": "shared-runtime/design-artifact-formats/design-project-file-format.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-07-31T10:00:00Z"
+      },
+      {
+        "path": "shared-runtime/html-rendering-primitives/web-html-rendering-primitives.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-07-31T10:00:00Z"
+      },
+      {
+        "path": "delivery-quality/page-rendering-quality-gate.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-07-31T10:00:00Z"
+      },
+      {
+        "path": "delivery-quality/design-artifact-validation.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-07-31T10:00:00Z"
+      },
+      {
+        "path": "delivery-quality/delivery-evidence-contract.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-07-31T10:00:00Z"
+      }
+    ],
+    "contextReadScope": "library-bound-console-page-set",
+    "readScopeLedger": [
+      {
+        "scope": "design-library",
+        "paths": [
+          "dl_builtin_trae_work/SKILL.md",
+          "dl_builtin_trae_work/README.md",
+          "dl_builtin_trae_work/css.json",
+          "dl_builtin_trae_work/library-consumption.json",
+          "dl_builtin_trae_work/components/index.json",
+          "dl_builtin_trae_work/preview/component-tabs.html",
+          "dl_builtin_trae_work/preview/component-buttons.html",
+          "dl_builtin_trae_work/preview/component-cards.html",
+          "dl_builtin_trae_work/preview/component-forms.html"
+        ],
+        "recordedAt": "2026-07-31T10:00:00Z"
+      },
+      {
+        "actor": "page-sub-agent",
+        "lane": "library_bound",
+        "path": "intent-workflows/intent-page-library-bound/library-bound-page-runtime.md",
+        "reason": "page runtime guide",
+        "scopeClass": "page-runtime",
+        "declaredBeforeRead": true,
+        "recordedAt": "2026-07-31T05:49:17.643Z",
+        "nodeId": "page-dashboard",
+        "htmlSrc": "pages/dashboard.html"
+      },
+      {
+        "actor": "page-sub-agent",
+        "lane": "library_bound",
+        "path": "intent-workflows/intent-page-library-bound/dispatch-contract.md",
+        "reason": "dispatch contract",
+        "scopeClass": "dispatch-contract",
+        "declaredBeforeRead": true,
+        "recordedAt": "2026-07-31T05:49:17.643Z",
+        "nodeId": "page-dashboard",
+        "htmlSrc": "pages/dashboard.html"
+      }
+    ],
+    "dispatchPreflightManifest": [
+      {
+        "recorded_at": "2026-07-31T09:01:08.365Z",
+        "generatedBy": "build-page-dispatch-manifest.mjs",
+        "packetType": "LibraryBoundPagePacket",
+        "laneContract": {
+          "resolvedLane": "library_bound",
+          "packetType": "LibraryBoundPagePacket",
+          "pageRuntimeGuide": "intent-workflows/intent-page-library-bound/library-bound-page-runtime.md",
+          "dispatchContract": "intent-workflows/intent-page-library-bound/dispatch-contract.md"
+        },
+        "taskLinePresent": true,
+        "outputPathPresent": true,
+        "sharedTemplate": "intent-workflows/intent-page-library-bound/library-bound-page-runtime.md",
+        "nodeId": "page-launcher",
+        "htmlSrc": "pages/launcher.html",
+        "supplementaryReads": [],
+        "allowedWritePaths": [
+          "pages/launcher.html",
+          "assets/"
+        ],
+        "forbiddenWriteRoots": [
+          "*.design",
+          "runtime-orchestration-summary.json",
+          "validation-report.json",
+          "finish-readiness-report.json",
+          "restore-contract-report.json",
+          "page-generation-summary.json"
+        ],
+        "toolPolicy": {
+          "todoWriteAllowed": false,
+          "validationScriptsAllowed": false,
+          "previewAllowed": false,
+          "helperScriptsAllowed": false,
+          "designFileWriteAllowed": false,
+          "allowedWritePaths": [
+            "pages/launcher.html",
+            "assets/"
+          ]
+        },
+        "skillRuntime": {
+          "skillDir": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design",
+          "deterministicToolDir": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling",
+          "toolPaths": {
+            "applyHtmlHeadContract": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\apply-html-head-contract.mjs",
+            "recordDispatchCompletion": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\record-dispatch-completion.mjs",
+            "buildPageDispatchManifest": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\build-page-dispatch-manifest.mjs",
+            "validateDesignWorkspace": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\validate-design-workspace.mjs",
+            "validateFinishReadiness": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\validate-finish-readiness.mjs",
+            "validateRestoreContract": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\validate-restore-contract.mjs"
+          },
+          "requiredForPageSubAgent": [
+            "applyHtmlHeadContract",
+            "recordDispatchCompletion"
+          ],
+          "pathInjection": "absolute",
+          "pathContract": "Do not use {SKILL_DIR} placeholders inside Page Sub-Agent packets; use toolPaths.* absolute paths.",
+          "commandTemplates": {
+            "recordDispatchCompletion": "node \"c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\record-dispatch-completion.mjs\" \"c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\" --node-id=\"page-launcher\" --html-src=\"pages/launcher.html\" --status=completed --changed-files=<comma-separated-project-relative-files> --trace-digest=<main-agent-runtime-trace-digest> --tool-ledger-json=<tool-ledger-json-or-file>"
+          }
+        },
+        "cssFilePath": "c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\colors_and_type.css",
+        "htmlFilePath": "c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\pages\\launcher.html",
+        "brandPrefix": "",
+        "aestheticsMode": "library-bound",
+        "toolDisciplineBlockPresent": true,
+        "fillHtmlHeadCommand": "node \"c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\apply-html-head-contract.mjs\" \"c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\colors_and_type.css\" \"c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\pages\\launcher.html\" --title=\"功能選擇\" --lang=\"zh-CN\" --prefix=\"\" --replace-head",
+        "headFillMode": "replace-head-after-body",
+        "viewportMode": "app-shell-fixed-320x240-landscape",
+        "completionSchemaExpected": "full",
+        "restoreFields": null,
+        "restoreContractStatus": null,
+        "restoreCompactPacket": null,
+        "deterministicCommands": null,
+        "sourceAuthorityLock": null,
+        "preDispatchFileHashes": {
+          "lvgl-console-ui.design": "a90db732d5f595925e116693e9eb8a48226b614a994aac16a64cf9cf0fc86262"
+        },
+        "contextPreflight": {
+          "workflowPath": "intent-workflows/intent-page-library-bound/INTENT_WORKFLOW.md",
+          "requiredContextFiles": [
+            "shared-runtime/runtime-boundaries/lane-runtime-contracts.md",
+            "shared-runtime/agent-dispatch-runtime/lane-dispatch-index.md",
+            "delivery-quality/page-rendering-quality-gate.md",
+            "delivery-quality/design-artifact-validation.md",
+            "delivery-quality/delivery-evidence-contract.md"
+          ],
+          "optionalContextFiles": [
+            "visual-experience/visual-experience-guidelines.md"
+          ],
+          "passed": true
+        },
+        "pageSliceOnly": true,
+        "requiredFieldsPresent": true,
+        "missingFields": [],
+        "fillHtmlHeadCommandValid": true,
+        "mobileNavigation": {
+          "required": false,
+          "appliesToThisPage": false,
+          "canonicalHtmlIncluded": false,
+          "missingFields": []
+        },
+        "persistedToSummary": true,
+        "taskQueryAudited": false,
+        "proofSource": "summary-only",
+        "largeWorkflowFilesInTaskQuery": null
+      },
+      {
+        "recorded_at": "2026-07-31T09:01:08.365Z",
+        "generatedBy": "build-page-dispatch-manifest.mjs",
+        "packetType": "LibraryBoundPagePacket",
+        "laneContract": {
+          "resolvedLane": "library_bound",
+          "packetType": "LibraryBoundPagePacket",
+          "pageRuntimeGuide": "intent-workflows/intent-page-library-bound/library-bound-page-runtime.md",
+          "dispatchContract": "intent-workflows/intent-page-library-bound/dispatch-contract.md"
+        },
+        "taskLinePresent": true,
+        "outputPathPresent": true,
+        "sharedTemplate": "intent-workflows/intent-page-library-bound/library-bound-page-runtime.md",
+        "nodeId": "page-overview",
+        "htmlSrc": "pages/overview.html",
+        "supplementaryReads": [],
+        "allowedWritePaths": [
+          "pages/overview.html",
+          "assets/"
+        ],
+        "forbiddenWriteRoots": [
+          "*.design",
+          "runtime-orchestration-summary.json",
+          "validation-report.json",
+          "finish-readiness-report.json",
+          "restore-contract-report.json",
+          "page-generation-summary.json"
+        ],
+        "toolPolicy": {
+          "todoWriteAllowed": false,
+          "validationScriptsAllowed": false,
+          "previewAllowed": false,
+          "helperScriptsAllowed": false,
+          "designFileWriteAllowed": false,
+          "allowedWritePaths": [
+            "pages/overview.html",
+            "assets/"
+          ]
+        },
+        "skillRuntime": {
+          "skillDir": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design",
+          "deterministicToolDir": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling",
+          "toolPaths": {
+            "applyHtmlHeadContract": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\apply-html-head-contract.mjs",
+            "recordDispatchCompletion": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\record-dispatch-completion.mjs",
+            "buildPageDispatchManifest": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\build-page-dispatch-manifest.mjs",
+            "validateDesignWorkspace": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\validate-design-workspace.mjs",
+            "validateFinishReadiness": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\validate-finish-readiness.mjs",
+            "validateRestoreContract": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\validate-restore-contract.mjs"
+          },
+          "requiredForPageSubAgent": [
+            "applyHtmlHeadContract",
+            "recordDispatchCompletion"
+          ],
+          "pathInjection": "absolute",
+          "pathContract": "Do not use {SKILL_DIR} placeholders inside Page Sub-Agent packets; use toolPaths.* absolute paths.",
+          "commandTemplates": {
+            "recordDispatchCompletion": "node \"c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\record-dispatch-completion.mjs\" \"c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\" --node-id=\"page-overview\" --html-src=\"pages/overview.html\" --status=completed --changed-files=<comma-separated-project-relative-files> --trace-digest=<main-agent-runtime-trace-digest> --tool-ledger-json=<tool-ledger-json-or-file>"
+          }
+        },
+        "cssFilePath": "c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\colors_and_type.css",
+        "htmlFilePath": "c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\pages\\overview.html",
+        "brandPrefix": "",
+        "aestheticsMode": "library-bound",
+        "toolDisciplineBlockPresent": true,
+        "fillHtmlHeadCommand": "node \"c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\apply-html-head-contract.mjs\" \"c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\colors_and_type.css\" \"c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\pages\\overview.html\" --title=\"儀表盤\" --lang=\"zh-CN\" --prefix=\"\" --replace-head",
+        "headFillMode": "replace-head-after-body",
+        "viewportMode": "app-shell-fixed-320x240-landscape",
+        "completionSchemaExpected": "full",
+        "restoreFields": null,
+        "restoreContractStatus": null,
+        "restoreCompactPacket": null,
+        "deterministicCommands": null,
+        "sourceAuthorityLock": null,
+        "preDispatchFileHashes": {
+          "lvgl-console-ui.design": "a90db732d5f595925e116693e9eb8a48226b614a994aac16a64cf9cf0fc86262"
+        },
+        "contextPreflight": {
+          "workflowPath": "intent-workflows/intent-page-library-bound/INTENT_WORKFLOW.md",
+          "requiredContextFiles": [
+            "shared-runtime/runtime-boundaries/lane-runtime-contracts.md",
+            "shared-runtime/agent-dispatch-runtime/lane-dispatch-index.md",
+            "delivery-quality/page-rendering-quality-gate.md",
+            "delivery-quality/design-artifact-validation.md",
+            "delivery-quality/delivery-evidence-contract.md"
+          ],
+          "optionalContextFiles": [
+            "visual-experience/visual-experience-guidelines.md"
+          ],
+          "passed": true
+        },
+        "pageSliceOnly": true,
+        "requiredFieldsPresent": true,
+        "missingFields": [],
+        "fillHtmlHeadCommandValid": true,
+        "mobileNavigation": {
+          "required": false,
+          "appliesToThisPage": false,
+          "canonicalHtmlIncluded": false,
+          "missingFields": []
+        },
+        "persistedToSummary": true,
+        "taskQueryAudited": false,
+        "proofSource": "summary-only",
+        "largeWorkflowFilesInTaskQuery": null
+      },
+      {
+        "recorded_at": "2026-07-31T09:01:08.365Z",
+        "generatedBy": "build-page-dispatch-manifest.mjs",
+        "packetType": "LibraryBoundPagePacket",
+        "laneContract": {
+          "resolvedLane": "library_bound",
+          "packetType": "LibraryBoundPagePacket",
+          "pageRuntimeGuide": "intent-workflows/intent-page-library-bound/library-bound-page-runtime.md",
+          "dispatchContract": "intent-workflows/intent-page-library-bound/dispatch-contract.md"
+        },
+        "taskLinePresent": true,
+        "outputPathPresent": true,
+        "sharedTemplate": "intent-workflows/intent-page-library-bound/library-bound-page-runtime.md",
+        "nodeId": "page-monitor",
+        "htmlSrc": "pages/monitor.html",
+        "supplementaryReads": [],
+        "allowedWritePaths": [
+          "pages/monitor.html",
+          "assets/"
+        ],
+        "forbiddenWriteRoots": [
+          "*.design",
+          "runtime-orchestration-summary.json",
+          "validation-report.json",
+          "finish-readiness-report.json",
+          "restore-contract-report.json",
+          "page-generation-summary.json"
+        ],
+        "toolPolicy": {
+          "todoWriteAllowed": false,
+          "validationScriptsAllowed": false,
+          "previewAllowed": false,
+          "helperScriptsAllowed": false,
+          "designFileWriteAllowed": false,
+          "allowedWritePaths": [
+            "pages/monitor.html",
+            "assets/"
+          ]
+        },
+        "skillRuntime": {
+          "skillDir": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design",
+          "deterministicToolDir": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling",
+          "toolPaths": {
+            "applyHtmlHeadContract": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\apply-html-head-contract.mjs",
+            "recordDispatchCompletion": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\record-dispatch-completion.mjs",
+            "buildPageDispatchManifest": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\build-page-dispatch-manifest.mjs",
+            "validateDesignWorkspace": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\validate-design-workspace.mjs",
+            "validateFinishReadiness": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\validate-finish-readiness.mjs",
+            "validateRestoreContract": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\validate-restore-contract.mjs"
+          },
+          "requiredForPageSubAgent": [
+            "applyHtmlHeadContract",
+            "recordDispatchCompletion"
+          ],
+          "pathInjection": "absolute",
+          "pathContract": "Do not use {SKILL_DIR} placeholders inside Page Sub-Agent packets; use toolPaths.* absolute paths.",
+          "commandTemplates": {
+            "recordDispatchCompletion": "node \"c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\record-dispatch-completion.mjs\" \"c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\" --node-id=\"page-monitor\" --html-src=\"pages/monitor.html\" --status=completed --changed-files=<comma-separated-project-relative-files> --trace-digest=<main-agent-runtime-trace-digest> --tool-ledger-json=<tool-ledger-json-or-file>"
+          }
+        },
+        "cssFilePath": "c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\colors_and_type.css",
+        "htmlFilePath": "c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\pages\\monitor.html",
+        "brandPrefix": "",
+        "aestheticsMode": "library-bound",
+        "toolDisciplineBlockPresent": true,
+        "fillHtmlHeadCommand": "node \"c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\apply-html-head-contract.mjs\" \"c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\colors_and_type.css\" \"c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\pages\\monitor.html\" --title=\"數據監控\" --lang=\"zh-CN\" --prefix=\"\" --replace-head",
+        "headFillMode": "replace-head-after-body",
+        "viewportMode": "app-shell-fixed-320x240-landscape",
+        "completionSchemaExpected": "full",
+        "restoreFields": null,
+        "restoreContractStatus": null,
+        "restoreCompactPacket": null,
+        "deterministicCommands": null,
+        "sourceAuthorityLock": null,
+        "preDispatchFileHashes": {
+          "lvgl-console-ui.design": "a90db732d5f595925e116693e9eb8a48226b614a994aac16a64cf9cf0fc86262"
+        },
+        "contextPreflight": {
+          "workflowPath": "intent-workflows/intent-page-library-bound/INTENT_WORKFLOW.md",
+          "requiredContextFiles": [
+            "shared-runtime/runtime-boundaries/lane-runtime-contracts.md",
+            "shared-runtime/agent-dispatch-runtime/lane-dispatch-index.md",
+            "delivery-quality/page-rendering-quality-gate.md",
+            "delivery-quality/design-artifact-validation.md",
+            "delivery-quality/delivery-evidence-contract.md"
+          ],
+          "optionalContextFiles": [
+            "visual-experience/visual-experience-guidelines.md"
+          ],
+          "passed": true
+        },
+        "pageSliceOnly": true,
+        "requiredFieldsPresent": true,
+        "missingFields": [],
+        "fillHtmlHeadCommandValid": true,
+        "mobileNavigation": {
+          "required": false,
+          "appliesToThisPage": false,
+          "canonicalHtmlIncluded": false,
+          "missingFields": []
+        },
+        "persistedToSummary": true,
+        "taskQueryAudited": false,
+        "proofSource": "summary-only",
+        "largeWorkflowFilesInTaskQuery": null
+      },
+      {
+        "recorded_at": "2026-07-31T09:01:08.365Z",
+        "generatedBy": "build-page-dispatch-manifest.mjs",
+        "packetType": "LibraryBoundPagePacket",
+        "laneContract": {
+          "resolvedLane": "library_bound",
+          "packetType": "LibraryBoundPagePacket",
+          "pageRuntimeGuide": "intent-workflows/intent-page-library-bound/library-bound-page-runtime.md",
+          "dispatchContract": "intent-workflows/intent-page-library-bound/dispatch-contract.md"
+        },
+        "taskLinePresent": true,
+        "outputPathPresent": true,
+        "sharedTemplate": "intent-workflows/intent-page-library-bound/library-bound-page-runtime.md",
+        "nodeId": "page-control",
+        "htmlSrc": "pages/control.html",
+        "supplementaryReads": [],
+        "allowedWritePaths": [
+          "pages/control.html",
+          "assets/"
+        ],
+        "forbiddenWriteRoots": [
+          "*.design",
+          "runtime-orchestration-summary.json",
+          "validation-report.json",
+          "finish-readiness-report.json",
+          "restore-contract-report.json",
+          "page-generation-summary.json"
+        ],
+        "toolPolicy": {
+          "todoWriteAllowed": false,
+          "validationScriptsAllowed": false,
+          "previewAllowed": false,
+          "helperScriptsAllowed": false,
+          "designFileWriteAllowed": false,
+          "allowedWritePaths": [
+            "pages/control.html",
+            "assets/"
+          ]
+        },
+        "skillRuntime": {
+          "skillDir": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design",
+          "deterministicToolDir": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling",
+          "toolPaths": {
+            "applyHtmlHeadContract": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\apply-html-head-contract.mjs",
+            "recordDispatchCompletion": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\record-dispatch-completion.mjs",
+            "buildPageDispatchManifest": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\build-page-dispatch-manifest.mjs",
+            "validateDesignWorkspace": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\validate-design-workspace.mjs",
+            "validateFinishReadiness": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\validate-finish-readiness.mjs",
+            "validateRestoreContract": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\validate-restore-contract.mjs"
+          },
+          "requiredForPageSubAgent": [
+            "applyHtmlHeadContract",
+            "recordDispatchCompletion"
+          ],
+          "pathInjection": "absolute",
+          "pathContract": "Do not use {SKILL_DIR} placeholders inside Page Sub-Agent packets; use toolPaths.* absolute paths.",
+          "commandTemplates": {
+            "recordDispatchCompletion": "node \"c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\record-dispatch-completion.mjs\" \"c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\" --node-id=\"page-control\" --html-src=\"pages/control.html\" --status=completed --changed-files=<comma-separated-project-relative-files> --trace-digest=<main-agent-runtime-trace-digest> --tool-ledger-json=<tool-ledger-json-or-file>"
+          }
+        },
+        "cssFilePath": "c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\colors_and_type.css",
+        "htmlFilePath": "c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\pages\\control.html",
+        "brandPrefix": "",
+        "aestheticsMode": "library-bound",
+        "toolDisciplineBlockPresent": true,
+        "fillHtmlHeadCommand": "node \"c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\apply-html-head-contract.mjs\" \"c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\colors_and_type.css\" \"c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\pages\\control.html\" --title=\"設備控制\" --lang=\"zh-CN\" --prefix=\"\" --replace-head",
+        "headFillMode": "replace-head-after-body",
+        "viewportMode": "app-shell-fixed-320x240-landscape",
+        "completionSchemaExpected": "full",
+        "restoreFields": null,
+        "restoreContractStatus": null,
+        "restoreCompactPacket": null,
+        "deterministicCommands": null,
+        "sourceAuthorityLock": null,
+        "preDispatchFileHashes": {
+          "lvgl-console-ui.design": "a90db732d5f595925e116693e9eb8a48226b614a994aac16a64cf9cf0fc86262"
+        },
+        "contextPreflight": {
+          "workflowPath": "intent-workflows/intent-page-library-bound/INTENT_WORKFLOW.md",
+          "requiredContextFiles": [
+            "shared-runtime/runtime-boundaries/lane-runtime-contracts.md",
+            "shared-runtime/agent-dispatch-runtime/lane-dispatch-index.md",
+            "delivery-quality/page-rendering-quality-gate.md",
+            "delivery-quality/design-artifact-validation.md",
+            "delivery-quality/delivery-evidence-contract.md"
+          ],
+          "optionalContextFiles": [
+            "visual-experience/visual-experience-guidelines.md"
+          ],
+          "passed": true
+        },
+        "pageSliceOnly": true,
+        "requiredFieldsPresent": true,
+        "missingFields": [],
+        "fillHtmlHeadCommandValid": true,
+        "mobileNavigation": {
+          "required": false,
+          "appliesToThisPage": false,
+          "canonicalHtmlIncluded": false,
+          "missingFields": []
+        },
+        "persistedToSummary": true,
+        "taskQueryAudited": false,
+        "proofSource": "summary-only",
+        "largeWorkflowFilesInTaskQuery": null
+      },
+      {
+        "recorded_at": "2026-07-31T09:01:08.365Z",
+        "generatedBy": "build-page-dispatch-manifest.mjs",
+        "packetType": "LibraryBoundPagePacket",
+        "laneContract": {
+          "resolvedLane": "library_bound",
+          "packetType": "LibraryBoundPagePacket",
+          "pageRuntimeGuide": "intent-workflows/intent-page-library-bound/library-bound-page-runtime.md",
+          "dispatchContract": "intent-workflows/intent-page-library-bound/dispatch-contract.md"
+        },
+        "taskLinePresent": true,
+        "outputPathPresent": true,
+        "sharedTemplate": "intent-workflows/intent-page-library-bound/library-bound-page-runtime.md",
+        "nodeId": "page-settings",
+        "htmlSrc": "pages/settings.html",
+        "supplementaryReads": [],
+        "allowedWritePaths": [
+          "pages/settings.html",
+          "assets/"
+        ],
+        "forbiddenWriteRoots": [
+          "*.design",
+          "runtime-orchestration-summary.json",
+          "validation-report.json",
+          "finish-readiness-report.json",
+          "restore-contract-report.json",
+          "page-generation-summary.json"
+        ],
+        "toolPolicy": {
+          "todoWriteAllowed": false,
+          "validationScriptsAllowed": false,
+          "previewAllowed": false,
+          "helperScriptsAllowed": false,
+          "designFileWriteAllowed": false,
+          "allowedWritePaths": [
+            "pages/settings.html",
+            "assets/"
+          ]
+        },
+        "skillRuntime": {
+          "skillDir": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design",
+          "deterministicToolDir": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling",
+          "toolPaths": {
+            "applyHtmlHeadContract": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\apply-html-head-contract.mjs",
+            "recordDispatchCompletion": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\record-dispatch-completion.mjs",
+            "buildPageDispatchManifest": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\build-page-dispatch-manifest.mjs",
+            "validateDesignWorkspace": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\validate-design-workspace.mjs",
+            "validateFinishReadiness": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\validate-finish-readiness.mjs",
+            "validateRestoreContract": "c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\validate-restore-contract.mjs"
+          },
+          "requiredForPageSubAgent": [
+            "applyHtmlHeadContract",
+            "recordDispatchCompletion"
+          ],
+          "pathInjection": "absolute",
+          "pathContract": "Do not use {SKILL_DIR} placeholders inside Page Sub-Agent packets; use toolPaths.* absolute paths.",
+          "commandTemplates": {
+            "recordDispatchCompletion": "node \"c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\record-dispatch-completion.mjs\" \"c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\" --node-id=\"page-settings\" --html-src=\"pages/settings.html\" --status=completed --changed-files=<comma-separated-project-relative-files> --trace-digest=<main-agent-runtime-trace-digest> --tool-ledger-json=<tool-ledger-json-or-file>"
+          }
+        },
+        "cssFilePath": "c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\colors_and_type.css",
+        "htmlFilePath": "c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\pages\\settings.html",
+        "brandPrefix": "",
+        "aestheticsMode": "library-bound",
+        "toolDisciplineBlockPresent": true,
+        "fillHtmlHeadCommand": "node \"c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\apply-html-head-contract.mjs\" \"c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\colors_and_type.css\" \"c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\\pages\\settings.html\" --title=\"系統設定\" --lang=\"zh-CN\" --prefix=\"\" --replace-head",
+        "headFillMode": "replace-head-after-body",
+        "viewportMode": "app-shell-fixed-320x240-landscape",
+        "completionSchemaExpected": "full",
+        "restoreFields": null,
+        "restoreContractStatus": null,
+        "restoreCompactPacket": null,
+        "deterministicCommands": null,
+        "sourceAuthorityLock": null,
+        "preDispatchFileHashes": {
+          "lvgl-console-ui.design": "a90db732d5f595925e116693e9eb8a48226b614a994aac16a64cf9cf0fc86262"
+        },
+        "contextPreflight": {
+          "workflowPath": "intent-workflows/intent-page-library-bound/INTENT_WORKFLOW.md",
+          "requiredContextFiles": [
+            "shared-runtime/runtime-boundaries/lane-runtime-contracts.md",
+            "shared-runtime/agent-dispatch-runtime/lane-dispatch-index.md",
+            "delivery-quality/page-rendering-quality-gate.md",
+            "delivery-quality/design-artifact-validation.md",
+            "delivery-quality/delivery-evidence-contract.md"
+          ],
+          "optionalContextFiles": [
+            "visual-experience/visual-experience-guidelines.md"
+          ],
+          "passed": true
+        },
+        "pageSliceOnly": true,
+        "requiredFieldsPresent": true,
+        "missingFields": [],
+        "fillHtmlHeadCommandValid": true,
+        "mobileNavigation": {
+          "required": false,
+          "appliesToThisPage": false,
+          "canonicalHtmlIncluded": false,
+          "missingFields": []
+        },
+        "persistedToSummary": true,
+        "taskQueryAudited": false,
+        "proofSource": "summary-only",
+        "largeWorkflowFilesInTaskQuery": null
+      }
+    ],
+    "validationRunDiscipline": "main-agent-owns-validation; sub-agents perform local HTML self-check only",
+    "validationHistory": [],
+    "mainAgentPostDispatchMutations": [],
+    "validationRepairLedger": [],
+    "validationSnapshot": {},
+    "artifactReadinessEvidence": {},
+    "lowValueCallWatchdog": {
+      "applies": true,
+      "noProgressSignals": [
+        "no_tool_call",
+        "no_artifact_diff",
+        "no_structured_decision"
+      ],
+      "noProgressNextAction": "enter_readiness_or_blocked_summary",
+      "recordedAt": "2026-07-31T10:00:00Z"
+    },
+    "sourceAuthorityLock": {
+      "visualAuthority": "design-library",
+      "contentSupplement": "none",
+      "browserObservationRole": "targeted-verification-only",
+      "mayOverrideVisualAuthority": false,
+      "lockedBeforeDispatch": true
+    },
+    "visualQualityCheckpoints": [],
+    "viewportMode": "app-shell-fixed-320x240-landscape",
+    "sharedProjectShellContract": {
+      "shellType": "launcher-plus-feature-pages-app-shell",
+      "viewport": {
+        "width": 320,
+        "height": 240,
+        "mode": "fixed",
+        "orientation": "landscape",
+        "panel": "ST7789 240x320 panel mounted landscape -> 320x240"
+      },
+      "navigationModel": "two-stage: page-launcher (horizontal carousel app picker with prev/next peek, arrows, dots) -> feature page (top app bar with back button). No persistent tab bar.",
+      "sharedRegions": [
+        "launcher-statusbar",
+        "launcher-carousel",
+        "feature-appbar",
+        "feature-content"
+      ],
+      "launcher": {
+        "cardWidthPx": 176,
+        "peek": "adjacent cards partially visible at both viewport edges (~72px each side)",
+        "controls": [
+          "prev-arrow",
+          "next-arrow",
+          "pagination-dots",
+          "card-enter-button"
+        ]
+      },
+      "featureAppBar": {
+        "heightPx": 44,
+        "backDomId": "btn-back",
+        "backTarget": "page-launcher"
+      },
+      "featureLayout": "320px-wide content favors two-column layouts inside feature pages",
+      "mobileNavigation": {
+        "applies": false,
+        "reason": "fixed 320x240 embedded panel; launcher carousel + back button are the navigation"
+      }
+    },
+    "cssPreflightEvidence": {
+      "prefixMode": "prefixless",
+      "brandPrefix": "",
+      "note": "TRAE Work library tokens are prefixless semantic names (--bg-brand, --text-default, --border-neutral-l1). Project-local colors_and_type.css appends 4 bridge aliases (--background/--foreground/--muted/--color-muted) each mapped to an existing library token."
+    },
+    "expectedDispatches": [
+      {
+        "nodeId": "page-launcher",
+        "pageId": "page-launcher",
+        "targetPageId": "page-launcher",
+        "htmlSrc": "pages/launcher.html",
+        "packetType": "LibraryBoundPagePacket",
+        "status": "completed",
+        "changedFiles": [
+          "pages/launcher.html"
+        ],
+        "toolCallLedger": {
+          "source": "main-agent-runtime-trace",
+          "traceDigest": "launcher-landscape-20260731",
+          "todoWriteCalls": 0,
+          "previewCalls": 0,
+          "validationScriptCalls": 0,
+          "helperScriptWrites": 0
+        },
+        "recordedAt": "2026-07-31T09:19:34.645Z",
+        "source": "record-dispatch-completion.mjs"
+      },
+      {
+        "nodeId": "page-overview",
+        "pageId": "page-overview",
+        "targetPageId": "page-overview",
+        "htmlSrc": "pages/overview.html",
+        "packetType": "LibraryBoundPagePacket",
+        "status": "completed",
+        "changedFiles": [
+          "pages/overview.html"
+        ],
+        "toolCallLedger": {
+          "source": "main-agent-runtime-trace",
+          "traceDigest": "overview-landscape-20260731",
+          "todoWriteCalls": 0,
+          "previewCalls": 0,
+          "validationScriptCalls": 0,
+          "helperScriptWrites": 0
+        },
+        "recordedAt": "2026-07-31T09:19:34.720Z",
+        "source": "record-dispatch-completion.mjs"
+      },
+      {
+        "nodeId": "page-monitor",
+        "pageId": "page-monitor",
+        "targetPageId": "page-monitor",
+        "htmlSrc": "pages/monitor.html",
+        "packetType": "LibraryBoundPagePacket",
+        "status": "completed",
+        "changedFiles": [
+          "pages/monitor.html"
+        ],
+        "toolCallLedger": {
+          "source": "main-agent-runtime-trace",
+          "traceDigest": "monitor-landscape-20260731",
+          "todoWriteCalls": 0,
+          "previewCalls": 0,
+          "validationScriptCalls": 0,
+          "helperScriptWrites": 0
+        },
+        "recordedAt": "2026-07-31T09:19:34.793Z",
+        "source": "record-dispatch-completion.mjs"
+      },
+      {
+        "nodeId": "page-control",
+        "pageId": "page-control",
+        "targetPageId": "page-control",
+        "htmlSrc": "pages/control.html",
+        "packetType": "LibraryBoundPagePacket",
+        "status": "completed",
+        "changedFiles": [
+          "pages/control.html"
+        ],
+        "toolCallLedger": {
+          "source": "main-agent-runtime-trace",
+          "traceDigest": "control-landscape-20260731",
+          "todoWriteCalls": 0,
+          "previewCalls": 0,
+          "validationScriptCalls": 0,
+          "helperScriptWrites": 0
+        },
+        "recordedAt": "2026-07-31T09:19:34.863Z",
+        "source": "record-dispatch-completion.mjs"
+      },
+      {
+        "nodeId": "page-settings",
+        "pageId": "page-settings",
+        "targetPageId": "page-settings",
+        "htmlSrc": "pages/settings.html",
+        "packetType": "LibraryBoundPagePacket",
+        "status": "completed",
+        "changedFiles": [
+          "pages/settings.html"
+        ],
+        "toolCallLedger": {
+          "source": "main-agent-runtime-trace",
+          "traceDigest": "settings-landscape-20260731",
+          "todoWriteCalls": 0,
+          "previewCalls": 0,
+          "validationScriptCalls": 0,
+          "helperScriptWrites": 0
+        },
+        "recordedAt": "2026-07-31T09:19:34.932Z",
+        "source": "record-dispatch-completion.mjs"
+      }
+    ]
+  },
+  "designSource": {
+    "operatingMode": "library-bound",
+    "cssFilePath": "colors_and_type.css",
+    "libraryIdentity": {
+      "name": "TRAE Work",
+      "id": "dl_builtin_trae_work",
+      "version": null,
+      "scope": "built-in-global",
+      "path": "c:\\Users\\bl24847\\.trae\\design_libraries\\dl_builtin_trae_work",
+      "versionSource": "metadata.json"
+    },
+    "actualTokenNameReference": "project-local colors_and_type.css (verbatim library copy + 4 semantic bridge aliases each mapped to an existing library token)",
+    "componentPlan": {
+      "sharedShell": "launcher: slim 28px status bar + horizontal carousel (168px cards, edge peek, arrows, dots); feature pages: 44px top app bar with back button + scrollable content",
+      "pageComponents": {
+        "page-launcher": [
+          "app-card (custom, token-built)",
+          "ds-btn",
+          "ds-tag"
+        ],
+        "page-overview": [
+          "ds-card",
+          "ds-tag",
+          "ds-progress",
+          "ds-notif"
+        ],
+        "page-monitor": [
+          "ds-card",
+          "ds-tag",
+          "ds-progress",
+          "inline SVG sparkline"
+        ],
+        "page-control": [
+          "ds-card",
+          "ds-switch",
+          "ds-slider",
+          "ds-btn",
+          "segmented"
+        ],
+        "page-settings": [
+          "ds-card",
+          "ds-input",
+          "ds-select",
+          "ds-switch",
+          "ds-radio",
+          "ds-slider",
+          "ds-btn"
+        ]
+      }
+    },
+    "tokenFidelity": {
+      "mode": "library-tokens-only",
+      "lightModeOnly": true,
+      "shimAliases": [
+        "--background -> --bg-base-default",
+        "--foreground -> --text-default",
+        "--muted -> --bg-base-tertiary",
+        "--color-muted -> --bg-base-tertiary"
+      ]
+    }
+  },
+  "pages": [
+    {
+      "nodeId": "page-launcher",
+      "htmlSrc": "pages/launcher.html",
+      "title": "功能選擇"
+    },
+    {
+      "nodeId": "page-overview",
+      "htmlSrc": "pages/overview.html",
+      "title": "儀表盤"
+    },
+    {
+      "nodeId": "page-monitor",
+      "htmlSrc": "pages/monitor.html",
+      "title": "數據監控"
+    },
+    {
+      "nodeId": "page-control",
+      "htmlSrc": "pages/control.html",
+      "title": "設備控制"
+    },
+    {
+      "nodeId": "page-settings",
+      "htmlSrc": "pages/settings.html",
+      "title": "系統設定"
+    }
+  ]
+}

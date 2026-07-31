@@ -1,0 +1,107 @@
+{
+  "success": true,
+  "outcome": "passed",
+  "repairable": true,
+  "terminalViolations": [],
+  "terminalBlockingSummary": null,
+  "skillProvenance": {
+    "name": "solo-design",
+    "version": "2026.07.22.00.00.00",
+    "version_source": "skill-release-manifest.json",
+    "runtime_skill_dir": null,
+    "recorded_at": null,
+    "expected_version": "2026.07.22.00.00.00",
+    "status": "matched",
+    "read_status": "ok"
+  },
+  "operatingMode": "library-bound",
+  "renderBlockingErrorCount": 0,
+  "softWarningCount": 5,
+  "renderBlockingErrors": [],
+  "errorSignatures": [],
+  "softWarnings": [
+    "[library-bound-css] control.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__title, .appbar__live, .appbar__livedot, .page-content, .col). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
+    "[library-bound-css] launcher.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.statusbar, .statusbar__left, .statusbar__dot, .statusbar__device, .statusbar__right, .sb-icon, .statusbar__time, .launcher). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
+    "[library-bound-css] monitor.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__title, .appbar__live, .appbar__livedot, .page-content, .mon-cols). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
+    "[library-bound-css] overview.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.min-h-screen, .appbar, .appbar__back, .icon, .appbar__title, .appbar__live, .appbar__livedot, .page-content). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
+    "[library-bound-css] settings.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__title, .appbar__live, .appbar__livedot, .page-content, .settings-col). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead."
+  ],
+  "repairPlanHints": [],
+  "repairActionTable": [],
+  "errorCount": 0,
+  "warningCount": 5,
+  "errors": [],
+  "warnings": [
+    "[library-bound-css] control.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__title, .appbar__live, .appbar__livedot, .page-content, .col). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
+    "[library-bound-css] launcher.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.statusbar, .statusbar__left, .statusbar__dot, .statusbar__device, .statusbar__right, .sb-icon, .statusbar__time, .launcher). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
+    "[library-bound-css] monitor.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__title, .appbar__live, .appbar__livedot, .page-content, .mon-cols). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
+    "[library-bound-css] overview.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.min-h-screen, .appbar, .appbar__back, .icon, .appbar__title, .appbar__live, .appbar__livedot, .page-content). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
+    "[library-bound-css] settings.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__title, .appbar__live, .appbar__livedot, .page-content, .settings-col). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead."
+  ],
+  "validationRunDisciplineStatus": {
+    "declared": true,
+    "restoreMode": false,
+    "maxFullValidationRuns": null,
+    "validationHistoryCount": 0,
+    "repairLedgerCount": 0,
+    "softWarningsTriggerRepair": null,
+    "terminalState": null,
+    "nextAction": null,
+    "violations": [],
+    "success": true
+  },
+  "terminalState": null,
+  "nextCheck": {
+    "type": "finish-readiness",
+    "command": "node \"c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\validate-finish-readiness.mjs\" \"c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\" --check=all",
+    "fullValidationAllowed": false,
+    "reason": "workspace validation passed; run complete finish readiness before final delivery"
+  },
+  "repairBatch": [],
+  "repairContextPacket": {
+    "schema_version": "1.0",
+    "purpose": "small-context repair packet; read this before full validation-report.json",
+    "success": true,
+    "terminalState": null,
+    "skillProvenance": {
+      "name": "solo-design",
+      "version": "2026.07.22.00.00.00",
+      "version_source": "skill-release-manifest.json",
+      "runtime_skill_dir": null,
+      "recorded_at": null,
+      "expected_version": "2026.07.22.00.00.00",
+      "status": "matched",
+      "read_status": "ok"
+    },
+    "renderBlockingErrorCount": 0,
+    "softWarningCount": 5,
+    "renderBlockingErrors": [],
+    "repairActionTable": [],
+    "nextCheck": {
+      "type": "finish-readiness",
+      "command": "node \"c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\validate-finish-readiness.mjs\" \"c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\" --check=all",
+      "fullValidationAllowed": false,
+      "reason": "workspace validation passed; run complete finish readiness before final delivery"
+    },
+    "forbidden": [
+      "do not read validator source",
+      "do not rerun full validation when nextCheck.fullValidationAllowed=false",
+      "do not start preview/browser unless user explicitly asks",
+      "do not hand-edit repair ledger fields"
+    ]
+  },
+  "projectFileHashes": {
+    "lvgl-console-ui.design": "a90db732d5f595925e116693e9eb8a48226b614a994aac16a64cf9cf0fc86262",
+    "colors_and_type.css": "6810b6b13b1ed463ef7da943e0cc2054e3d92e62d4c3fc0847253e68518ee040",
+    "runtime-orchestration-summary.json": "3639f0462113b77c07ad6f069a26f9c252cc0d3ebd62da0db4c1e7a8752505bb",
+    "pages/control.html": "b4eafadb985f266f954ce4f3c4b17f413d9c033a566610f77dd2df107383bb93",
+    "pages/launcher.html": "8603dbc97c0a0f51106396f823b9a9ede35e6ac33260478cf7ec5e03c9b5b76d",
+    "pages/monitor.html": "3bee875c85082dd286debaedd8fc10c2e4e22de2f9ac1c53007d22db09354a82",
+    "pages/overview.html": "e75048220b77e98d6183cdb298b4b7783b3f5c113240c9e4d04a853bd5b8208a",
+    "pages/settings.html": "244bc79ce390a07257725190aad391779c549cf0ac631f184815900c8d569282"
+  },
+  "designDir": "c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui",
+  "expectedPages": 5,
+  "requireInteractions": null,
+  "checkedAt": "2026-07-31T09:19:49.054Z"
+}
