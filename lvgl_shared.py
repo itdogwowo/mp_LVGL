@@ -1,30 +1,46 @@
-# lvgl_shared.py — 緩衝分離架構
+# lvgl_shared.py — 緩衝分離架構 + slave new TFT 驅動 + 編碼器/按鈕
 # LVGL 只負責渲染到緩衝,flush_cb 只存 (area, data)
-# 「show」完全由用戶控制:你決定何時、怎麼送到 lcd_bus
+# 「show」完全由用戶控制:你決定何時、怎麼送到 TFT 驅動
+#
+# 顯示硬體：改用 slave new 的 TFT 驅動（bus service "lcd"，ST7789 + SpiBusAdapter）
+#   → boot.py 已 init，此處直接取用，不再自己 st7789_init
+# 輸入硬體：
+#   Inputs 類 — 可調編碼器(A=18/B=8) + 確認鍵(編碼器 C=17) + 退出鍵(外接 BTN=42)
 #
 # 核心 API:
 #   fb = FrameBuffer()
-#   fb.setup()          → 初始化 LVGL + ST7789(硬體 init 還是要做)
+#   fb.setup()          → 從 bus 拿 lcd + 初始化 LVGL
 #   fb.tick()           → lv.task_handler(),LVGL 渲染髒區到內部 list
 #   rects = fb.take()   → 取出 [(x1,y1,x2,y2, data_mv), ...]
-#   fb.flush_done()     → 告訴 LVGL 緩衝可再用(你在 show 完後呼叫)
+#   fb.show_rect(...)   → 用 TFT 驅動送一塊髒區
+#   inp = Inputs()      → 編碼器 + 雙按鈕
 
 from micropython import const
 import lcd_bus
 import lvgl as lv
-from machine import Pin, PWM, I2C
+from machine import Pin, PWM, I2C, Encoder
 import time
 
 # ============== 腳位定義 ==============
+# 對應 slave new 板子（boot.py/config.json）接線：
+#   SPI: sck=21, data=[14]；TFT: cs=11, dc=12, rst=13, bl=10
 class Pins:
     HOST       = const(1)
-    MOSI       = const(45)
-    CLK        = const(40)
-    DC         = const(41)
-    CS         = const(42)
-    RST        = const(39)
-    BL         = const(5)
+    MOSI       = const(14)   # slave new: data_pins=[14]（單線）
+    CLK        = const(21)   # slave new: sck=21
+    DC         = const(12)   # slave new: tft_dc
+    CS         = const(11)   # slave new: tft_cs
+    RST        = const(13)   # slave new: tft_rst
+    BL         = const(10)   # slave new: tft_bl
     SPI_FREQ   = const(80_000_000)
+
+    # 輸入腳位（操作階段用；本版僅記錄）
+    ENC_A      = const(18)   # 可調編碼器 A
+    ENC_B      = const(8)    # 可調編碼器 B
+    ENC_C      = const(17)   # 可調編碼器 按鍵
+    BTN        = const(42)   # 按鈕
+
+    # 觸控（slave new 板無 touch；demo3 觸控版用，保留原值）
     TOUCH_SDA  = const(1)
     TOUCH_SCL  = const(3)
     TOUCH_INT  = const(4)
@@ -74,6 +90,9 @@ def st7789_init(bus, dc, cs, rst, bl):
 class FrameBuffer:
     """LVGL 渲染 → 存緩衝+座標 → 你來 show。
 
+    預設直向 240×320（MADCTL=0x00）；橫屏控制台 UI 用
+    FrameBuffer(320, 240, 0x60)（ST7789 橫屏：MV|MX；上下倒轉改 0xA0）。
+
     用法:
         fb = FrameBuffer()
         fb.setup()
@@ -86,47 +105,64 @@ class FrameBuffer:
             fb.flush_done()              # 告訴 LVGL 可再渲染
     """
 
-    def __init__(self):
+    def __init__(self, w=WIDTH, h=HEIGHT, madctl=0x00):
+        self._w = w
+        self._h = h
+        self._madctl = madctl
         self._dirty = []       # [(x1, y1, x2, y2, bytes), ...]
         self._disp = None
+        self._buf = None
+        self._last = 0
         # 硬體 pin(供用戶 show 時用)
         self.bus = None
         self.dc = None
         self.cs = None
 
     def setup(self):
-        """初始化硬體 + LVGL。flush_cb 只存緩衝,不碰 SPI 像素傳送。"""
-        # --- 硬體 pin ---
-        self.dc = Pin(Pins.DC, Pin.OUT, value=0)
-        self.cs = Pin(Pins.CS, Pin.OUT, value=1)
-        rst = Pin(Pins.RST, Pin.OUT, value=1)
-        bl  = PWM(Pin(Pins.BL), freq=5000, duty_u16=0)
+        """初始化硬體 + LVGL。flush_cb 只存緩衝,不碰 SPI 像素傳送。
 
-        self.bus = lcd_bus.SPIBus(
-            data=(Pins.MOSI,), clk=Pins.CLK,
-            freq=Pins.SPI_FREQ, host=Pins.HOST
-        )
+        顯示硬體改用 slave new TFT 驅動（bus service "lcd"）：
+        boot.py 已建好 ST7789 + SpiBusAdapter，這裡直接取用。
+        """
+        # --- 從 bus 拿 TFT 驅動（slave new boot 已 init） ---
+        from lib.sys_bus import bus
+        self.lcd = bus.get_service("lcd")
+        if self.lcd is None:
+            raise RuntimeError("lcd not on bus — run slave new boot.py first")
+        self.bus = getattr(self.lcd, "_bus", None)
+        if self.bus is None:
+            raise RuntimeError("lcd service missing _bus (adapter)")
+        self.dc = getattr(self.bus, "_dc", None)
+        self.cs = getattr(self.bus, "_cs", None)
+        self.width = self._w
+        self.height = self._h
 
-        # ST7789 硬體 init(命令序列,不是像素)
-        st7789_init(self.bus, self.dc, self.cs, rst, bl)
+        # --- 橫屏：重設 MADCTL（boot 預設 0x00 直向） ---
+        if self._madctl != 0x00:
+            self._send_madctl(self._madctl)
 
         # --- LVGL ---
         # soft reboot 後 LVGL C 層殘留,先清再建
         if lv.is_initialized():
             lv.deinit()
         lv.init()
-        self._disp = lv.display_create(WIDTH, HEIGHT)
+        self._disp = lv.display_create(self._w, self._h)
         self._disp.set_color_format(_CF_RGB565)
 
         # 用 MicroPython heap(soft reboot 後乾淨),不用 lv.draw_buf_create
-        buf = bytearray(WIDTH * LINES * BPP)
+        buf = bytearray(self._w * LINES * BPP)
         # PARTIAL=0, DIRECT=1, FULL=2 (硬編碼,避免 soft reboot 後常數不穩定)
         self._disp.set_buffers(buf, None, len(buf), 0)
 
         # ★ flush_cb:只存緩衝+座標,不送 SPI ★
         self._disp.set_flush_cb(self._flush_cb)
 
-        print(f"FrameBuffer ready: {WIDTH}x{HEIGHT} PARTIAL lines={LINES}")
+        print("FrameBuffer ready: {}x{} madctl=0x{:02X} PARTIAL lines={}".format(
+            self._w, self._h, self._madctl, LINES))
+
+    def _send_madctl(self, val):
+        """重設 ST7789 MADCTL（0x36）以切換橫/直向。"""
+        self.bus.write_cmd_data(0x36, bytes([val]))
 
     def _flush_cb(self, disp_drv, area, color_p):
         """LVGL 渲染完一塊 → 拷貝到 bytes + 立即 flush_ready。
@@ -168,43 +204,14 @@ class FrameBuffer:
         """保留接口。目前 flush_cb 已即時 flush_ready,此方法為 no-op。"""
         pass
 
-    # --- 便捷方法:幫你 show(DMA fire-and-forget,對齊你 test_jpeg_full 風格) ---
+    # --- 便捷方法:幫你 show(透過 slave new TFT 驅動) ---
     def show_rect(self, x1, y1, x2, y2, data):
-        """把一塊髒區送到 ST7789。DMA fire-and-forget,最後 wait。"""
-        cs = self.cs
-        dc = self.dc
-        bus = self.bus
-
-        cs.value(0)
-
-        # CASET + RASET + RAMWR(命令用 polling,快速)
-        dc.value(0); bus.write(bytearray([0x2A])); bus.wait_all()
-        dc.value(1)
-        bus.write(bytes([(x1>>8)&0xFF, x1&0xFF, (x2>>8)&0xFF, x2&0xFF]))
-        bus.wait_all()
-
-        dc.value(0); bus.write(bytearray([0x2B])); bus.wait_all()
-        dc.value(1)
-        bus.write(bytes([(y1>>8)&0xFF, y1&0xFF, (y2>>8)&0xFF, y2&0xFF]))
-        bus.wait_all()
-
-        dc.value(0); bus.write(bytearray([0x2C])); bus.wait_all()
-        dc.value(1)
-
-        # ★ DMA fire-and-forget:收集 tid,最後才 wait ★
-        tids = []
-        off = 0
-        total = len(data)
-        while off < total:
-            n = min(32768, total - off)
-            tid = bus.write(data[off:off+n])
-            if tid is not None:
-                tids.append(tid)
-            off += n
-        for tid in tids:
-            bus.wait(tid)
-
-        cs.value(1)
+        """把一塊髒區送到 ST7789（用 slave new TFT 驅動：set_window + write_data_async）。
+        大 buffer 由 C 層 async 分 chunk，最後 flush 等完成。"""
+        lcd = self.lcd
+        lcd.set_window(x1, y1, x2, y2)
+        self.bus.write_data_async(data)
+        self.bus.flush()
 
     def show_all(self):
         """便捷:tick + take + show 全部髒區。一行搞定。"""
@@ -266,3 +273,49 @@ class CST328:
         tx = x if x < WIDTH else WIDTH - 1
         ty = y if y < HEIGHT else HEIGHT - 1
         return (tx, ty)
+
+
+# ============== 輸入：可調編碼器 + 雙按鈕 ==============
+#   編碼器   A=18  B=8  C(按鍵)=17 → 確認
+#   外接按鈕 42 → 退出
+class Inputs:
+    """可調編碼器 + 兩個按鈕（確認=編碼器 C、退出=外接 BTN）。
+
+    用法:
+        inp = Inputs()
+        d = inp.enc_delta()        # 編碼器轉動量(+N/-N)
+        if inp.confirm_pressed():  # 編碼器按鍵(確認)
+        if inp.exit_pressed():     # 外接按鈕(退出)
+    """
+
+    def __init__(self, enc_a=Pins.ENC_A, enc_b=Pins.ENC_B,
+                 enc_c=Pins.ENC_C, btn=Pins.BTN):
+        self._enc = Encoder(0, Pin(enc_a, Pin.IN, Pin.PULL_UP),
+                            Pin(enc_b, Pin.IN, Pin.PULL_UP))
+        self._enc_last = self._enc.value()
+        self._confirm = Pin(enc_c, Pin.IN, Pin.PULL_UP)
+        self._exit = Pin(btn, Pin.IN, Pin.PULL_UP)
+        # 按鈕去抖狀態（low=按下）
+        self._c_last = self._confirm.value()
+        self._e_last = self._exit.value()
+
+    def enc_delta(self):
+        """回傳自上次呼叫以來的轉動量（順時針+,逆時針-）。"""
+        v = self._enc.value()
+        d = v - self._enc_last
+        self._enc_last = v
+        return d
+
+    def confirm_pressed(self):
+        """確認鍵（編碼器 C）是否被按下（一次邊緣）。"""
+        v = self._confirm.value()
+        edge = (self._c_last == 1 and v == 0)
+        self._c_last = v
+        return edge
+
+    def exit_pressed(self):
+        """退出鍵（外接 BTN）是否被按下（一次邊緣）。"""
+        v = self._exit.value()
+        edge = (self._e_last == 1 and v == 0)
+        self._e_last = v
+        return edge

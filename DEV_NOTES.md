@@ -238,8 +238,17 @@ mp_LVGL/
 ├── lvgl_demo3_touch.py     ← 觸控 + 圓點跟手 + 滑桿拖動 + FPS
 ├── lvgl_demo4_siminput.py  ← 模擬輸入(不依賴觸控硬體,驗證 indev)
 ├── test_jpeg_full.py       ← 參考:JPEG 管線 DMA fire-and-forget 模式
+├── gen_font.py             ← 中文字體產生(CLI,自動掃描源碼字符)
+├── tools/                  ← LVGL UI Asset Studio(Web GUI,自包含)
+│   ├── ui_assets_server.py ←   零參數啟動,開瀏覽器操作
+│   ├── assets/             ←   核心邏輯(scanner/icons/zhfont/fxgen)
+│   ├── web/                ←   單頁介面
+│   └── workspace/          ←   工作區:design上傳/cache下載/out產物
 └── DEV_NOTES.md            ← 本文件
 ```
+
+`tools/` 的產生流程:設計稿上傳 → 掃描 → 生成 icons_16.bin /
+zh_hant_16.bin / lv_ui_fx.py / fx_notes.md(全在 tools/workspace/out)。
 
 ---
 

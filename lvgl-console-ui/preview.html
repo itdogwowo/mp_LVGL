@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LVGL 控制台 — UI 預覽</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ws: #14171e;
+  --ws-2: #1a1e27;
+  --line: #2a3040;
+  --line-soft: #222735;
+  --ink: #e8eaf0;
+  --ink-dim: #8b93a7;
+  --ink-faint: #5b6274;
+  --amber: #f2a90c;
+  --amber-soft: rgba(242, 169, 12, .14);
+  --green: #2fb287;
+  --green-soft: rgba(47, 178, 135, .14);
+  --blue: #5f8bff;
+  --blue-soft: rgba(95, 139, 255, .14);
+  --red: #e8463a;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --disp: "Chakra Petch", "PingFang SC", "Microsoft JhengHei", sans-serif;
+  --body: "PingFang SC", "Microsoft JhengHei", system-ui, sans-serif;
+  --zoom: 2;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  background:
+    radial-gradient(1100px 600px at 22% -10%, rgba(95, 139, 255, .07), transparent 60%),
+    radial-gradient(900px 500px at 100% 110%, rgba(242, 169, 12, .05), transparent 55%),
+    var(--ws);
+  color: var(--ink);
+  font-family: var(--body);
+  overflow: hidden;
+}
+/* 工作台網格紋理 */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(var(--line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size: 36px 36px;
+  opacity: .28;
+  pointer-events: none;
+}
+
+/* ── 頂欄 ─────────────────────────────────────────── */
+.topbar {
+  position: relative; z-index: 2;
+  height: 54px;
+  display: flex; align-items: center; gap: 16px;
+  padding: 0 22px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255,255,255,.025), transparent);
+}
+.topbar__mark {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--disp); font-weight: 700; font-size: 16px; letter-spacing: .04em;
+}
+.topbar__mark i {
+  width: 10px; height: 10px; border-radius: 2px; background: var(--amber);
+  box-shadow: 0 0 10px rgba(242,169,12,.7);
+  animation: blink 2.6s ease-in-out infinite;
+}
+.topbar__sub { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); letter-spacing: .06em; }
+.topbar__spec {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 11px; color: var(--ink-dim);
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 24px; padding: 0 10px;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: var(--ws-2); color: var(--ink-dim);
+  font-family: var(--mono); font-size: 11px; letter-spacing: .04em;
+}
+.chip b { color: var(--ink); font-weight: 600; }
+.zoom { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.zoom button {
+  height: 24px; padding: 0 10px; border: none; background: var(--ws-2);
+  color: var(--ink-dim); font-family: var(--mono); font-size: 11px; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.zoom button + button { border-left: 1px solid var(--line); }
+.zoom button:hover { color: var(--ink); background: #232938; }
+.zoom button.is-on { background: var(--amber-soft); color: var(--amber); }
+
+/* ── 主區佈局 ─────────────────────────────────────── */
+.bench {
+  position: relative; z-index: 1;
+  display: flex; height: calc(100% - 54px);
+}
+.stage {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.panel {
+  width: 340px; flex: 0 0 340px;
+  border-left: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--ws-2), rgba(26,30,39,.6));
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+}
+
+/* ── 設備外框 ─────────────────────────────────────── */
+.device {
+  padding: 18px 22px 20px;
+  background: linear-gradient(160deg, #232833, #171b23 70%);
+  border: 1px solid #313848;
+  border-radius: 18px;
+  box-shadow:
+    0 30px 70px -30px rgba(0,0,0,.8),
+    inset 0 1px 0 rgba(255,255,255,.06);
+  animation: settle .5s cubic-bezier(.2,.9,.3,1) both;
+}
+.device__row { display: flex; align-items: center; gap: 8px; }
+.device__row--top { margin-bottom: 12px; }
+.device__row--bot { margin-top: 14px; justify-content: space-between; }
+.led { width: 7px; height: 7px; border-radius: 50%; }
+.led--pwr { background: var(--green); box-shadow: 0 0 8px rgba(47,178,135,.9); animation: blink 3.2s ease-in-out infinite; }
+.led--link { background: var(--amber); box-shadow: 0 0 8px rgba(242,169,12,.8); animation: blink 2.1s ease-in-out .6s infinite; }
+.silk { font-family: var(--mono); font-size: 9px; letter-spacing: .14em; color: var(--ink-faint); text-transform: uppercase; }
+.silk--right { margin-left: auto; }
+
+.screen-well {
+  width: calc(320px * var(--zoom));
+  height: calc(240px * var(--zoom));
+  padding: calc(7px * 1);
+  background: #0b0d12;
+  border-radius: 10px;
+  border: 1px solid #05060a;
+  box-shadow: inset 0 2px 10px rgba(0,0,0,.9), inset 0 0 0 1px rgba(255,255,255,.03);
+  transition: width .25s ease, height .25s ease;
+}
+.screen-clip { position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 5px; }
+.screen {
+  position: absolute; top: 0; left: 0;
+  width: 320px; height: 240px;
+  transform: scale(var(--zoom));
+  transform-origin: 0 0;
+  background: #f5f5f5;
+  transition: transform .25s ease;
+}
+.screen iframe {
+  position: absolute; inset: 0;
+  width: 320px; height: 240px; border: 0;
+  opacity: 0; pointer-events: none;
+  transform: translateX(var(--tx, 16px));
+  transition: opacity .3s ease, transform .3s cubic-bezier(.2,.9,.3,1);
+}
+.screen iframe.is-active { opacity: 1; pointer-events: auto; transform: none; }
+/* 螢幕玻璃反光 */
+.screen-clip::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: 5px;
+  background: linear-gradient(115deg, rgba(255,255,255,.09) 0%, transparent 22%);
+}
+
+/* ── 右側控制台 ───────────────────────────────────── */
+.panel__sec { padding: 16px 18px; border-bottom: 1px solid var(--line-soft); }
+.panel__label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--ink-faint); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.panel__label::after { content: ''; flex: 1; height: 1px; background: var(--line-soft); }
+
+.readout {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 10px 12px;
+  background: #10131a; border: 1px solid var(--line-soft); border-radius: 8px;
+  font-family: var(--mono);
+}
+.readout__id { font-size: 12px; color: var(--amber); font-weight: 600; }
+.readout__title { font-size: 12px; color: var(--ink-dim); }
+.readout__fps { margin-left: auto; font-size: 10px; color: var(--green); }
+.readout__fps::before { content: '●'; margin-right: 5px; animation: blink 1.6s ease-in-out infinite; }
+
+.pagemap { display: flex; flex-direction: column; gap: 4px; }
+.pagemap button {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border: 1px solid transparent; border-radius: 8px;
+  background: transparent; color: var(--ink-dim); cursor: pointer; text-align: left;
+  font-family: var(--body); font-size: 13px;
+  transition: background .15s, border-color .15s, color .15s, transform .15s;
+}
+.pagemap button:hover { background: rgba(255,255,255,.04); color: var(--ink); transform: translateX(2px); }
+.pagemap button.is-active {
+  background: var(--blue-soft); border-color: rgba(95,139,255,.35); color: var(--ink);
+}
+.pagemap__idx { font-family: var(--mono); font-size: 10px; color: var(--ink-faint); width: 18px; }
+.pagemap button.is-active .pagemap__idx { color: var(--blue); }
+.pagemap__tag {
+  margin-left: auto; font-family: var(--mono); font-size: 9px; letter-spacing: .08em;
+  padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,.05); color: var(--ink-faint);
+}
+.pagemap button.is-active .pagemap__tag { background: rgba(95,139,255,.18); color: var(--blue); }
+
+/* 輸入模擬（對應 lvgl_ui_launcher.py） */
+.inputs { display: flex; align-items: stretch; gap: 8px; }
+.hw {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 6px 8px;
+  background: #10131a; border: 1px solid var(--line-soft); border-radius: 10px;
+  color: var(--ink-dim); cursor: pointer; font-family: var(--mono);
+  transition: border-color .12s, background .12s, transform .1s;
+}
+.hw:hover { border-color: #3a4256; color: var(--ink); }
+.hw:active { transform: scale(.95); background: #171b25; }
+.hw__cap {
+  width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 600;
+  background: linear-gradient(160deg, #2a3040, #1a1e28);
+  border: 1px solid #3a4256; color: var(--ink);
+  box-shadow: 0 3px 6px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.08);
+}
+.hw--confirm .hw__cap { background: linear-gradient(160deg, #3a3320, #241f10); border-color: #6b5a1e; color: var(--amber); }
+.hw--exit .hw__cap { background: linear-gradient(160deg, #33221f, #221412); border-color: #6b3a33; color: var(--red); }
+.hw__pin { font-size: 9px; letter-spacing: .06em; color: var(--ink-faint); }
+.hw__name { font-size: 10px; }
+.hint {
+  margin-top: 10px; font-family: var(--mono); font-size: 10px; color: var(--ink-faint);
+  line-height: 1.8; letter-spacing: .03em;
+}
+.hint kbd {
+  display: inline-block; padding: 0 5px; height: 16px; line-height: 16px;
+  border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px;
+  background: var(--ws-2); color: var(--ink-dim); font-family: var(--mono); font-size: 9px;
+}
+
+/* 事件記錄（模擬 serial log） */
+.logsec { flex: 1; display: flex; flex-direction: column; min-height: 140px; border-bottom: 0; }
+.log {
+  flex: 1; overflow-y: auto;
+  background: #0d1016; border: 1px solid var(--line-soft); border-radius: 8px;
+  padding: 8px 10px;
+  font-family: var(--mono); font-size: 10.5px; line-height: 1.75;
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+}
+.log::-webkit-scrollbar { width: 3px; }
+.log::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
+.log__line { color: var(--ink-dim); animation: logline .25s ease both; }
+.log__line span { color: var(--ink-faint); margin-right: 8px; }
+.log__line--nav { color: var(--blue); }
+.log__line--ok { color: var(--green); }
+.log__line--warn { color: var(--amber); }
+
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@keyframes settle { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes logline { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 900px) {
+  body { overflow: auto; }
+  .bench { flex-direction: column; height: auto; }
+  .panel { width: 100%; flex: none; border-left: 0; border-top: 1px solid var(--line); }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar__mark"><i></i>LVGL 控制台</div>
+  <span class="topbar__sub">lvgl-console-ui · preview</span>
+  <div class="topbar__spec">
+    <span class="chip">PANEL <b>ST7789</b></span>
+    <span class="chip">RES <b>320×240</b></span>
+    <span class="chip">MODE <b>landscape</b></span>
+    <span class="zoom" id="zoom">
+      <button data-z="1">1×</button><button data-z="1.5">1.5×</button><button data-z="2" class="is-on">2×</button>
+    </span>
+  </div>
+</header>
+
+<div class="bench">
+  <!-- 左：設備 -->
+  <div class="stage">
+    <div class="device">
+      <div class="device__row device__row--top">
+        <span class="led led--pwr"></span>
+        <span class="led led--link"></span>
+        <span class="silk">ST7789 · 240×320 → landscape</span>
+        <span class="silk silk--right">SPI / 60MHz</span>
+      </div>
+      <div class="screen-well" id="well">
+        <div class="screen-clip">
+          <div class="screen" id="screen"></div>
+        </div>
+      </div>
+      <div class="device__row device__row--bot">
+        <span class="silk">LVGL-Console rev C</span>
+        <span class="silk">enc A/B · C=GPIO17 · BTN=GPIO42</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右：控制台 -->
+  <aside class="panel">
+    <div class="panel__sec">
+      <div class="panel__label">Currently Running</div>
+      <div class="readout">
+        <span class="readout__id" id="roId">page-launcher</span>
+        <span class="readout__title" id="roTitle">功能選擇</span>
+        <span class="readout__fps">LVGL tick</span>
+      </div>
+    </div>
+
+    <div class="panel__sec">
+      <div class="panel__label">Page Map</div>
+      <div class="pagemap" id="pagemap"></div>
+    </div>
+
+    <div class="panel__sec">
+      <div class="panel__label">Input Sim · 硬體輸入</div>
+      <div class="inputs">
+        <button class="hw" id="hwPrev" type="button">
+          <span class="hw__cap">⟲</span><span class="hw__name">ENC A</span><span class="hw__pin">旋轉 ‹</span>
+        </button>
+        <button class="hw hw--confirm" id="hwConfirm" type="button">
+          <span class="hw__cap">C</span><span class="hw__name">確認</span><span class="hw__pin">GPIO17</span>
+        </button>
+        <button class="hw" id="hwNext" type="button">
+          <span class="hw__cap">⟳</span><span class="hw__name">ENC B</span><span class="hw__pin">旋轉 ›</span>
+        </button>
+        <button class="hw hw--exit" id="hwExit" type="button">
+          <span class="hw__cap">✕</span><span class="hw__name">退出</span><span class="hw__pin">BTN 42</span>
+        </button>
+      </div>
+      <div class="hint">
+        <kbd>←</kbd> <kbd>→</kbd> 旋轉焦點（launcher）· <kbd>Enter</kbd> 確認進入 · <kbd>Esc</kbd> 返回選擇
+      </div>
+    </div>
+
+    <div class="panel__sec logsec">
+      <div class="panel__label">Event Log</div>
+      <div class="log" id="log"></div>
+    </div>
+  </aside>
+</div>
+
+<script>
+(function () {
+  var PAGES = [
+    { id: 'page-launcher', file: 'pages/launcher.html', title: '功能選擇', tag: 'launcher' },
+    { id: 'page-overview', file: 'pages/overview.html', title: '儀表盤',   tag: 'feature' },
+    { id: 'page-monitor',  file: 'pages/monitor.html',  title: '數據監控', tag: 'feature' },
+    { id: 'page-control',  file: 'pages/control.html',  title: '設備控制', tag: 'feature' },
+    { id: 'page-settings', file: 'pages/settings.html', title: '系統設定', tag: 'feature' }
+  ];
+  /* 路由表：來自 lvgl-console-ui.design 的 interactions */
+  var ROUTES = {
+    'card-overview': 'page-overview',
+    'card-monitor':  'page-monitor',
+    'card-control':  'page-control',
+    'card-settings': 'page-settings',
+    'btn-back':      'page-launcher'
+  };
+
+  var screen = document.getElementById('screen');
+  var logEl = document.getElementById('log');
+  var roId = document.getElementById('roId');
+  var roTitle = document.getElementById('roTitle');
+  var pagemap = document.getElementById('pagemap');
+  var frames = {};
+  var mapBtns = {};
+  var current = 'page-launcher';
+  var run = 0;
+
+  function ts() {
+    var d = new Date();
+    function p(n) { return String(n).padStart(2, '0'); }
+    return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+  function log(msg, cls) {
+    var line = document.createElement('div');
+    line.className = 'log__line' + (cls ? ' log__line--' + cls : '');
+    line.innerHTML = '<span>' + ts() + '</span>' + msg;
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+    while (logEl.children.length > 80) { logEl.removeChild(logEl.firstChild); }
+  }
+
+  /* ── 建立 iframe 與頁面地圖 ── */
+  PAGES.forEach(function (p, i) {
+    var f = document.createElement('iframe');
+    f.src = p.file;
+    f.title = p.title;
+    f.setAttribute('data-page', p.id);
+    screen.appendChild(f);
+    frames[p.id] = f;
+
+    f.addEventListener('load', function () {
+      try {
+        f.contentDocument.addEventListener('click', function (e) {
+          var t = e.target.closest ? e.target.closest('[data-dom-id]') : null;
+          if (!t) { return; }
+          var dest = ROUTES[t.getAttribute('data-dom-id')];
+          if (dest) { go(dest, t.getAttribute('data-dom-id')); }
+        });
+      } catch (err) { log('iframe 存取失敗（請用 HTTP 開啟）', 'warn'); }
+    });
+
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = '<span class="pagemap__idx">' + String(i).padStart(2, '0') + '</span>' +
+                  '<span>' + p.title + '</span>' +
+                  '<span class="pagemap__tag">' + p.tag + '</span>';
+    b.addEventListener('click', function () { go(p.id, 'map'); });
+    pagemap.appendChild(b);
+    mapBtns[p.id] = b;
+  });
+
+  function pageById(id) {
+    for (var i = 0; i < PAGES.length; i++) { if (PAGES[i].id === id) { return PAGES[i]; } }
+    return null;
+  }
+
+  /* ── 頁面切換 ── */
+  function go(id, via) {
+    if (id === current) { return; }
+    var fromLauncher = current === 'page-launcher';
+    var toLauncher = id === 'page-launcher';
+    var incoming = frames[id];
+    incoming.style.setProperty('--tx', (toLauncher && !fromLauncher) ? '-16px' : '16px');
+
+    frames[current].classList.remove('is-active');
+    incoming.classList.add('is-active');
+    current = id;
+
+    var p = pageById(id);
+    roId.textContent = id;
+    roTitle.textContent = p.title;
+    Object.keys(mapBtns).forEach(function (k) {
+      mapBtns[k].classList.toggle('is-active', k === id);
+    });
+
+    run += 1;
+    if (toLauncher) { log('[back] 返回選擇 <i>#' + run + '</i>', 'nav'); }
+    else if (fromLauncher) { log('[confirm] enter ' + p.title + ' <i>#' + run + '</i>', 'nav'); }
+    else { log('[jump] → ' + p.title, 'nav'); }
+  }
+
+  /* ── 輸入模擬 ── */
+  function launcherDoc() { return frames['page-launcher'].contentDocument; }
+  function launcherWin() { return frames['page-launcher'].contentWindow; }
+
+  function rotate(dir) {
+    if (current !== 'page-launcher') { log('[enc] 旋轉（僅 launcher 可切換焦點）', 'warn'); return; }
+    try {
+      launcherWin().dispatchEvent(new KeyboardEvent('keydown', { key: dir < 0 ? 'ArrowLeft' : 'ArrowRight' }));
+      var act = launcherDoc().querySelector('.app-card.is-active');
+      if (act) {
+        var name = act.querySelector('.app-card__title');
+        log('[enc] focus: ' + (name ? name.textContent : act.getAttribute('data-dom-id')));
+      }
+    } catch (err) { log('[enc] 無法轉發（頁面未載入）', 'warn'); }
+  }
+
+  function confirmPress() {
+    if (current !== 'page-launcher') { log('[confirm] 目前不在 launcher（按 Esc 返回）', 'warn'); return; }
+    var act = launcherDoc().querySelector('.app-card.is-active');
+    if (!act) { log('[confirm] 無焦點卡片', 'warn'); return; }
+    var dest = ROUTES[act.getAttribute('data-dom-id')];
+    if (dest) { go(dest, 'enc-confirm'); }
+  }
+
+  function exitPress() {
+    if (current === 'page-launcher') { log('[exit] 已在 launcher', 'warn'); return; }
+    log('[exit] BTN42 觸發');
+    go('page-launcher', 'btn42');
+  }
+
+  document.getElementById('hwPrev').addEventListener('click', function () { rotate(-1); });
+  document.getElementById('hwNext').addEventListener('click', function () { rotate(1); });
+  document.getElementById('hwConfirm').addEventListener('click', confirmPress);
+  document.getElementById('hwExit').addEventListener('click', exitPress);
+
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft') { e.preventDefault(); rotate(-1); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); rotate(1); }
+    else if (e.key === 'Enter') { e.preventDefault(); confirmPress(); }
+    else if (e.key === 'Escape') { exitPress(); }
+  });
+
+  /* ── 縮放 ── */
+  var zoomBtns = document.querySelectorAll('#zoom button');
+  zoomBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.documentElement.style.setProperty('--zoom', b.getAttribute('data-z'));
+      zoomBtns.forEach(function (x) { x.classList.toggle('is-on', x === b); });
+    });
+  });
+
+  /* ── 初始 ── */
+  frames['page-launcher'].classList.add('is-active');
+  mapBtns['page-launcher'].classList.add('is-active');
+  log('Launcher ready — encoder: focus / C: confirm / BTN42: exit', 'ok');
+  log('[boot] 5 pages loaded · viewport 320×240 · ST7789 landscape');
+})();
+</script>
+</body>
+</html>

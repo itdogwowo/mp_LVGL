@@ -1,0 +1,93 @@
+{
+  "name": "LVGL 控制台",
+  "width": 320,
+  "height": 240,
+  "pages": [
+    {
+      "id": "page-launcher",
+      "title": "功能選擇",
+      "file": "launcher.html",
+      "tag": "launcher"
+    },
+    {
+      "id": "page-control",
+      "title": "設備控制",
+      "file": "control.html",
+      "tag": "feature"
+    },
+    {
+      "id": "page-monitor",
+      "title": "數據監控",
+      "file": "monitor.html",
+      "tag": "feature"
+    },
+    {
+      "id": "page-overview",
+      "title": "儀表盤",
+      "file": "overview.html",
+      "tag": "feature"
+    },
+    {
+      "id": "page-settings",
+      "title": "系統設定",
+      "file": "settings.html",
+      "tag": "feature"
+    }
+  ],
+  "interactions": [
+    {
+      "id": "card-overview",
+      "type": "button",
+      "label": "card-overview",
+      "file": "launcher.html"
+    },
+    {
+      "id": "card-monitor",
+      "type": "button",
+      "label": "card-monitor",
+      "file": "launcher.html"
+    },
+    {
+      "id": "card-control",
+      "type": "button",
+      "label": "card-control",
+      "file": "launcher.html"
+    },
+    {
+      "id": "card-settings",
+      "type": "button",
+      "label": "card-settings",
+      "file": "launcher.html"
+    },
+    {
+      "id": "btn-back",
+      "type": "button",
+      "label": "btn-back",
+      "file": "control.html"
+    },
+    {
+      "id": "act-pause",
+      "type": "button",
+      "label": "act-pause",
+      "file": "control.html"
+    },
+    {
+      "id": "act-start",
+      "type": "button",
+      "label": "act-start",
+      "file": "control.html"
+    },
+    {
+      "id": "act-reset",
+      "type": "button",
+      "label": "act-reset",
+      "file": "settings.html"
+    },
+    {
+      "id": "act-save",
+      "type": "button",
+      "label": "act-save",
+      "file": "settings.html"
+    }
+  ]
+}

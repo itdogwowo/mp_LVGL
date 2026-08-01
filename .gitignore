@@ -1,1 +1,4 @@
 ESP32-S3-Touch-LCD-2.8-Demo/
+
+# LVGL UI Asset Studio 工作區（下載快取 15MB、產物可重新生成,不進 git）
+tools/workspace/

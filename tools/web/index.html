@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LVGL UI Asset Studio</title>
+<style>
+  :root {
+    --bg: #f4f6f8; --card: #ffffff; --line: #e2e6ea;
+    --text: #1f2328; --muted: #6b7280;
+    --brand: #1a73e8; --brand-bg: #e8f0fe;
+    --ok: #188038; --warn: #b06000;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 "PingFang SC", system-ui, sans-serif;
+         background: var(--bg); color: var(--text); }
+  header { display: flex; align-items: center; gap: 16px; padding: 12px 20px;
+           background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 17px; margin: 0; }
+  header .ws { color: var(--muted); font-size: 12px; font-family: ui-monospace, monospace; }
+  .actions { margin-left: auto; display: flex; gap: 8px; }
+  main { padding: 16px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  section h2 { margin: 0 0 10px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+  section h2 .badge { font-size: 11px; color: var(--muted); font-weight: 400; }
+  .hint { color: var(--muted); font-size: 12px; }
+  button { border: 1px solid var(--line); background: var(--card); color: var(--text);
+           border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 13px; }
+  button:hover { border-color: var(--brand); color: var(--brand); }
+  button.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+  button.primary:hover { opacity: .9; color: #fff; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  input[type=text], textarea, select {
+    border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px;
+    font-size: 13px; font-family: inherit; background: #fff; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  .dropzone { border: 2px dashed var(--line); border-radius: 8px; padding: 18px;
+              text-align: center; color: var(--muted); cursor: pointer; margin-bottom: 10px; }
+  .dropzone.over { border-color: var(--brand); background: var(--brand-bg); color: var(--brand); }
+  .file-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--bg);
+               border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px;
+               font-size: 12px; margin: 0 6px 6px 0; }
+  .file-chip button { border: 0; background: none; padding: 0 2px; color: var(--muted); font-size: 13px; }
+  .prev { font-family: "ms-icons", "PingFang SC", sans-serif; font-size: 18px; min-width: 40px; }
+  .cp { font-family: ui-monospace, monospace; color: var(--muted); font-size: 11px; }
+  .warn { color: var(--warn); }
+  .ok { color: var(--ok); }
+  .ms-in { width: 180px; }
+  .zh-chars { font-size: 15px; line-height: 1.8; max-height: 120px; overflow-y: auto;
+              background: var(--bg); border-radius: 6px; padding: 8px; }
+  #log { font-family: ui-monospace, monospace; font-size: 12px; background: #0f1720;
+         color: #c9d6e2; border-radius: 8px; padding: 10px 12px; height: 170px;
+         overflow-y: auto; white-space: pre-wrap; }
+  .fx-note { font-size: 12px; color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .out-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .out-chip { background: #eef2f6; border: 1px solid var(--line); border-radius: 6px;
+              padding: 3px 8px; font-size: 12px; font-family: ui-monospace, monospace; }
+  @font-face { font-family: "ms-icons"; src: url("/cache/material_symbols_rounded.ttf"); }
+  .tabs { display: flex; gap: 4px; padding: 10px 20px 0; }
+  .tab { border: 1px solid var(--line); border-bottom: 0; border-radius: 8px 8px 0 0;
+         background: var(--card); padding: 6px 16px; cursor: pointer; font-size: 13px; }
+  .tab.is-active { border-color: var(--brand); color: var(--brand); font-weight: 600; }
+  .pv-page-btn { border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px;
+                 font-size: 12px; cursor: pointer; background: var(--card); }
+  .iap { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px;
+         border: 1px solid var(--line); border-radius: 6px; background: var(--bg);
+         font-family: ui-monospace, monospace; font-size: 10px; color: var(--muted); }
+  .iap b { color: var(--brand); }
+  .iap .iap__t { font-size: 9px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚙️ LVGL UI Asset Studio</h1>
+  <span class="ws" id="ws"></span>
+  <div class="actions">
+    <button onclick="doScan()">重新掃描</button>
+    <button class="primary" onclick="gen('all')">生成全部</button>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button class="tab is-active" data-tab="tab-design">設計稿</button>
+  <button class="tab" data-tab="tab-assets">資產</button>
+  <button class="tab" data-tab="tab-ui">UI 框架</button>
+  <button class="tab" data-tab="tab-preview">設計預覽 / 模擬器</button>
+</nav>
+
+<main>
+  <!-- Design 庫 -->
+  <section class="tabpane" id="tab-design">
+    <h2>Design 庫 <span class="badge">tools/design/ 下多個 design</span></h2>
+    <div id="dlib-empty" class="hint">尚無 design。可新增,或把設計稿檔上傳（自動建 design）。</div>
+    <div id="dlib-panel" style="display:none">
+      <table>
+        <thead><tr><th>名稱</th><th>解析度</th><th>頁面</th><th>互動 API</th><th>操作</th></tr></thead>
+        <tbody id="dlib-rows"></tbody>
+      </table>
+    </div>
+    <div class="grid2" style="margin-top:12px">
+      <label class="hint">新增 design
+        <span style="display:flex;gap:6px;margin-top:4px">
+          <input type="text" id="dlib-name" placeholder="名稱(目錄名)" style="flex:1">
+          <input type="number" id="dlib-w" value="320" style="width:64px" title="寬">
+          <span style="align-self:center">×</span>
+          <input type="number" id="dlib-h" value="240" style="width:64px" title="高">
+        </span>
+      </label>
+      <div style="display:flex;flex-direction:column;justify-content:flex-end">
+        <div class="dropzone" id="dz2" style="padding:10px;margin-bottom:0">拖放設計稿檔到指定 design（見提示）</div>
+      </div>
+    </div>
+    <p class="hint" style="margin-top:8px">
+      上傳格式:檔名前面加「{design}/」即上傳到該 design,例如 <code>lvgl-console-ui/launcher.html</code>。
+      已存在的 design 資料夾可用右側「重新掃描」更新 design.json。</p>
+  </section>
+
+  <!-- 資產（Icons/中文/動效） -->
+  <section class="tabpane" id="tab-assets" style="display:none">
+  <!-- Icons -->
+  <section>
+    <h2>圖示（Icons）<span class="badge" id="icon-badge"></span></h2>
+    <div id="icon-empty" class="hint">先上傳設計稿並掃描,這裡會列出 lucide 圖示。</div>
+    <div style="overflow-x:auto; display:none" id="icon-table-wrap">
+      <table>
+        <thead><tr><th>lucide</th><th>Material Symbols 名稱</th><th>碼點</th><th>預覽</th></tr></thead>
+        <tbody id="icon-rows"></tbody>
+      </table>
+      <p class="hint">名稱可改;預覽用下載快取的 Material Symbols 字體。</p>
+    </div>
+    <datalist id="mslist"></datalist>
+  </section>
+
+  <!-- 中文 -->
+  <section>
+    <h2>中文字體 <span class="badge" id="zh-badge"></span></h2>
+    <div id="zh-empty" class="hint">掃描後顯示設計稿的非 ASCII 字符。</div>
+    <div id="zh-panel" style="display:none">
+      <div class="zh-chars" id="zh-chars"></div>
+      <p class="hint">上面是掃描到的字符（供確認,生成會自動收集）。</p>
+      <div class="grid2" style="margin-top:8px">
+        <label class="hint">附加字符(動態字串用,可留空)
+          <input type="text" id="extra-chars" placeholder="例: °℃·→" style="width:100%;margin-top:4px">
+        </label>
+        <div style="display:flex;align-items:flex-end">
+          <button onclick="gen('zh')" style="width:100%">生成 zh_hant_16.bin</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 動效 -->
+  <section>
+    <h2>動態效果 <span class="badge" id="fx-badge"></span></h2>
+    <div id="fx-empty" class="hint">掃描後顯示 CSS 動效 → LVGL 對照。</div>
+    <div id="fx-panel" style="display:none">
+      <table>
+        <thead><tr><th>CSS 動畫</th><th>LVGL 對應</th></tr></thead>
+        <tbody id="fx-anim-rows"></tbody>
+      </table>
+      <p class="hint" id="fx-hover-note"></p>
+      <div style="margin-top:10px"><button onclick="gen('fx')">生成 lv_ui_fx.py + fx_notes.md</button></div>
+    </div>
+  </section>
+  </section><!-- /tab-assets -->
+
+  <!-- UI 框架 -->
+  <section class="tabpane" id="tab-ui" style="display:none">
+    <h2>UI 框架 <span class="badge">動態註冊式 ui/ 結構</span></h2>
+    <div id="ui-empty" class="hint">尚未產生。點下方按鈕產生到 workspace/out/ui/。</div>
+    <div id="ui-panel" style="display:none">
+      <table>
+        <thead><tr><th>頁面 id</th><th>標題</th><th>圖示</th><th>檔案</th></tr></thead>
+        <tbody id="ui-page-rows"></tbody>
+      </table>
+      <p class="hint" id="ui-files"></p>
+      <div style="margin-top:10px; display:flex; gap:8px">
+        <button class="primary" onclick="gen('ui')">產生 / 重新產生框架代碼</button>
+      </div>
+      <p class="hint" style="margin-top:8px">
+        架上測試:soft reboot 後 <code>import ui.board; ui.board.run()</code>。
+        頁面切換會重建 screen 並刪除舊屏（修 heap 累積 reboot）。</p>
+    </div>
+  </section>
+
+  <!-- 設計預覽 + 模擬器（上下對比一頁） -->
+  <section class="tabpane" id="tab-preview" style="display:none">
+    <h2>設計預覽 <span class="badge">iframe 預覽框 · 設計稿原樣顯示</span></h2>
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap">
+      <label class="hint">Design:
+        <select id="pv-select" onchange="previewSwitch()"></select>
+      </label>
+      <span class="hint" id="pv-meta"></span>
+      <span style="margin-left:auto" class="zoom" id="pv-zoom">
+        <button data-z="1">1×</button><button data-z="1.5" class="is-on">1.5×</button><button data-z="2">2×</button>
+      </span>
+    </div>
+    <div id="pv-pages" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px"></div>
+    <div id="pv-empty" class="hint">design 庫沒有設計稿 .html,請先上傳。</div>
+    <div id="pv-frame-wrap" style="display:none; border:1px solid var(--line); border-radius:8px; background:#f5f5f5; overflow:hidden">
+      <iframe id="pv-frame" style="display:block; border:0; background:#f5f5f5"></iframe>
+    </div>
+    <div style="margin-top:8px">
+      <span class="hint">Interactions · MPY 交互 API:</span>
+      <div id="pv-interactions" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:4px"></div>
+    </div>
+
+    <hr style="border:0; border-top:1px solid var(--line); margin:18px 0">
+    <h2>模擬器 <span class="badge">本地離線 · MicroPython + LVGL 9</span></h2>
+    <!-- 四區拆分:頂欄 / Display canvas / 代碼 textarea / REPL -->
+    <div style="display:flex; gap:8px; align-items:center; margin:8px 0; flex-wrap:wrap">
+      <span class="hint" id="sim-status">離線就緒</span>
+      <span style="margin-left:auto; display:flex; gap:6px">
+        <button onclick="simRun()">▶ 跑</button>
+        <button onclick="simSave()">💾 儲存</button>
+        <button onclick="simReloadCode()">↻ 重新載入代碼</button>
+      </span>
+    </div>
+    <div style="display:flex; gap:12px; flex-wrap:wrap">
+      <!-- Display canvas（lvgl.html 抓父頁面 #canvas） -->
+      <div style="border:1px solid var(--line); border-radius:8px; background:#0b0d12; padding:10px">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px">
+          <span class="hint">Display</span>
+          <span class="hint" id="sim-size">320×240</span>
+        </div>
+        <canvas id="canvas" width="320" height="240"
+                style="width:320px; height:240px; background:#1a1e27; border-radius:4px"></canvas>
+      </div>
+      <!-- 代碼區 + REPL -->
+      <div style="flex:1; min-width:320px; display:flex; flex-direction:column; gap:8px">
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
+            <span class="hint">代碼（design/lvgl/ui/ · MicroPython）</span>
+            <span class="hint" id="sim-code-src"></span>
+          </div>
+          <textarea id="sim-code" rows="10" spellcheck="false"
+            style="width:100%; font-family:ui-monospace,monospace; font-size:12px;
+                   background:#0f1720; color:#c9d6e2; border:1px solid var(--line);
+                   border-radius:6px; padding:8px; resize:vertical"></textarea>
+        </div>
+        <div style="flex:1">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
+            <span class="hint">REPL</span>
+            <span class="hint" id="sim-repl-cursor"></span>
+          </div>
+          <div id="sim-repl" tabindex="0" contenteditable="false"
+            style="height:120px; overflow-y:auto; font-family:ui-monospace,monospace; font-size:12px;
+                   background:#0d1016; color:#c9d6e2; border:1px solid var(--line);
+                   border-radius:6px; padding:8px; white-space:pre-wrap"></div>
+        </div>
+      </div>
+    </div>
+    <!-- 隱藏:模擬器 runtime iframe（id 必須是 emscripten-iframe,runtime 讀父頁面） -->
+    <iframe id="emscripten-iframe" src="/sim/lvgl.html" style="display:none"></iframe>
+  </section>
+</main>
+
+<footer style="padding: 0 20px 20px;">
+  <h2 style="font-size:13px;margin:0 0 6px;color:var(--muted)">Log</h2>
+  <div id="log">等待操作…</div>
+  <div style="margin-top:10px" class="out-list" id="out-list"></div>
+</footer>
+
+<script>
+const state = { msNames: {}, scan: null, mapping: {}, logAfter: 0, defaults: {}, designNames: [], previewDesign: null };
+const $ = id => document.getElementById(id);
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || path);
+  return j;
+}
+
+// ---------- 字形預覽字體 ----------
+function fontReady() {
+  return state.msNames && Object.keys(state.msNames).length > 0;
+}
+function cpHex(cp) { return "U+" + cp.toString(16).toUpperCase().padStart(4, "0"); }
+
+// ---------- 初始載入 ----------
+async function init() {
+  try {
+    const s = await api("/api/state");
+    $("ws").textContent = "工作區: " + s.workspace;
+    state.mapping = s.icons_mapping || {};
+    state.defaults = s.icons_default || {};
+    $("extra-chars").value = s.extra_chars || "";
+    renderOut(s.out);
+    loadDesigns().then(designs => {
+      state.designNames = designs.map(d => d.name);
+      if (!state.previewDesign && designs.length) state.previewDesign = designs[0].name;
+      syncPreviewDesigns();
+      if (designs.length) { awaitScanForIcons(); }
+    });
+  } catch (e) { logLine("✗ " + e.message); }
+  // ms codepoints
+  api("/api/msnames").then(j => {
+    state.msNames = j.names || {};
+    const dl = $("mslist");
+    dl.innerHTML = Object.keys(state.msNames).slice(0, 2000)
+      .map(n => `<option value="${n}">`).join("");
+    renderIconRows();
+  }).catch(() => {});
+  pollLog();
+  setInterval(pollLog, 900);
+}
+
+// ---------- Design 庫 ----------
+async function loadDesigns() {
+  try {
+    const j = await api("/api/designs");
+    renderDesigns(j.designs);
+    return j.designs;
+  } catch (e) { logLine("✗ " + e.message); return []; }
+}
+function renderDesigns(list) {
+  $("dlib-panel").style.display = list.length ? "" : "none";
+  $("dlib-empty").style.display = list.length ? "none" : "";
+  $("dlib-rows").innerHTML = list.map(d =>
+    `<tr><td><b>${d.title}</b> <span class="hint">(${d.name})</span></td>
+     <td>${d.width}×${d.height}</td><td>${d.pages}</td>
+     <td>${d.interactions.length}</td>
+     <td style="white-space:nowrap">
+       <button onclick="scanDesign('${d.name}')">重新掃描</button>
+       <button onclick="previewDesign('${d.name}')">預覽</button>
+       <button onclick="delDesign('${d.name}')">刪除</button>
+     </td></tr>`).join("");
+}
+async function newDesign() {
+  const name = $("dlib-name").value.trim();
+  if (!name) { logLine("✗ 請輸入 design 名稱"); return; }
+  const w = parseInt($("dlib-w").value) || 320, h = parseInt($("dlib-h").value) || 240;
+  await api("/api/design/new", { method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, width: w, height: h }) });
+  $("dlib-name").value = "";
+  await loadDesigns();
+}
+async function scanDesign(name) {
+  await api("/api/design/scan", { method: "POST",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+  await loadDesigns();
+}
+async function delDesign(name) {
+  if (!confirm("刪除 design '" + name + "'?")) return;
+  await api("/api/design/delete", { method: "POST",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+  await loadDesigns();
+}
+function previewDesign(name) {
+  state.previewDesign = name;
+  const sel = $("pv-select");
+  if (sel) sel.value = name;
+  document.querySelector(`.tab[data-tab="tab-preview"]`).click();
+}
+// 上傳到 design 庫（檔名前綴 {design}/ 指定目標）
+const dz2 = $("dz2");
+["dragenter", "dragover"].forEach(ev => dz2.addEventListener(ev, e => { e.preventDefault(); dz2.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => dz2.addEventListener(ev, e => { e.preventDefault(); dz2.classList.remove("over"); }));
+dz2.addEventListener("drop", e => uploadDesignFiles([...e.dataTransfer.files]));
+dz2.addEventListener("click", () => {
+  const inp = document.createElement("input");
+  inp.type = "file"; inp.multiple = true;
+  inp.onchange = () => uploadDesignFiles([...inp.files]);
+  inp.click();
+});
+async function uploadDesignFiles(files) {
+  if (!files.length) return;
+  const target = (state.designNames && state.designNames.length) ? state.designNames[0] : "lvgl-console-ui";
+  const fd = new FormData();
+  files.forEach(f => fd.append("file", f, target + "/" + f.name));
+  try {
+    const r = await api("/api/design/upload", { method: "POST", body: fd });
+    logLine("↑ 上傳: " + r.saved.join(", "));
+    await loadDesigns();
+  } catch (e) { logLine("✗ " + e.message); }
+}
+
+// ---------- 掃描 ----------
+async function awaitScanForIcons() {
+  await doScan();
+}
+async function doScan() {
+  logLine("重新掃描…");
+  const body = state.previewDesign ? JSON.stringify({ design: state.previewDesign }) : "{}";
+  const r = await api("/api/scan", { method: "POST", body });
+  state.scan = r.scan;
+  renderScan();
+}
+function renderScan() {
+  const s = state.scan;
+  $("icon-badge").textContent = `${s.icons.length} 個`;
+  $("zh-badge").textContent = `${s.char_count} 字符`;
+  $("fx-badge").textContent = `${s.fx.animations.length} 動畫 / ${s.fx.hover.length} hover`;
+  renderIconRows();
+  renderZh();
+  renderFx();
+}
+function renderIconRows() {
+  if (!state.scan) return;
+  const wrap = $("icon-table-wrap"), tbody = $("icon-rows");
+  tbody.innerHTML = "";
+  if (!state.scan.icons.length) { $("icon-empty").style.display = ""; wrap.style.display = "none"; return; }
+  $("icon-empty").style.display = "none"; wrap.style.display = "";
+  for (const name of state.scan.icons) {
+    const tr = document.createElement("tr");
+    tr.dataset.lucide = name;
+    const val = (state.mapping[name] || state.defaults[name] || "");
+    tr.innerHTML = `
+      <td>${name}</td>
+      <td><input class="ms-in" list="mslist" value="${val}"></td>
+      <td class="cp"></td><td class="prev"></td>`;
+    const inp = tr.querySelector(".ms-in");
+    inp.addEventListener("input", () => { state.mapping[name] = inp.value.trim(); updateRow(tr); });
+    tbody.appendChild(tr);
+    updateRow(tr);
+  }
+}
+function updateRow(tr) {
+  const name = tr.dataset.lucide, ms = tr.querySelector(".ms-in").value.trim();
+  const cp = state.msNames[ms];
+  tr.querySelector(".cp").textContent = cp ? cpHex(cp) : "—";
+  const pv = tr.querySelector(".prev");
+  pv.textContent = cp ? String.fromCodePoint(cp) : "?";
+  pv.style.opacity = cp ? 1 : 0.25;
+}
+function renderZh() {
+  const s = state.scan;
+  const panel = $("zh-panel");
+  $("zh-empty").style.display = s.char_count ? "none" : "";
+  if (!s.char_count) { panel.style.display = "none"; return; }
+  panel.style.display = "";
+  $("zh-chars").textContent = s.chars.length > 400 ? s.chars.slice(0, 400) + " …" : s.chars;
+}
+function renderFx() {
+  const s = state.scan, fx = s.fx;
+  $("fx-panel").style.display = fx.animations.length ? "" : "none";
+  $("fx-empty").style.display = fx.animations.length ? "none" : "";
+  const rows = $("fx-anim-rows");
+  rows.innerHTML = fx.animations.map(a => {
+    const cls = classifyFx(a.name);
+    return `<tr><td><code>${a.name}</code></td>
+            <td>${cls}</td></tr>`;
+  }).join("");
+  $("fx-hover-note").textContent = `另有 ${fx.hover.length} 個 :hover/:active/:focus 狀態、${fx.transitions.length} 個 transition,完整對照見生成的 fx_notes.md。`;
+}
+function classifyFx(name) {
+  if (["pulse", "live-ping", "mon-ping"].includes(name)) return "pulse() 呼吸閃爍";
+  if (["rise", "fade-in", "set-in", "tile-in", "mon-fade"].includes(name)) return "fade_in() 淡入+位移";
+  if (name === "bar-grow") return "bar_grow() 進度成長";
+  if (name === "mon-draw") return "— 略過(SVG 描繪,LVGL 無對應)";
+  if (name === "ds-skeleton-shine") return "— 略過(skeleton 掃光)";
+  return "手動對應";
+}
+
+// ---------- 生成 ----------
+async function gen(task) {
+  const btn = document.querySelector('button.primary');
+  btn.disabled = true;
+  try {
+    logLine("提交生成: " + task);
+    await api("/api/generate", { method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        task,
+        icons_mapping: state.mapping,
+        extra_chars: $("extra-chars").value,
+      }) });
+  } catch (e) { logLine("✗ " + e.message); }
+  setTimeout(() => btn.disabled = false, 2000);
+}
+
+// ---------- log ----------
+function logLine(t) {
+  $("log").textContent += (state.logAfter ? "\n" : "") + t;
+  $("log").scrollTop = $("log").scrollHeight;
+}
+async function pollLog() {
+  try {
+    const j = await api(`/api/log?after=${state.logAfter}`);
+    if (j.lines.length) {
+      $("log").textContent += (state.logAfter ? "\n" : "") + j.lines.join("\n");
+      $("log").scrollTop = $("log").scrollHeight;
+      state.logAfter = j.last;
+      refreshOut();
+    }
+  } catch (e) { /* 忽略 polling 錯誤 */ }
+}
+async function refreshOut() {
+  const s = await api("/api/state");
+  renderOut(s.out);
+}
+function renderOut(list) {
+  $("out-list").innerHTML = list.length
+    ? list.map(f => `<span class="out-chip">${f.name} (${(f.size/1024).toFixed(1)}KB)</span>`).join("")
+    : "";
+}
+
+// ---------- 分頁 ----------
+document.getElementById("tabs").addEventListener("click", e => {
+  const b = e.target.closest(".tab");
+  if (!b) return;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("is-active", t === b));
+  document.querySelectorAll(".tabpane").forEach(p =>
+    p.style.display = p.id === b.dataset.tab ? "" : "none");
+  if (b.dataset.tab === "tab-ui") loadUiState();
+  if (b.dataset.tab === "tab-preview") { if (state.previewDesign || state.designNames.length) previewSwitch(); simCheck(); }
+});
+
+// ---------- UI 框架 ----------
+async function loadUiState() {
+  try {
+    const j = await api("/api/ui_state");
+    const panel = $("ui-panel"), empty = $("ui-empty");
+    if (!j.generated) { panel.style.display = "none"; empty.style.display = ""; return; }
+    empty.style.display = "none"; panel.style.display = "";
+    $("ui-page-rows").innerHTML = j.pages.map(p =>
+      `<tr><td><code>${p.id}</code></td><td>${p.title}</td>
+       <td>${p.icon || "—"}</td><td>${p.file}</td></tr>`).join("");
+    $("ui-files").textContent = "框架檔案(" + j.files.length + "): " + j.files.join("  ");
+  } catch (e) { logLine("✗ " + e.message); }
+}
+
+// ---------- 設計預覽（iframe 直接開設計稿,不污染工具頁） ----------
+const pvState = { design: null, dim: { w: 320, h: 240 }, zoom: 1.5 };
+
+function pvApplyZoom() {
+  const f = $("pv-frame"), wrap = $("pv-frame-wrap");
+  const w = pvState.dim.w * pvState.zoom, h = pvState.dim.h * pvState.zoom;
+  f.style.width = w + "px";
+  f.style.height = h + "px";
+  f.style.transform = `scale(${pvState.zoom})`;
+  f.style.transformOrigin = "top left";
+  wrap.style.width = w + "px";
+  wrap.style.height = h + "px";
+}
+async function previewSwitch() {
+  const sel = $("pv-select");
+  const name = sel.value;
+  if (!name) { $("pv-empty").style.display = ""; return; }
+  state.previewDesign = name;
+  const j = await api("/api/designs");
+  const d = j.designs.find(x => x.name === name);
+  if (!d || !d.pages) { $("pv-empty").style.display = ""; return; }
+  $("pv-empty").style.display = "none";
+  $("pv-frame-wrap").style.display = "";
+  $("pv-meta").textContent = `${d.title} · ${d.width}×${d.height} · ${d.pages} 頁`;
+  pvState.design = name;
+  pvState.dim = { w: d.width, h: d.height };
+  renderPvInteractions(d.interactions);
+  // 頁面按鈕列（用 design.json 的 pages）
+  const meta = await api(`/api/design/render?design=${encodeURIComponent(name)}&page=launcher.html`)
+    .then(r => r).catch(() => ({ pages: [] }));
+  const pages = meta.pages && meta.pages.length ? meta.pages : [];
+  $("pv-pages").innerHTML = pages.map(p =>
+    `<button class="pv-page-btn" data-file="${p.file}" ${p.file === "launcher.html" ? 'style="border-color:var(--brand);color:var(--brand)"' : ""}>${p.title}</button>`).join("");
+  $("pv-pages").querySelectorAll(".pv-page-btn").forEach(b =>
+    b.onclick = () => pvShow(b.dataset.file, b));
+  pvShow("launcher.html");
+}
+function pvShow(pageFile, btn) {
+  const f = $("pv-frame");
+  f.src = `/preview/${encodeURIComponent(pvState.design)}/${encodeURIComponent(pageFile)}`;
+  $("pv-pages").querySelectorAll(".pv-page-btn").forEach(b =>
+    b.style.cssText = b === btn ? "border-color:var(--brand);color:var(--brand)" : "");
+  pvApplyZoom();
+}
+function renderPvInteractions(list) {
+  $("pv-interactions").innerHTML = (list || []).length
+    ? list.map(i => `<span class="iap"><b>${i.id}</b><span class="iap__t">${i.type}</span></span>`).join("")
+    : '<span class="hint">無互動元素</span>';
+}
+function syncPreviewDesigns() {
+  const sel = $("pv-select");
+  sel.innerHTML = state.designNames.map(n =>
+    `<option value="${n}" ${n === state.previewDesign ? "selected" : ""}>${n}</option>`).join("");
+}
+// 縮放控制
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("#pv-zoom button");
+  if (!b) return;
+  pvState.zoom = parseFloat(b.dataset.z);
+  document.querySelectorAll("#pv-zoom button").forEach(x => x.classList.toggle("is-on", x === b));
+  pvApplyZoom();
+});
+
+// ---------- 模擬器（本地離線） ----------
+function simCheck() {
+  const st = $("sim-status");
+  st.textContent = "模擬器由本地 /sim 提供（已下載到 cache/vendor/sim）。若畫面空白表示尚未下載完成,稍後重試。";
+}
+
+init();
+</script>
+</body>
+</html>
