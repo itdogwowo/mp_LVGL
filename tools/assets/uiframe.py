@@ -67,11 +67,17 @@ APP_PY = '''# ui/app.py — 動態註冊式 UI 主程式
 #             刪除舊 screen(釋放全部子物件) → on_enter 新頁
 # 每次進入都重建,不沿用舊實例 → 記憶體乾淨。
 #
-# 平台解耦:所有硬體透過 platform 物件注入,本檔不 import lvgl_shared。
-#   板上: ui/board.py 用 FrameBuffer+Inputs 組 platform 再 app.init/run
+# 平台解耦:所有硬體透過 platform 物件注入,本檔不 import 任何硬體。
+#   板上: ui/board.py 用 slave new bus 組 platform
+#   模擬器: 直接 import app(平級) 或 ui.app(package) 皆可(見下方相容 import)
 import lvgl as lv
-import ui.registry as registry
-import ui.launcher as launcher
+try:
+    import ui.registry as registry
+    import ui.launcher as launcher
+except ImportError:
+    # 模擬器 wasm importer 不支援 package 目錄 → 平級 import
+    import registry
+    import launcher
 
 platform = None      # {tick, take, show, enc_delta, confirm, exit}
 cur = None
@@ -83,7 +89,9 @@ def init(plat):
     """注入 platform 物件 + 載入所有頁面(集中 import 已註冊)。"""
     global platform
     platform = plat
-    import ui.page  # noqa: F401  集中 import 觸發全部 @register + 補 mod
+    # 頁面由外部註冊(板上 = ui/page/__init__;模擬器 = 啟動碼平級 import)
+    # 這裡不強制 import,避免模擬器(無 package)與板上行為差異
+    pass
 
 
 def _page():
@@ -137,37 +145,56 @@ def go(name, back=False):
 
 
 def run():
-    """主迴圈(啟動後不返回)。"""
-    global _run
-    go("launcher")
+    """主迴圈(啟動後不返回)。板上用。"""
     while True:
-        d = platform["enc_delta"]()
-        c = platform["confirm"]()
-        ex = platform["exit"]()
-        m = _page()
+        step()
+        _sleep(5)
 
-        if d != 0 and hasattr(m, "on_enc"):
-            m.on_enc(d)
-        if c and hasattr(m, "on_confirm"):
-            target = m.on_confirm()
-            if target:
-                go(target)
-        if ex and cur != "launcher":
-            go("launcher", back=True)
 
-        if hasattr(m, "update"):
-            m.update(_run)
-        _run += 1
+def _sleep(ms):
+    try:
+        import time
+        time.sleep_ms(ms)
+    except Exception:
+        pass
 
-        platform["tick"]()
-        for rect in platform["take"]():
-            platform["show"](*rect)
+
+def step():
+    """單幀處理(模擬器事件驅動用)。回傳 1 表示處理了一幀。"""
+    global _run
+    d = platform["enc_delta"]()
+    c = platform["confirm"]()
+    ex = platform["exit"]()
+    m = _page()
+
+    if d != 0 and hasattr(m, "on_enc"):
+        m.on_enc(d)
+    if c and hasattr(m, "on_confirm"):
+        target = m.on_confirm()
+        if target:
+            go(target)
+    if ex and cur != "launcher":
+        go("launcher", back=True)
+
+    if hasattr(m, "update"):
+        m.update(_run)
+    _run += 1
+
+    platform["tick"]()
+    for rect in platform["take"]():
+        platform["show"](*rect)
+    return 1
 '''
 
 LAUNCHER_PY = '''# ui/launcher.py — 動態主頁面（讀 registry 產生卡片,不硬編碼）
 import lvgl as lv
-from ui import ui_common as u
-from ui.registry import ordered
+try:
+    from ui.registry import ordered
+    from ui import ui_common as u
+except ImportError:
+    # 模擬器平級模式
+    from registry import ordered
+    import ui_common as u
 
 scr = None
 cards = []
@@ -292,33 +319,199 @@ registry.PAGES["control"]["mod"] = control
 registry.PAGES["settings"]["mod"] = settings
 '''
 
-PAGE_BOARD_PY = '''# ui/board.py — 板上平台實作（lvgl_ui_app 的替代入口）
+# 模擬器平級模式:ui/page/ 無法作為 package import,
+# 改由啟動碼把 ui/page 目錄加進 sys.path,再 import page 模組。
+PAGE_INIT_PY_FLAT = '''# ui/page/__init__.py（模擬器平級模式替身 — 未使用,見啟動碼）
+'''
+
+PAGE_BOARD_PY = '''# ui/board.py — 板上對接層（slave new bus 系統）
 #
-# 用法（soft reboot 後）:
+# ui/ 是 slave new 專案裡的一個 UI 區塊（像 tasks/lib）。
+# 硬體全部透過 slave new 的 bus 系統取得,本檔不自建任何硬體:
+#   顯示   bus.get_service("lcd")   （ST7789 + SpiBusAdapter,set_window/write_data_async）
+#   編碼器 bus.shared["_enc_delta"] （control_panel 累加寫入）
+#   按鈕   bus.shared["_vbtn1_event"]（VBTN 虛擬按鈕事件）
+#
+# 用法（slave new 環境,soft reboot 後）:
 #   import ui.board
 #   ui.board.run()
+import sys
 import lvgl as lv
-from lvgl_shared import FrameBuffer, Inputs
+from lib.sys_bus import bus
 from ui import app
+
+# 資源在 ui/src,加進 import 路徑（ui_common 的 from lv_icons/lv_ui_fx 由此找到）
+_SRC = "/ui/src"
+if _SRC not in sys.path:
+    sys.path.insert(0, _SRC)
+
+_W = 320
+_H = 240
+_LINES = 40
+_BPP = 2
+
+
+class _Platform:
+    """slave new bus 版平台:app 吃 {tick,take,show,enc_delta,confirm,exit}。"""
+
+    def __init__(self):
+        self.lcd = bus.get_service("lcd")
+        if self.lcd is None:
+            raise RuntimeError("lcd not on bus — 先跑 boot.py")
+        self._bus = getattr(self.lcd, "_bus", None)
+        self._dirty = []
+        self._last_enc = 0
+
+        # LVGL 初始化
+        if lv.is_initialized():
+            lv.deinit()
+        lv.init()
+        self._disp = lv.display_create(_W, _H)
+        self._disp.set_color_format(18)  # RGB565
+        buf = bytearray(_W * _LINES * _BPP)
+        self._disp.set_buffers(buf, None, len(buf), 0)  # PARTIAL
+        self._disp.set_flush_cb(self._flush_cb)
+
+    # ---- LVGL flush:存髒區,由主迴圈 show ----
+    def _flush_cb(self, disp_drv, area, color_p):
+        w = area.x2 - area.x1 + 1
+        h = area.y2 - area.y1 + 1
+        data = color_p.__dereference__(w * h * _BPP)
+        lv.draw_sw_rgb565_swap(data, w * h)
+        self._dirty.append((area.x1, area.y1, area.x2, area.y2, bytes(data)))
+        disp_drv.flush_ready()
+
+    # ---- platform 介面 ----
+    def tick(self):
+        import time
+        time.sleep_us(5000)
+        lv.tick_inc(5)
+        lv.task_handler()
+        lv.refr_now(self._disp)
+
+    def take(self):
+        rects = self._dirty
+        self._dirty = []
+        return rects
+
+    def show(self, x1, y1, x2, y2, data):
+        self.lcd.set_window(x1, y1, x2, y2)
+        self._bus.write_data_async(data)
+        self._bus.flush()
+
+    def enc_delta(self):
+        v = int(bus.shared.get("_enc_delta", 0) or 0)
+        d = v - self._last_enc
+        self._last_enc = v
+        return d
+
+    def confirm(self):
+        return bool(bus.shared.get("_vbtn1_event", 0) or 0)
+
+    def exit(self):
+        return False
 
 
 def run():
-    """初始化硬體 + 注入 platform + 啟動主迴圈。"""
-    fb = FrameBuffer(320, 240, 0x60)
-    fb.setup()
+    """建立 slave new 平台 + 啟動 UI 主迴圈。"""
+    plat = _Platform()
 
-    from lvgl_ui_common import init_fonts
-    init_fonts()
-
-    inp = Inputs()
+    # 載入字體資源 + 註冊頁面（ui/src 已加進 sys.path）
+    import ui_common
+    ui_common.init_fonts()
+    try:
+        import ui.page  # noqa: F401  板上:集中註冊所有頁面
+    except ImportError:
+        pass
 
     app.init({
-        "tick": fb.tick,
-        "take": fb.take,
-        "show": fb.show_rect,
-        "enc_delta": inp.enc_delta,
-        "confirm": inp.confirm_pressed,
-        "exit": inp.exit_pressed,
+        "tick": plat.tick,
+        "take": plat.take,
+        "show": plat.show,
+        "enc_delta": plat.enc_delta,
+        "confirm": plat.confirm,
+        "exit": plat.exit,
+    })
+    app.go("launcher")
+    app.run()
+'''
+
+UI_INIT_PY = '''# ui/__init__.py — UI 區塊（slave new 專案內的一個區塊,像 tasks/lib）
+#
+# 純 LVGL UI 邏輯,不碰硬體;硬體透過注入的 platform 對接
+#（板上 = ui.board 對 slave new bus;模擬器 = ui.sim_platform）。
+'''
+
+SIM_PLATFORM_PY = '''# ui/sim_platform.py — 模擬器平台（在瀏覽器模擬器跑真框架用,不碰 machine）
+#
+# 在 sim.lvgl.io 的 MicroPython 環境,SDL display_driver 已提供顯示,
+# 本平台只提供「輸入模擬」給 ui/app:
+#   輸入字元從前端按鈕送進 stdin（process_char）,
+#   這裡讀 stdin 當作編碼器/按鈕事件。
+#
+# 使用（模擬器代碼區「ui 框架」模式）:
+#   import ui.sim_platform as sp
+#   sp.run(app)   # 注入 + 啟動主迴圈
+import sys
+
+
+class _SimPlatform:
+    """模擬平台:SDL 顯示(display_driver 已建),輸入讀 stdin 字元。"""
+
+    def __init__(self):
+        self._enc = 0
+        self._buf = b""
+
+    def _poll(self):
+        # 從 stdin 收字元(前端按鈕透過 process_char 送來)
+        try:
+            import select
+            r, _, _ = select.select([sys.stdin], [], [], 0)
+            if r:
+                self._buf += sys.stdin.read(1).encode()
+        except Exception:
+            pass
+        return self._buf
+
+    # ---- app 介面 ----
+    def tick(self):
+        lv.task_handler() if "lv" in globals() else None
+
+    def take(self):
+        return []
+
+    def show(self, *a):
+        pass
+
+    def enc_delta(self):
+        b = self._poll()
+        d = 0
+        while b:
+            c = b[0:1]
+            b = b[1:]
+            if c in (b"l", b"L"):   # ← 左
+                d -= 1
+            elif c in (b"r", b"R"):  # → 右
+                d += 1
+        return d
+
+    def confirm(self):
+        return self._poll() == b"c"  # 確認
+
+    def exit(self):
+        return self._poll() == b"e"  # 返回
+
+
+def run(app):
+    """在模擬器跑真框架:注入模擬平台 + 啟動。"""
+    sp = _SimPlatform()
+    app.init({
+        "tick": sp.tick,
+        "take": sp.take,
+        "show": sp.show,
+        "enc_delta": sp.enc_delta,
+        "confirm": sp.confirm,
+        "exit": sp.exit,
     })
     app.run()
 '''
@@ -338,11 +531,11 @@ def _extract_cards(project_root: Path) -> dict:
 
 
 def _transform_page(src: str, meta: dict) -> str:
-    """頁面轉換:import 改 ui.ui_common + build 前插 @register。"""
-    src = src.replace(
-        "from lvgl_ui_common import",
-        "from ui.registry import register\nfrom ui.ui_common import",
-    )
+    """頁面轉換:import 雙模式相容 + build 前插 @register。
+
+    板上(package)走 ui.xxx;模擬器(平級)fallback 到根層模組。
+    """
+    src = _wrap_page_import(src)
     deco = (
         '@register(id="{}", title="{}", icon="{}", desc="{}", '
         "order={}, accent=0x{:04X})"
@@ -350,6 +543,59 @@ def _transform_page(src: str, meta: dict) -> str:
              meta["order"], meta["accent"])
     src = src.replace("def build():", deco + "\ndef build():", 1)
     return src
+
+
+def _wrap_page_import(src: str) -> str:
+    """把頁面頂部的 import 區塊包成 try/except 雙模式。
+
+    原始:
+        from lvgl_ui_common import (
+            ZH, BG, ...
+        )
+    包成:
+        try:
+            from ui.registry import register
+            from ui.ui_common import (
+                ZH, BG, ...
+            )
+        except ImportError:
+            from registry import register
+            from ui_common import (
+                ZH, BG, ...
+            )
+    """
+    marker = "from lvgl_ui_common import ("
+    i = src.find(marker)
+    if i < 0:
+        # 無括號形式(少見):直接兩行替換 + try 包兩行
+        src = src.replace(
+            "from lvgl_ui_common import",
+            "try:\n    from ui.registry import register\n    from ui.ui_common import")
+        # 把接續的 except 補上(整段是獨立 import,後接空行)
+        src = src.replace(
+            "\n\ndef ", "\nexcept ImportError:\n    from registry import register\n    from ui_common import\n\ndef ", 1)
+        return src
+
+    open_i = i + len(marker)
+    j = src.find(")\n", open_i)
+    if j < 0:
+        return src
+    body = src[open_i:j]          # "    ZH, BG, ..."（含縮排）
+    head = src[:i]                # 頁面開頭
+    tail = src[j + 1:]            # ")" 之後
+    new_block = (
+        "try:\n"
+        "    from ui.registry import register\n"
+        "    from ui.ui_common import (\n"
+        + body +
+        "\n    )\n"
+        "except ImportError:\n"
+        "    from registry import register\n"
+        "    from ui_common import (\n"
+        + body +
+        "\n    )\n"
+    )
+    return head + new_block + tail
 
 
 def generate(project_root: Path, out_root: Path, log=None) -> dict:
@@ -365,15 +611,20 @@ def generate(project_root: Path, out_root: Path, log=None) -> dict:
         log and log("→ ui/{}".format(rel))
 
     # 固定框架檔
+    w("__init__.py", UI_INIT_PY)
     w("registry.py", REGISTRY_PY)
     w("app.py", APP_PY)
     w("launcher.py", LAUNCHER_PY)
     w("page/__init__.py", PAGE_INIT_PY)
     w("board.py", PAGE_BOARD_PY)
+    w("sim_platform.py", SIM_PLATFORM_PY)
 
-    # ui_common:從現有 lvgl_ui_common.py 遷移
+    # ui_common:從現有 lvgl_ui_common.py 遷移（資源由 sys.path 提供,不需改 import）
     common_src = (project_root / "lvgl_ui_common.py").read_text(encoding="utf-8")
     w("ui_common.py", common_src)
+
+    # 資源（src/）:從 workspace/out 或舊 lvgl/src 拷貝已生成資產
+    _copy_assets(ui_dir, log)
 
     # 頁面:遷移 + @register
     cards = _extract_cards(project_root)
@@ -391,10 +642,55 @@ def generate(project_root: Path, out_root: Path, log=None) -> dict:
         w("page/{}.py".format(pid), _transform_page(src, meta))
         count += 1
 
-    log and log("框架產生完成: {} 個頁面 + 5 個框架檔 → {}".format(
+    log and log("框架產生完成: {} 個頁面 + 框架檔 → {}".format(
         count, ui_dir))
     return {
         "pages": count,
         "dir": str(ui_dir),
         "files": [p.name for p in ui_dir.rglob("*.py")],
     }
+
+
+def _rewrite_src_imports(common_src: str) -> str:
+    """把 ui_common 對 lv_icons/lv_ui_fx 的 import 改到 ui/src（fallback 根目錄）。"""
+    common_src = common_src.replace(
+        "from lv_icons import load_icon_font",
+        "try:\n    from ui.src.lv_icons import load_icon_font\nexcept Exception:\n    from lv_icons import load_icon_font")
+    common_src = common_src.replace(
+        "from lv_icons import ICONS",
+        "try:\n    from ui.src.lv_icons import ICONS\nexcept Exception:\n    from lv_icons import ICONS")
+    common_src = common_src.replace(
+        "from lv_ui_fx import pulse as _fx_pulse, fade_in as _fx_fade_in",
+        "try:\n    from ui.src.lv_ui_fx import pulse as _fx_pulse, fade_in as _fx_fade_in\nexcept Exception:\n    from lv_ui_fx import pulse as _fx_pulse, fade_in as _fx_fade_in")
+    return common_src
+
+
+def _copy_assets(ui_dir: Path, log=None) -> None:
+    """把已生成的資源拷貝到 ui/src/（icons/zh/fx）。"""
+    src_dir = ui_dir / "src"
+    src_dir.mkdir(parents=True, exist_ok=True)
+    # 來源:先找 design 產出的 src,再 fallback workspace/out
+    from . import OUT_DIR
+    candidates = [
+        OUT_DIR,                       # 預設產出
+        ui_dir.parent / "src",         # 舊 lvgl/src
+    ]
+    copied = []
+    for fname in ("icons_16.bin", "lv_icons.py", "zh_hant_16.bin",
+                  "lv_ui_fx.py", "fx_notes.md"):
+        for cand in candidates:
+            p = cand / fname
+            if p.exists():
+                (src_dir / fname).write_bytes(p.read_bytes())
+                copied.append(fname)
+                break
+    if copied:
+        log and log("→ ui/src: " + ", ".join(copied))
+    # lv_icons 的字體路徑指到板上 ui/src;並確認 src 可被 ui_common import
+    lv_icons = src_dir / "lv_icons.py"
+    if lv_icons.exists():
+        t = lv_icons.read_text(encoding="utf-8")
+        t = t.replace('_FONT_FILE = "/icons_16.bin"',
+                      '_FONT_FILE = "/ui/src/icons_16.bin"')
+        lv_icons.write_text(t, encoding="utf-8")
+    # src 需為 package（ui_common 的 from lv_icons 由 sys.path 提供,不需 __init__）

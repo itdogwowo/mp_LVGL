@@ -289,15 +289,33 @@ def mk_chart(parent, x, y, w, h, color, points=24, ymax=100):
     ch.set_type(_CHART_TYPE_LINE)
     ch.set_point_count(points)
     # LVGL 9.3：set_range 改名為 set_axis_range(axis, min, max)
-    ch.set_axis_range(_CHART_AXIS_Y, 0, ymax)
-    ch.set_div_line_count(3, 0)
-    ch.set_style_bg_opa(0, 0)
-    ch.set_style_border_width(0, 0)
-    ch.set_style_pad_all(2, 0)
-    ch.set_style_line_width(2, lv.PART.ITEMS)
-    ch.set_style_line_color(C(color), lv.PART.ITEMS)
+    # 某些 port(JS/wasm)較舊,用 set_range 或無 → 都 try
+    try:
+        ch.set_axis_range(_CHART_AXIS_Y, 0, ymax)
+    except Exception:
+        try:
+            ch.set_range(0, ymax)
+        except Exception:
+            pass
+    try:
+        ch.set_div_line_count(3, 0)
+    except Exception:
+        pass
+    # 樣式設定:某些 port(JS/wasm)的 chart 缺部分 set_style_* → 整段保護,
+    # 趨勢圖核心(軸/線/資料)不受影響。
+    try:
+        ch.set_style_bg_opa(0, 0)
+        ch.set_style_border_width(0, 0)
+        ch.set_style_pad_all(2, 0)
+        ch.set_style_line_width(2, lv.PART.ITEMS)
+        ch.set_style_line_color(C(color), lv.PART.ITEMS)
+    except Exception:
+        pass
     # LVGL 9.3：set_style_size 改為 (width, height, selector)；設 0 不畫資料點
-    ch.set_style_size(0, 0, lv.PART.INDICATOR)
+    try:
+        ch.set_style_size(0, 0, lv.PART.INDICATOR)
+    except Exception:
+        pass
     ser = ch.add_series(C(color), _CHART_AXIS_Y)
     return ch, ser
 

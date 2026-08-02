@@ -5,11 +5,17 @@
 #             刪除舊 screen(釋放全部子物件) → on_enter 新頁
 # 每次進入都重建,不沿用舊實例 → 記憶體乾淨。
 #
-# 平台解耦:所有硬體透過 platform 物件注入,本檔不 import lvgl_shared。
-#   板上: ui/board.py 用 FrameBuffer+Inputs 組 platform 再 app.init/run
+# 平台解耦:所有硬體透過 platform 物件注入,本檔不 import 任何硬體。
+#   板上: ui/board.py 用 slave new bus 組 platform
+#   模擬器: 直接 import app(平級) 或 ui.app(package) 皆可(見下方相容 import)
 import lvgl as lv
-import ui.registry as registry
-import ui.launcher as launcher
+try:
+    import ui.registry as registry
+    import ui.launcher as launcher
+except ImportError:
+    # 模擬器 wasm importer 不支援 package 目錄 → 平級 import
+    import registry
+    import launcher
 
 platform = None      # {tick, take, show, enc_delta, confirm, exit}
 cur = None
@@ -21,7 +27,9 @@ def init(plat):
     """注入 platform 物件 + 載入所有頁面(集中 import 已註冊)。"""
     global platform
     platform = plat
-    import ui.page  # noqa: F401  集中 import 觸發全部 @register + 補 mod
+    # 頁面由外部註冊(板上 = ui/page/__init__;模擬器 = 啟動碼平級 import)
+    # 這裡不強制 import,避免模擬器(無 package)與板上行為差異
+    pass
 
 
 def _page():
@@ -75,28 +83,42 @@ def go(name, back=False):
 
 
 def run():
-    """主迴圈(啟動後不返回)。"""
-    global _run
-    go("launcher")
+    """主迴圈(啟動後不返回)。板上用。"""
     while True:
-        d = platform["enc_delta"]()
-        c = platform["confirm"]()
-        ex = platform["exit"]()
-        m = _page()
+        step()
+        _sleep(5)
 
-        if d != 0 and hasattr(m, "on_enc"):
-            m.on_enc(d)
-        if c and hasattr(m, "on_confirm"):
-            target = m.on_confirm()
-            if target:
-                go(target)
-        if ex and cur != "launcher":
-            go("launcher", back=True)
 
-        if hasattr(m, "update"):
-            m.update(_run)
-        _run += 1
+def _sleep(ms):
+    try:
+        import time
+        time.sleep_ms(ms)
+    except Exception:
+        pass
 
-        platform["tick"]()
-        for rect in platform["take"]():
-            platform["show"](*rect)
+
+def step():
+    """單幀處理(模擬器事件驅動用)。回傳 1 表示處理了一幀。"""
+    global _run
+    d = platform["enc_delta"]()
+    c = platform["confirm"]()
+    ex = platform["exit"]()
+    m = _page()
+
+    if d != 0 and hasattr(m, "on_enc"):
+        m.on_enc(d)
+    if c and hasattr(m, "on_confirm"):
+        target = m.on_confirm()
+        if target:
+            go(target)
+    if ex and cur != "launcher":
+        go("launcher", back=True)
+
+    if hasattr(m, "update"):
+        m.update(_run)
+    _run += 1
+
+    platform["tick"]()
+    for rect in platform["take"]():
+        platform["show"](*rect)
+    return 1

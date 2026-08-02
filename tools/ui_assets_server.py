@@ -183,7 +183,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        if self.command != "HEAD":
+            self.wfile.write(body)
 
     def _err(self, msg: str, code: int = 400) -> None:
         self._json({"ok": False, "error": str(msg)}, code)
@@ -192,7 +193,7 @@ class Handler(BaseHTTPRequestHandler):
         n = int(self.headers.get("Content-Length", 0) or 0)
         return self.rfile.read(n) if n else b""
 
-    # ---- GET ----
+    # ---- GET / HEAD（HEAD 給模擬器 wasm_file_api 檢查檔案存在用） ----
     def do_GET(self) -> None:  # noqa: N802
         url = urllib.parse.urlparse(self.path)
         if url.path == "/":
@@ -209,6 +210,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._designs()
         if url.path == "/api/design/render":
             return self._design_render()
+        if url.path == "/api/design/simcode":
+            return self._design_simcode()
+        if url.path == "/api/design/savecode":
+            return self._design_savecode()
         if url.path.startswith("/preview/"):
             return self._serve_preview(url.path)
         if url.path.startswith("/dlib/"):
@@ -229,7 +234,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", ctype + "; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        if self.command != "HEAD":
+            self.wfile.write(body)
 
     def _serve_cache(self, path: str) -> None:
         name = Path(path[len("/cache/"):]).name  # 只取檔名,防穿越
@@ -356,6 +362,37 @@ class Handler(BaseHTTPRequestHandler):
                     routes[dom] = launcher_id
         return pages, routes, meta
 
+    def _design_simcode(self) -> None:
+        """生成模擬器代碼:單頁展示碼 或 ui 框架模式。"""
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        design_name = q.get("design", [None])[0]
+        page_file = q.get("page", [None])[0]
+        mode = q.get("mode", [None])[0]
+        if not design_name:
+            return self._err("需要 design")
+        if mode == "framework":
+            code = designlib.FRAMEWORK_CODE.format(
+                origin="http://localhost:{}".format(self.server.server_port),
+                design=design_name)
+        else:
+            code = designlib.simcode(design_name, page_file or "launcher.html")
+        self._json({"ok": True, "code": code})
+
+    def _design_savecode(self) -> None:
+        """把代碼儲存到 design/lvgl/ui/ 下（跟 design 走）。"""
+        data = json.loads(self._body() or b"{}")
+        design_name = data.get("design", "")
+        filename = data.get("filename", "sim_demo.py")
+        code = data.get("code", "")
+        if not design_name or not code:
+            return self._err("需要 design 與 code")
+        safe = Path(filename).name
+        ui_dir = designlib.lvgl_path(design_name) / "ui"
+        ui_dir.mkdir(parents=True, exist_ok=True)
+        (ui_dir / safe).write_text(code, encoding="utf-8")
+        self.studio.log(f"💾 代碼已存: design/{design_name}/lvgl/ui/{safe}")
+        self._json({"ok": True, "saved": safe})
+
     def _design_render(self) -> None:
         """回傳指定 design 某頁的可原生嵌入片段(限域 CSS + body + 本地 script)。"""
         q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
@@ -375,10 +412,13 @@ class Handler(BaseHTTPRequestHandler):
         self._json(r)
 
     def _serve_vendor(self, path: str) -> None:
-        """提供離線 vendor 資源(/cache/vendor/lucide.min.js 等)。"""
-        name = Path(path[len("/cache/vendor/"):]).name
-        p = vendor.VENDOR_DIR / name
-        if not p.exists():
+        """提供離線 vendor 資源(/cache/vendor/lucide.min.js 或子目錄檔)。"""
+        rel = path[len("/cache/vendor/"):]
+        p = (vendor.VENDOR_DIR / rel).resolve()
+        base = vendor.VENDOR_DIR.resolve()
+        if not str(p).startswith(str(base)):
+            return self._err("forbidden", 403)
+        if not p.exists() or not p.is_file():
             return self._err("not found", 404)
         ctype = "application/javascript" if p.suffix == ".js" else (
             "text/css" if p.suffix == ".css" else "application/octet-stream")
@@ -515,6 +555,10 @@ class Handler(BaseHTTPRequestHandler):
             "pages": pages,
         })
 
+    def do_HEAD(self) -> None:  # noqa: N802
+        """HEAD = GET 但無 body（模擬器 wasm_file_api 用 HEAD 檢查檔案存在）。"""
+        self.do_GET()
+
     # ---- POST ----
     def do_POST(self) -> None:  # noqa: N802
         url = urllib.parse.urlparse(self.path)
@@ -540,6 +584,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._design_upload()
             if url.path == "/api/design/delete":
                 return self._design_delete()
+            if url.path == "/api/design/savecode":
+                return self._design_savecode()
             self._err("not found", 404)
         except Exception as e:
             self._err(str(e))

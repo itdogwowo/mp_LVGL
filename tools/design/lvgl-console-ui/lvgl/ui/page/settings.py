@@ -9,13 +9,27 @@
 #   BTN42    → 編輯中先離開編輯，否則返回（由 app 處理）
 
 import lvgl as lv
-from ui.registry import register
-from ui.ui_common import (
+try:
+    from ui.registry import register
+    from ui.ui_common import (
+
     ZH, BG, SURFACE, BORDER, TEXT, TEXT2, TEXT3,
     PRIMARY, SUCCESS, WARNING, F_NUM_M, C,
     mk_appbar, mk_card, mk_label, mk_btn, mk_slider, mk_switch,
     mk_icon, set_focus, fade_in,
-)
+
+    )
+except ImportError:
+    from registry import register
+    from ui_common import (
+
+    ZH, BG, SURFACE, BORDER, TEXT, TEXT2, TEXT3,
+    PRIMARY, SUCCESS, WARNING, F_NUM_M, C,
+    mk_appbar, mk_card, mk_label, mk_btn, mk_slider, mk_switch,
+    mk_icon, set_focus, fade_in,
+
+    )
+
 
 _LANGS = ["中文", "English", "日本"]
 _SW_DEF = [True, True, False]

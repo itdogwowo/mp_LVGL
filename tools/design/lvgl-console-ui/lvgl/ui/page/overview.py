@@ -8,13 +8,27 @@
 import lvgl as lv
 import math
 import random
-from ui.registry import register
-from ui.ui_common import (
+try:
+    from ui.registry import register
+    from ui.ui_common import (
+
     ZH, BG, TEXT, TEXT2, TEXT3, PRIMARY, SUCCESS, DANGER,
     F_NUM_M, F_NUM_S, C,
     mk_appbar, mk_card, mk_label, mk_arc, mk_chart,
     pulse, fade_in,
-)
+
+    )
+except ImportError:
+    from registry import register
+    from ui_common import (
+
+    ZH, BG, TEXT, TEXT2, TEXT3, PRIMARY, SUCCESS, DANGER,
+    F_NUM_M, F_NUM_S, C,
+    mk_appbar, mk_card, mk_label, mk_arc, mk_chart,
+    pulse, fade_in,
+
+    )
+
 
 scr = None
 _cpu_arc = _mem_arc = None

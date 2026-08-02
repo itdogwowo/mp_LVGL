@@ -58,14 +58,19 @@ def pulse(wid, period_ms=1500, min_opa=110, max_opa=255):
         wid.set_style_opa(max_opa, 0)
         return None
     half = max(80, period_ms // 2)
-    a = _ANIM_CLASS()
-    a.set_var(wid)
-    a.set_values(max_opa, min_opa)
-    a.set_duration(half)
-    a.set_reverse_duration(half)
-    a.set_repeat_count(_REPEAT_INF)
-    a.set_custom_exec_cb(lambda _a, v: wid.set_style_opa(int(v), 0))
-    return _anim_start(a)
+    try:
+        a = _ANIM_CLASS()
+        a.set_var(wid)
+        a.set_values(max_opa, min_opa)
+        a.set_duration(half)
+        a.set_reverse_duration(half)
+        a.set_repeat_count(_REPEAT_INF)
+        a.set_custom_exec_cb(lambda _a, v: wid.set_style_opa(int(v), 0))
+        return _anim_start(a)
+    except Exception:
+        # 某些 port(如 JS/wasm)anim 方法缺 → 直接設最終值
+        wid.set_style_opa(max_opa, 0)
+        return None
 
 
 def fade_in(wid, dy=6, time_ms=300, delay_ms=0):
@@ -74,22 +79,26 @@ def fade_in(wid, dy=6, time_ms=300, delay_ms=0):
     if _ANIM_CLASS is None:
         wid.set_style_opa(255, 0)
         return None
-    a = _ANIM_CLASS()
-    a.set_var(wid)
-    a.set_values(y + dy, y)
-    a.set_duration(time_ms)
-    a.set_delay(delay_ms)
-    a.set_custom_exec_cb(lambda _a, v: wid.set_pos(x, int(v)))
-    _anim_start(a)
+    try:
+        a = _ANIM_CLASS()
+        a.set_var(wid)
+        a.set_values(y + dy, y)
+        a.set_duration(time_ms)
+        a.set_delay(delay_ms)
+        a.set_custom_exec_cb(lambda _a, v: wid.set_pos(x, int(v)))
+        _anim_start(a)
 
-    b = _ANIM_CLASS()
-    b.set_var(wid)
-    b.set_values(0, 255)
-    b.set_duration(time_ms)
-    b.set_delay(delay_ms)
-    b.set_custom_exec_cb(lambda _a, v: wid.set_style_opa(int(v), 0))
-    _anim_start(b)
-    return (a, b)
+        b = _ANIM_CLASS()
+        b.set_var(wid)
+        b.set_values(0, 255)
+        b.set_duration(time_ms)
+        b.set_delay(delay_ms)
+        b.set_custom_exec_cb(lambda _a, v: wid.set_style_opa(int(v), 0))
+        _anim_start(b)
+        return (a, b)
+    except Exception:
+        wid.set_style_opa(255, 0)
+        return None
 
 
 def bar_grow(bar, from_val=0, to_val=None, time_ms=400):
@@ -98,12 +107,16 @@ def bar_grow(bar, from_val=0, to_val=None, time_ms=400):
     if _ANIM_CLASS is None:
         bar.set_value(to_val, 0)
         return None
-    a = _ANIM_CLASS()
-    a.set_var(bar)
-    a.set_values(from_val, to_val)
-    a.set_duration(time_ms)
-    a.set_custom_exec_cb(lambda _a, v: bar.set_value(int(v), 0))
-    return _anim_start(a)
+    try:
+        a = _ANIM_CLASS()
+        a.set_var(bar)
+        a.set_values(from_val, to_val)
+        a.set_duration(time_ms)
+        a.set_custom_exec_cb(lambda _a, v: bar.set_value(int(v), 0))
+        return _anim_start(a)
+    except Exception:
+        bar.set_value(to_val, 0)
+        return None
 
 
 def set_state_colors(wid, on, color_on, color_off, part=0):

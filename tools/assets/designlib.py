@@ -245,20 +245,202 @@ def lvgl_path(design_name: str) -> Path:
 
 
 def lvgl_src_path(design_name: str) -> Path:
-    """板上會上傳到 /ui/src 的資源路徑:design/{name}/lvgl/src/。"""
-    return lvgl_path(design_name) / "src"
+    """資源進 ui 內:板上只上傳 ui/ 一個資料夾即根目錄。
+    → design/{name}/lvgl/ui/src/（原 lvgl/src → lvgl/ui/src）
+    """
+    return lvgl_path(design_name) / "ui" / "src"
 
 
 def lvgl_status(design_name: str) -> dict:
     """回傳該 design 的 lvgl 產出狀態（框架/資源是否已生成）。"""
     lv = lvgl_path(design_name)
-    src = lv / "src"
     ui = lv / "ui"
+    src = ui / "src"  # 新路徑 lvgl/ui/src
     return {
         "exists": lv.exists(),
         "ui_files": sorted(p.name for p in ui.glob("*.py")) if ui.exists() else [],
         "src_files": sorted(p.name for p in src.iterdir()) if src.exists() else [],
     }
+
+
+# ---------- 模擬器展示代碼生成 ----------
+# 自包含展示碼:不依賴 ui_common/字體,直接在模擬器跑出「設計稿的互動點」。
+SIMCODE_TEMPLATE = '''# {title} · {page_title}（由 LVGL UI Asset Studio 自動生成,可編輯）
+# 模擬器展示碼:依 design.json 的互動 API 建立按鈕/滑桿。
+import display_driver
+import lvgl as lv
+
+scr = lv.obj()
+scr.set_style_bg_color(lv.color_hex(0xF5F5F5), 0)
+
+title = lv.label(scr)
+title.set_text("{page_title}")
+title.align(lv.ALIGN.TOP_MID, 0, 8)
+
+_widgets = []
+
+
+def _on_click(e, name):
+    print("[click]", name)
+
+
+{widgets_code}
+lv.screen_load(scr)
+'''
+
+_WIDGET_BUTTON = '''b{i} = lv.button(scr)
+b{i}.set_size(140, 40)
+b{i}.set_pos(20, {y})
+b{i}.set_style_bg_color(lv.color_hex(0x1A73E8), 0)
+b{i}.add_event_cb(lambda e, n="{id}": _on_click(e, n), lv.EVENT.CLICKED, None)
+_l = lv.label(b{i})
+_l.set_text("{id}")
+_l.align(lv.ALIGN.CENTER, 0, 0)
+_widgets.append(b{i})
+'''
+
+_WIDGET_SLIDER = '''lb{i} = lv.label(scr)
+lb{i}.set_text("{id}")
+lb{i}.set_pos(20, {y})
+s{i} = lv.slider(scr)
+s{i}.set_range(0, 100)
+s{i}.set_value(50, 0)
+s{i}.set_pos(20, {y} + 22)
+s{i}.set_size(140, 10)
+s{i}.add_event_cb(lambda e: print("[slider]", "{id}", s{i}.get_value()), lv.EVENT.VALUE_CHANGED, None)
+_widgets.append(s{i})
+'''
+
+
+def simcode(design_name: str, page_file: str) -> str:
+    """生成模擬器展示代碼(自包含,含該頁的互動元素)。"""
+    meta = read_design(design_name) or {}
+    pages = meta.get("pages", [])
+    page = next((p for p in pages if p["file"] == Path(page_file).name), None)
+    if page is None and pages:
+        page = pages[0]
+    page_title = page.get("title", page_file) if page else page_file
+
+    # 該頁的互動元素
+    iap = [i for i in meta.get("interactions", [])
+           if i.get("file") == Path(page_file).name]
+
+    widgets_code = []
+    for i, item in enumerate(iap):
+        y = 52 + (i % 4) * 46
+        if item.get("type") in ("input", "slider"):
+            widgets_code.append(
+                _WIDGET_SLIDER.format(i=i, id=item["id"], y=y))
+        else:
+            widgets_code.append(
+                _WIDGET_BUTTON.format(i=i, id=item["id"], y=y))
+    if not widgets_code:
+        widgets_code.append('# 此頁無互動元素,可自行加入 widget')
+
+    return SIMCODE_TEMPLATE.format(
+        title=meta.get("name", design_name),
+        page_title=page_title,
+        widgets_code="\n".join(widgets_code))
+
+
+# ui 框架模式:在模擬器跑 design 的 ui/app（純 UI,不碰 machine）
+FRAMEWORK_CODE = '''# ui 框架模式:在模擬器跑 design 的 ui/app（純 UI,不碰 machine）
+# 模擬器 wasm importer 不支援 package 目錄 → 用 sys.path 指到 ui/ 各層平級 import。
+import imp, usys as sys
+sys.path.append('{origin}/dlib/{design}/lvgl/ui')
+sys.path.append('{origin}/dlib/{design}/lvgl/ui/src')
+sys.path.append('{origin}/dlib/{design}/lvgl/ui/page')
+
+# SDL 顯示 + 平級 import(不 import ui package)
+import display_driver
+import lvgl as lv
+import registry
+import app
+import launcher
+import overview, monitor, control, settings  # noqa 平級頁面(註冊)
+
+# 補 mod + 排序
+registry.PAGES["overview"]["mod"] = overview
+registry.PAGES["monitor"]["mod"] = monitor
+registry.PAGES["control"]["mod"] = control
+registry.PAGES["settings"]["mod"] = settings
+
+# 模擬輸入:前端按鈕 → mp_js_do_str("import input_bus; input_bus.push('c')")
+# 由於 mp_js_do_str 用獨立 globals,把 input_bus 注入 sys.modules 供前端 import。
+import usys as sys
+class _InputBus:
+    pass
+_input_bus = _InputBus()
+_input_bus._buf = []
+
+
+def _push(c):
+    _input_bus._buf.append(c)
+
+
+def _poll():
+    b = _input_bus._buf[:]
+    del _input_bus._buf[:]
+    return b
+
+
+_input_bus.push = _push
+sys.modules["input_bus"] = _input_bus
+
+
+def _enc_delta():
+    # 只消費 l/r 字元,其餘(c/e)塞回,避免 confirm/exit 讀不到
+    d = 0
+    rest = []
+    for c in _poll():
+        if c == "l":
+            d -= 1
+        elif c == "r":
+            d += 1
+        else:
+            rest.append(c)
+    _input_bus._buf = rest + _input_bus._buf
+    return d
+
+
+def _confirm():
+    b = _poll()
+    found = "c" in b
+    _input_bus._buf = [x for x in b if x != "c"] + _input_bus._buf
+    return found
+
+
+def _exit():
+    b = _poll()
+    found = "e" in b
+    _input_bus._buf = [x for x in b if x != "e"] + _input_bus._buf
+    return found
+
+
+def _tick():
+    lv.tick_inc(5)
+    lv.task_handler()
+
+
+def run():
+    app.init({{
+        "tick": _tick,
+        "take": lambda: [],
+        "show": lambda *a: None,
+        "enc_delta": _enc_delta,
+        "confirm": _confirm,
+        "exit": _exit,
+    }})
+    app.go("launcher")
+    # 前端按鈕每次點擊 → do_str("input_bus.push('c'); input_bus.step()")
+    # step 綁定到 input_bus 供 do_str 呼叫(事件驅動步進,不需 timer)
+    _input_bus.step = app.step
+    _input_bus.go = app.go
+    print("ui 框架啟動: 用前端按鈕 ◀▶=旋轉, 確認, 返回")
+
+
+run()
+'''
 
 
 def write_design(name: str, meta: dict) -> None:

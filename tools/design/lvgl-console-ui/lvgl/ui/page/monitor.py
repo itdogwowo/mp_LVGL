@@ -10,14 +10,29 @@
 import lvgl as lv
 import math
 import random
-from ui.registry import register
-from ui.ui_common import (
+try:
+    from ui.registry import register
+    from ui.ui_common import (
+
     ZH, BG, SURFACE, TEXT, TEXT2, TEXT3,
     PRIMARY, SUCCESS, WARNING, FOCUS_BG,
     F_NUM_L, F_NUM_M, F_NUM_S, C,
     mk_appbar, mk_card, mk_label, mk_bar, mk_chart,
     pulse, fade_in,
-)
+
+    )
+except ImportError:
+    from registry import register
+    from ui_common import (
+
+    ZH, BG, SURFACE, TEXT, TEXT2, TEXT3,
+    PRIMARY, SUCCESS, WARNING, FOCUS_BG,
+    F_NUM_L, F_NUM_M, F_NUM_S, C,
+    mk_appbar, mk_card, mk_label, mk_bar, mk_chart,
+    pulse, fade_in,
+
+    )
+
 
 # 通道：[名稱, id, 基準值, 單位, 閾值, 狀態]
 CH = [

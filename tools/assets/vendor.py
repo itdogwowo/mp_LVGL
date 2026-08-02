@@ -185,9 +185,44 @@ def _download_sim(log) -> bool:
             ("https://code.jquery.com/jquery-1.12.4.js", "./jquery-1.12.4.js"),
         ]:
             txt = txt.replace(cdn, local)
+        # MicroPython driver/lib:原本從 raw.githubusercontent 拉,改指本地
+        txt = txt.replace(
+            "sys.path.append('https://raw.githubusercontent.com/"
+            "littlevgl/lv_binding_micropython/${lvBindingsCommitHash}/driver/js')",
+            "sys.path.append('/sim/driver/js')")
+        txt = txt.replace(
+            "sys.path.append('https://raw.githubusercontent.com/"
+            "littlevgl/lv_binding_micropython/${lvBindingsCommitHash}/lib')",
+            "sys.path.append('/sim/lib')")
         lvgl.write_text(txt, encoding="utf-8")
         log and log("lvgl.html CDN 引用已改本地")
+
+    # MicroPython driver/lib（模擬器 import 用,離線）
+    _download_sim_driver(log)
     return (SIM_DIR / SIM_INDEX).exists()
+
+
+# lvgl.html 啟動會 import 的 driver/lib（GitHub lv_binding_micropython commit 5e80637）
+_SIM_COMMIT = "5e8063717ae81c9ea7fc97c45879479541721f04"
+_SIM_DRIVER = {
+    "driver/js": ["lv_timer.py"],
+    "lib": ["display_driver.py", "display_driver_utils.py", "fs_driver.py",
+            "lv_colors.py", "lv_utils.py", "tpcal.py", "utils.py"],
+}
+
+
+def _download_sim_driver(log) -> None:
+    """下載模擬器 import 的 MicroPython driver/lib 到本地（離線用）。"""
+    base = ("https://raw.githubusercontent.com/littlevgl/"
+            f"lv_binding_micropython/{_SIM_COMMIT}/")
+    for sub, files in _SIM_DRIVER.items():
+        d = SIM_DIR / sub
+        d.mkdir(parents=True, exist_ok=True)
+        for f in files:
+            dest = d / f
+            if dest.exists() and dest.stat().st_size > 0:
+                continue
+            _download(base + sub + "/" + f, dest, log)
 
 
 def _sim_local_path(url: str) -> Path:

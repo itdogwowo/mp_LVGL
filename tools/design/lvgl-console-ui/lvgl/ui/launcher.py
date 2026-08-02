@@ -1,7 +1,12 @@
 # ui/launcher.py — 動態主頁面（讀 registry 產生卡片,不硬編碼）
 import lvgl as lv
-from ui import ui_common as u
-from ui.registry import ordered
+try:
+    from ui.registry import ordered
+    from ui import ui_common as u
+except ImportError:
+    # 模擬器平級模式
+    from registry import ordered
+    import ui_common as u
 
 scr = None
 cards = []

@@ -230,13 +230,22 @@
         </div>
         <canvas id="canvas" width="320" height="240"
                 style="width:320px; height:240px; background:#1a1e27; border-radius:4px"></canvas>
+        <div style="display:flex; gap:6px; margin-top:8px; justify-content:center">
+          <button onclick="simInput('l')">◀ 旋轉</button>
+          <button onclick="simInput('c')" style="border-color:var(--brand);color:var(--brand)">確認</button>
+          <button onclick="simInput('r')">▶ 旋轉</button>
+          <button onclick="simInput('e')" style="border-color:var(--warn,#b06000);color:var(--warn,#b06000)">返回</button>
+        </div>
       </div>
       <!-- 代碼區 + REPL -->
       <div style="flex:1; min-width:320px; display:flex; flex-direction:column; gap:8px">
         <div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
-            <span class="hint">代碼（design/lvgl/ui/ · MicroPython）</span>
-            <span class="hint" id="sim-code-src"></span>
+            <span class="hint">代碼</span>
+            <span style="display:flex; gap:6px">
+              <button class="sim-mode-btn" data-mode="page" style="border-color:var(--brand);color:var(--brand)">單頁展示碼</button>
+              <button class="sim-mode-btn" data-mode="framework">ui 框架</button>
+            </span>
           </div>
           <textarea id="sim-code" rows="10" spellcheck="false"
             style="width:100%; font-family:ui-monospace,monospace; font-size:12px;
@@ -570,6 +579,9 @@ function pvShow(pageFile, btn) {
   $("pv-pages").querySelectorAll(".pv-page-btn").forEach(b =>
     b.style.cssText = b === btn ? "border-color:var(--brand);color:var(--brand)" : "");
   pvApplyZoom();
+  // 切頁連動模擬器:單頁展示碼模式載入該頁
+  sim.page = pageFile;
+  if (sim.mode === "page" && sim.loadedLz) simLoadCode();
 }
 function renderPvInteractions(list) {
   $("pv-interactions").innerHTML = (list || []).length
@@ -590,10 +602,106 @@ document.addEventListener("click", (e) => {
   pvApplyZoom();
 });
 
-// ---------- 模擬器（本地離線） ----------
+// ---------- 模擬器（四區拆分:頂欄/Display/代碼/REPL,全本地離線） ----------
+const sim = { iframe: null, repl: null, loadedLz: false, currentDesign: null, mode: "page", page: "launcher.html" };
+
+// 模式切換
+document.querySelectorAll(".sim-mode-btn").forEach(b => {
+  b.onclick = () => {
+    sim.mode = b.dataset.mode;
+    document.querySelectorAll(".sim-mode-btn").forEach(x => {
+      const on = x === b;
+      x.style.borderColor = on ? "var(--brand)" : "";
+      x.style.color = on ? "var(--brand)" : "";
+    });
+    simLoadCode();
+  };
+});
+
+function simInput(ch) {
+  // 注入字元 + 步進:do_str("input_bus.push('c'); input_bus.step()")
+  // fallback process_char
+  const ifr = sim.iframe;
+  if (!ifr || !ifr.contentWindow) { sim.repl.textContent += "(iframe 未就緒)\n"; return; }
+  const w = ifr.contentWindow;
+  const code = "import input_bus; input_bus.push('" + ch + "'); input_bus.step()";
+  let used = "";
+  if (typeof w.mp_js_do_str === "function") {
+    try { w.mp_js_do_str(code); used = "do_str"; } catch (e) { used = "do_str ERR"; }
+  } else if (w.Module && typeof w.Module._mp_js_do_str === "function") {
+    try { w.Module._mp_js_do_str(code); used = "Module"; } catch (e) { used = "Module ERR"; }
+  } else if (w.process_char) {
+    w.process_char(ch.charCodeAt(0));
+    used = "proc_char";
+  } else { used = "無 API"; }
+  if (used.includes("ERR")) sim.repl.textContent += "[in " + ch + " " + used + "]\n";
+}
+
 function simCheck() {
   const st = $("sim-status");
-  st.textContent = "模擬器由本地 /sim 提供（已下載到 cache/vendor/sim）。若畫面空白表示尚未下載完成,稍後重試。";
+  st.textContent = "離線就緒 · MicroPython + LVGL 9（本地 runtime）";
+  if (!sim.iframe) {
+    sim.iframe = $("emscripten-iframe");
+    sim.repl = $("sim-repl");
+    // 監聽 runtime 輸出（lvgl.html 送 micropython-print 事件到父頁面）
+    window.addEventListener("micropython-print", (e) => {
+      const t = (new TextDecoder()).decode(new Uint8Array(e.detail));
+      sim.repl.textContent += t;
+      sim.repl.scrollTop = sim.repl.scrollHeight;
+    });
+  }
+  // 載入本地 lz-string（離線壓縮代碼用）
+  if (!sim.loadedLz) {
+    sim.loadedLz = true;
+    const s = document.createElement("script");
+    s.src = "/cache/vendor/sim/ajax/libs/lz-string/1.4.4/lz-string.js";
+    s.onload = () => simLoadCode();
+    document.head.appendChild(s);
+  } else if (window.LZString) {
+    simLoadCode();
+  }
+}
+
+async function simLoadCode() {
+  // 依模式載入:單頁展示碼(該頁) 或 ui 框架
+  const d = state.previewDesign || (state.designNames[0]);
+  if (!d) return;
+  sim.currentDesign = d;
+  try {
+    let url = `/api/design/simcode?design=${encodeURIComponent(d)}`;
+    if (sim.mode === "framework") {
+      url += "&mode=framework";
+    } else {
+      url += `&page=${encodeURIComponent(sim.page || "launcher.html")}`;
+    }
+    const r = await api(url);
+    $("sim-code").value = r.code;
+  } catch (e) { $("sim-repl").textContent += "✗ 載入代碼失敗: " + e.message + "\n"; }
+}
+
+function simRun() {
+  sim.repl.textContent = "";
+  const code = $("sim-code").value;
+  if (!window.LZString) { sim.repl.textContent += "✗ LZString 未載入\n"; return; }
+  // 送代碼給 runtime（data-cscript + 重載 lvgl.html iframe）
+  const ifr = sim.iframe;
+  ifr.setAttribute("data-cscript", LZString.compressToEncodedURIComponent(code));
+  ifr.src = "/sim/lvgl.html";
+  ifr.contentWindow && ifr.contentWindow.location.reload();
+  sim.repl.textContent += "▶ 執行中…\n";
+}
+
+async function simSave() {
+  const d = sim.currentDesign || state.previewDesign;
+  if (!d) return;
+  await api("/api/design/savecode", { method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ design: d, filename: "sim_demo.py", code: $("sim-code").value }) });
+  $("sim-repl").textContent += "💾 已儲存到 design/" + d + "/lvgl/ui/sim_demo.py\n";
+}
+
+function simReloadCode() {
+  simLoadCode();
 }
 
 init();
