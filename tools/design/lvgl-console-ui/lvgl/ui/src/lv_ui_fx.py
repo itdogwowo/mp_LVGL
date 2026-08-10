@@ -1,4 +1,4 @@
-# lv_ui_fx.py — 動態效果 helper（由 LVGL UI Asset Studio 產生）
+# lv_ui_fx.py — 動態效果 helper
 #
 # 對應設計稿 CSS 動效（用 lv_binding_micropython 的 anim API）:
 #   pulse()    ← pulse / live-ping / mon-ping（呼吸閃爍:livedot、tag dot、狀態燈）
@@ -18,6 +18,7 @@ _REPEAT_INF = 0xFFFF  # LV_ANIM_REPEAT_INFINITE
 
 
 def _anim_start(a):
+    """建立 anim 後呼叫 init() + start()（對齊官方範例）。"""
     try:
         a.init()
     except Exception:
@@ -32,19 +33,14 @@ def pulse(wid, period_ms=1500, min_opa=110, max_opa=255):
         wid.set_style_opa(max_opa, 0)
         return None
     half = max(80, period_ms // 2)
-    try:
-        a = _ANIM_CLASS()
-        a.set_var(wid)
-        a.set_values(max_opa, min_opa)
-        a.set_duration(half)
-        a.set_reverse_duration(half)
-        a.set_repeat_count(_REPEAT_INF)
-        a.set_custom_exec_cb(lambda _a, v: wid.set_style_opa(int(v), 0))
-        return _anim_start(a)
-    except Exception:
-        # 某些 port(如 JS/wasm)anim 方法缺 → 直接設最終值
-        wid.set_style_opa(max_opa, 0)
-        return None
+    a = _ANIM_CLASS()
+    a.set_var(wid)
+    a.set_values(max_opa, min_opa)
+    a.set_duration(half)
+    a.set_reverse_duration(half)
+    a.set_repeat_count(_REPEAT_INF)
+    a.set_custom_exec_cb(lambda _a, v: wid.set_style_opa(int(v), 0))
+    return _anim_start(a)
 
 
 def fade_in(wid, dy=6, time_ms=300, delay_ms=0):
@@ -53,26 +49,22 @@ def fade_in(wid, dy=6, time_ms=300, delay_ms=0):
     if _ANIM_CLASS is None:
         wid.set_style_opa(255, 0)
         return None
-    try:
-        a = _ANIM_CLASS()
-        a.set_var(wid)
-        a.set_values(y + dy, y)
-        a.set_duration(time_ms)
-        a.set_delay(delay_ms)
-        a.set_custom_exec_cb(lambda _a, v: wid.set_pos(x, int(v)))
-        _anim_start(a)
+    a = _ANIM_CLASS()
+    a.set_var(wid)
+    a.set_values(y + dy, y)
+    a.set_duration(time_ms)
+    a.set_delay(delay_ms)
+    a.set_custom_exec_cb(lambda _a, v: wid.set_pos(x, int(v)))
+    _anim_start(a)
 
-        b = _ANIM_CLASS()
-        b.set_var(wid)
-        b.set_values(0, 255)
-        b.set_duration(time_ms)
-        b.set_delay(delay_ms)
-        b.set_custom_exec_cb(lambda _a, v: wid.set_style_opa(int(v), 0))
-        _anim_start(b)
-        return (a, b)
-    except Exception:
-        wid.set_style_opa(255, 0)
-        return None
+    b = _ANIM_CLASS()
+    b.set_var(wid)
+    b.set_values(0, 255)
+    b.set_duration(time_ms)
+    b.set_delay(delay_ms)
+    b.set_custom_exec_cb(lambda _a, v: wid.set_style_opa(int(v), 0))
+    _anim_start(b)
+    return (a, b)
 
 
 def bar_grow(bar, from_val=0, to_val=None, time_ms=400):
@@ -81,19 +73,16 @@ def bar_grow(bar, from_val=0, to_val=None, time_ms=400):
     if _ANIM_CLASS is None:
         bar.set_value(to_val, 0)
         return None
-    try:
-        a = _ANIM_CLASS()
-        a.set_var(bar)
-        a.set_values(from_val, to_val)
-        a.set_duration(time_ms)
-        a.set_custom_exec_cb(lambda _a, v: bar.set_value(int(v), 0))
-        return _anim_start(a)
-    except Exception:
-        bar.set_value(to_val, 0)
-        return None
+    a = _ANIM_CLASS()
+    a.set_var(bar)
+    a.set_values(from_val, to_val)
+    a.set_duration(time_ms)
+    a.set_custom_exec_cb(lambda _a, v: bar.set_value(int(v), 0))
+    return _anim_start(a)
 
 
 def set_state_colors(wid, on, color_on, color_off, part=0):
-    """依狀態切換文字/元件顏色。CSS ':hover/:active/:focus' 換色對應。"""
+    """依狀態切換文字/元件顏色。CSS ':hover/:active/:focus' 換色對應。
+    on=True → color_on(例如焦點 PRIMARY),False → color_off。"""
     wid.set_style_text_color(
         lv.color_hex(color_on if on else color_off), part)

@@ -1,5 +1,5 @@
 {
-  "name": "LVGL 控制台",
+  "name": "lvgl-console-ui",
   "width": 320,
   "height": 240,
   "pages": [
@@ -31,6 +31,33 @@
       "id": "page-settings",
       "title": "系統設定",
       "file": "settings.html",
+      "tag": "feature"
+    },
+    {
+      "id": "launcher",
+      "title": "功能選擇",
+      "file": "lvgl/ui/launcher.py",
+      "tag": "launcher"
+    },
+    {
+      "id": "control_panel",
+      "title": "控制面板",
+      "icon": "sliders-horizontal",
+      "file": "lvgl/ui/page/control_panel.py",
+      "tag": "feature"
+    },
+    {
+      "id": "pca9685",
+      "title": "PCA9685",
+      "icon": "sun",
+      "file": "lvgl/ui/page/pca9685.py",
+      "tag": "feature"
+    },
+    {
+      "id": "settings",
+      "title": "系統設定",
+      "icon": "settings",
+      "file": "lvgl/ui/page/settings.py",
       "tag": "feature"
     }
   ],

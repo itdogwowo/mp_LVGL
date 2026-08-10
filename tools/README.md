@@ -39,17 +39,44 @@ python3 tools/ui_assets_server.py
 | `lv_ui_fx.py` | 動效 helper | `pulse(wid)`、`fade_in(wid)`、`bar_grow(bar)`、`set_state_colors(...)` |
 | `fx_notes.md` | CSS 動效 → LVGL 對照表 | 開發參考 |
 
+## 導入/導出外部專案（project_io.py）
+
+把外部專案的 LVGL UI 資料夾（如 `mp_Net-Core/slave/ui/lvgl`）導入成
+design 庫裡的一個 design，之後直接改 `design/{name}/` 下的檔案
+（不需在網頁上 edit），改完再導出回專案：
+
+```bash
+# 導入:ui/lvgl → design/slave-ui/lvgl/ui/（自動掃 page/*.py 的 @register 寫進 design.json）
+python3 tools/project_io.py import ../mp_Net-Core/slave/ui/lvgl --name slave-ui
+
+# 改完後導出:
+#   zip 內容 = lvgl/...,解壓到專案的 ui/ 下即部署
+python3 tools/project_io.py export slave-ui                     # → design/slave-ui/lvgl/slave-ui.zip
+python3 tools/project_io.py export slave-ui --to ../mp_Net-Core/slave/ui/lvgl  # 直接合併複製
+
+# 列出 design 庫（含導入來源）
+python3 tools/project_io.py list
+```
+
+導入的 design 沒有 html 設計稿（code-only）：網頁的「重新掃描」會改從
+`lvgl/ui/page/*.py` 的 `@register` 更新頁面清單，不會清空。
+
 ## 工作區結構
 
 ```
 tools/
 ├── ui_assets_server.py    Web server + GUI
+├── project_io.py          外部專案導入/導出 CLI（見上節）
 ├── assets/                核心邏輯（scanner/icons/zhfont/fxgen）
 ├── web/index.html         單頁介面
-└── workspace/             ★ 工具工作區（自動建立）
-    ├── design/            設計稿（上傳）
+├── design/                ★ design 庫:每個 design 一個資料夾
+│   └── {name}/            設計稿 html（或導入的 code-only design）
+│       ├── design.json    meta（掃描自動產生/更新）
+│       └── lvgl/ui/       LVGL 產物（導出來源）
+└── workspace/             工具工作區（自動建立）
+    ├── design/            舊版設計稿（自動遷移進 design 庫）
     ├── cache/             Material Symbols 下載快取
-    ├── out/               生成產物
+    ├── out/               生成產物（無 design 時的輸出）
     └── config.json        設定（映射表修改、附加字符）
 ```
 

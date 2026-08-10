@@ -1,0 +1,20 @@
+{
+  "name": "slave-ui",
+  "width": 320,
+  "height": 240,
+  "pages": [
+    {
+      "id": "page-launcher",
+      "title": "新的 Slave 首頁 - 覆蓋測試",
+      "file": "launcher.html",
+      "tag": "launcher"
+    },
+    {
+      "id": "page-page-control",
+      "title": "控制面板 - 新",
+      "file": "page-control.html",
+      "tag": "feature"
+    }
+  ],
+  "interactions": []
+}

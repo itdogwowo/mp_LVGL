@@ -1,12 +1,10 @@
-# ui/launcher.py — 動態主頁面（讀 registry 產生卡片,不硬編碼）
+# ui/lvgl/launcher.py — 動態首頁(讀 registry 產生卡片)
+#
+# 橫屏 320×240 佈局:卡片橫向輪播(旋鈕左右選,按下確認)。
+# 對齊 mp_LVGL/ui/lvgl_ui_launcher.py 的輪播風格。
 import lvgl as lv
-try:
-    from ui.registry import ordered
-    from ui import ui_common as u
-except ImportError:
-    # 模擬器平級模式
-    from registry import ordered
-    import ui_common as u
+from ui.lvgl.registry import ordered
+from ui.lvgl import ui_common as u
 
 scr = None
 cards = []
@@ -14,25 +12,26 @@ _focus = 0
 
 CARD_W = 160
 CARD_H = 140
-CX = (u.W - CARD_W) // 2
+CX = 0
 STRIDE = 176
 FOCUS_Y = 48
 IDLE_Y = 56
 
 
 def build():
-    global scr, cards
+    global scr, cards, _focus, CX
+    _focus = 0
+    CX = (u.W - CARD_W) // 2
     scr = lv.obj(None)
     scr.set_style_bg_color(u.C(u.BG), 0)
-
     title = u.mk_label(scr, "選擇功能", 0, 8, u.TEXT, u.ZH)
     title.align(lv.ALIGN.TOP_MID, 0, 8)
-    sub = u.mk_label(scr, "旋鈕 切換 · 按下 確認 · GPIO42 返回", 0, 28, u.TEXT3, u.ZH)
+    sub = u.mk_label(scr, "旋鈕切換 · 按下確認", 0, 28, u.TEXT3, u.ZH)
     sub.align(lv.ALIGN.TOP_MID, 0, 28)
 
     metas = ordered()
     cards = []
-    for i, meta in enumerate(metas):
+    for meta in metas:
         c = lv.obj(scr)
         c.set_size(CARD_W, CARD_H)
         c.set_style_bg_color(u.C(u.SURFACE), 0)
@@ -60,12 +59,13 @@ def build():
         u.mk_label(c, meta["desc"], 14, 92, u.TEXT3, u.ZH)
         cards.append(c)
 
+    # 分頁指示點
     n = len(cards)
     x0 = (u.W - (n * 8 + (n - 1) * 6)) // 2
     for i in range(n):
         d = lv.obj(scr)
         d.set_size(8, 8)
-        d.set_pos(x0 + i * 14, 200)
+        d.set_pos(x0 + i * 14, u.H - 40)
         d.set_style_radius(4, 0)
         d.set_style_bg_color(u.C(0xDADCE0), 0)
         d.set_style_border_width(0, 0)

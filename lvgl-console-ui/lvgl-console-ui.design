@@ -9,7 +9,14 @@
       "canvasData": {
         "x": 0,
         "y": 0,
-        "group": 0
+        "group": 0,
+        "layoutSnapshot": {
+          "version": 1,
+          "contentHeight": 240,
+          "viewportWidth": 1440,
+          "sourceHash": "fnv1a-5efe8032",
+          "measuredAt": 1785894473668
+        }
       },
       "devMetadata": {
         "htmlSrc": "pages/launcher.html",
@@ -50,7 +57,14 @@
       "canvasData": {
         "x": 620,
         "y": 0,
-        "group": 0
+        "group": 0,
+        "layoutSnapshot": {
+          "version": 1,
+          "contentHeight": 240,
+          "viewportWidth": 1440,
+          "sourceHash": "fnv1a-0b2eecc7",
+          "measuredAt": 1785894473668
+        }
       },
       "devMetadata": {
         "htmlSrc": "pages/overview.html",
@@ -73,7 +87,14 @@
       "canvasData": {
         "x": 1240,
         "y": 0,
-        "group": 0
+        "group": 0,
+        "layoutSnapshot": {
+          "version": 1,
+          "contentHeight": 900,
+          "viewportWidth": 1440,
+          "sourceHash": "fnv1a-7c902e88",
+          "measuredAt": 1785894473668
+        }
       },
       "devMetadata": {
         "htmlSrc": "pages/monitor.html",
@@ -96,7 +117,14 @@
       "canvasData": {
         "x": 1860,
         "y": 0,
-        "group": 0
+        "group": 0,
+        "layoutSnapshot": {
+          "version": 1,
+          "contentHeight": 900,
+          "viewportWidth": 1440,
+          "sourceHash": "fnv1a-eccc8452",
+          "measuredAt": 1785894473668
+        }
       },
       "devMetadata": {
         "htmlSrc": "pages/control.html",
@@ -119,7 +147,14 @@
       "canvasData": {
         "x": 2480,
         "y": 0,
-        "group": 0
+        "group": 0,
+        "layoutSnapshot": {
+          "version": 1,
+          "contentHeight": 409,
+          "viewportWidth": 1440,
+          "sourceHash": "fnv1a-81ce97d9",
+          "measuredAt": 1785894473668
+        }
       },
       "devMetadata": {
         "htmlSrc": "pages/settings.html",

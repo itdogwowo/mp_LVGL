@@ -18,14 +18,111 @@ from __future__ import annotations
 
 import re
 import shutil
+import string
 from pathlib import Path
 
 from . import TOOLS_DIR
 
 DESIGN_LIB = TOOLS_DIR / "design"
 
+# ── 資產分區：網頁設計（HTML 設計稿）vs LVGL 程式（.mpy 模擬代碼） ─────────────
+# 所有在 design 根目錄出現的 HTML/CSS/圖資/design.json 一律視為「網頁設計區」。
+# LVGL 程式碼嚴格只能出現在 LVGL_CODE_DIRS 指定的子目錄中，絕不混入根目錄。
+# 匯入 ZIP 時，只會清理 & 寫入 LVGL_CODE_DIRS，不會碰到根目錄的 HTML/CSS。
+
+LVGL_CODE_DIRS: tuple[str, ...] = ("lvgl", "ui")
+# 根目錄副檔名若符合 WEB_ASSET_EXTS，屬於網頁設計資產，不允許刪除
+WEB_ASSET_EXTS: tuple[str, ...] = (
+    ".html", ".htm", ".css", ".js", ".mjs",
+    ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".bmp", ".ico",
+    ".woff", ".woff2", ".ttf", ".otf", ".eot",
+    ".mp3", ".wav", ".ogg", ".webm", ".mp4",
+    ".json", ".txt", ".md", ".map",
+)
+
+
+def is_web_asset(path: Path, design_root: Path) -> bool:
+    """判斷某個檔案/資料夾是不是「網頁設計區」資產（不得被 LVGL 匯入覆蓋）。
+
+    規則：
+      - 任何 design 根目錄下、副檔名屬於 WEB_ASSET_EXTS 的檔案 = 網頁資產
+      - design 根目錄下副檔名不屬於 LVGL code 的檔案（如 .bin 資源）= 網頁資產
+      - 不在 LVGL_CODE_DIRS 子目錄裡的檔案/目錄，若父輩是根目錄，歸屬網頁區
+      - LVGL_CODE_DIRS 子目錄下的所有東西 = 程式碼區（可刪可換）
+    """
+    try:
+        rel = path.relative_to(design_root).as_posix()
+    except ValueError:
+        return False
+    if rel in ("", ".", "design.json"):
+        return True
+    head = rel.split("/", 1)[0]
+    if head in LVGL_CODE_DIRS:
+        return False
+    return True
+
+
+def web_assets_exist(design_name: str) -> bool:
+    d = DESIGN_LIB / design_name
+    return d.exists() and any(
+        (p.suffix.lower() in WEB_ASSET_EXTS)
+        for p in d.iterdir() if p.is_file())
+
+
+def lvgl_code_exists(design_name: str) -> bool:
+    d = DESIGN_LIB / design_name
+    return d.exists() and any((d / s).exists() for s in LVGL_CODE_DIRS)
+
+
+def design_kind(design_name: str) -> str:
+    """回傳 'html' | 'lvgl' | 'mixed' | 'empty' """
+    w = web_assets_exist(design_name)
+    l = lvgl_code_exists(design_name)
+    if w and l:
+        return "mixed"
+    if w:
+        return "html"
+    if l:
+        return "lvgl"
+    return "empty"
+
+
+def clear_lvgl_code_only(design_name: str, keep_web_assets: bool = True) -> None:
+    """只清理 LVGL 程式碼區，保留網頁設計區 & design.json。
+
+    - 刪除 LVGL_CODE_DIRS（"lvgl"/"ui"）整個子目錄
+    - 清理 design 根目錄中不屬於 WEB_ASSET_EXTS（也就是誤植的 .py / .bin 等）
+      只在 keep_web_assets=True 且沒有同名 LVGL 目錄已存在時執行根目錄掃蕩
+    """
+    d = DESIGN_LIB / design_name
+    if not d.exists():
+        return
+    for name in LVGL_CODE_DIRS:
+        target = d / name
+        if target.exists():
+            shutil.rmtree(target)
+    if keep_web_assets:
+        for p in list(d.iterdir()):
+            if p.name == "design.json":
+                continue
+            if p.name in LVGL_CODE_DIRS:
+                continue  # 已經清掉了
+            if p.is_file():
+                if p.suffix.lower() not in WEB_ASSET_EXTS:
+                    p.unlink()
+            else:
+                # 根目錄下未知的資料夾 → 只有當裡面沒有 HTML 設計稿時才清理
+                has_web = any(
+                    (sp.is_file() and sp.suffix.lower() in WEB_ASSET_EXTS)
+                    for sp in p.rglob("*"))
+                if not has_web:
+                    shutil.rmtree(p)
+
 _TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.S)
 _DOMID_RE = re.compile(r'data-dom-id="([^"]+)"')
+# @register(id="...", title="...", icon="...") — 從產出的 page/*.py 抽頁面 meta
+_REGISTER_RE = re.compile(
+    r'@register\(\s*id="([^"]+)",\s*title="([^"]+)"(?:,\s*icon="([^"]*)")?')
 _BUTTON_RE = re.compile(r"<button\b[^>]*>")
 _INPUT_RE = re.compile(
     r"<(?:input|textarea|select)\b[^>]*(?:name|id)=\"([^\"]+)\"[^>]*>")
@@ -219,6 +316,48 @@ def scan_html_files(design_dir: Path) -> dict:
     }
 
 
+def scan_lvgl_pages(design_dir: Path) -> list[dict]:
+    """code-only design（無 html,由外部專案導入 lvgl/ui 或 ui 或直接平鋪）:
+    從 lvgl/ui/page/*.py、ui/page/*.py 或根 page/*.py 的 @register 抽出頁面清單。"""
+    ui_dirs = [
+        design_dir / "lvgl" / "ui",
+        design_dir / "ui",
+        design_dir,  # 最後 fallback: ui/ 整個被展開到 design 根
+    ]
+    pages: list[dict] = []
+    ui = next((u for u in ui_dirs if u.exists() and (
+        (u / "launcher.py").is_file() or (u / "page").is_dir())), None)
+    if ui is None:
+        return pages
+    is_root = (ui == design_dir)
+    if (ui / "launcher.py").exists():
+        rel_ui = "" if is_root else ui.relative_to(design_dir).as_posix()
+        pages.append({
+            "id": "launcher",
+            "title": "功能選擇",
+            "file": (f"{rel_ui}/launcher.py").lstrip("/") if rel_ui else "launcher.py",
+            "tag": "launcher",
+        })
+    page_dir = ui / "page"
+    if page_dir.exists():
+        rel_ui = "" if is_root else ui.relative_to(design_dir).as_posix()
+        prefix = f"{rel_ui}/page/" if rel_ui else "page/"
+        for p in sorted(page_dir.glob("*.py")):
+            if p.name == "__init__.py":
+                continue
+            m = _REGISTER_RE.search(_read(p))
+            if not m:
+                continue
+            pages.append({
+                "id": m.group(1),
+                "title": m.group(2),
+                "icon": m.group(3) or "",
+                "file": prefix + p.name,
+                "tag": "feature",
+            })
+    return pages
+
+
 def read_design(name: str) -> dict | None:
     d = DESIGN_LIB / name
     jf = d / "design.json"
@@ -239,27 +378,40 @@ def read_design(name: str) -> dict | None:
         return None
 
 
+def _ui_candidates(design_name: str) -> tuple[Path, Path | None]:
+    """回傳 (lv 根, ui 目錄)；優先 lvgl/ui, 其次平鋪 ui/, 最後 design 根本身。"""
+    d = DESIGN_LIB / design_name
+    for ui_path in [d / "lvgl" / "ui", d / "ui"]:
+        if ui_path.exists():
+            return (ui_path.parent.parent if ui_path.parent.name == "ui" else d), ui_path
+    # Fallback: 當 design 根本身就是 ui 展開（有 launcher.py + page/)
+    if (d / "launcher.py").exists() or (d / "page").exists():
+        return d, d
+    return d / "lvgl", None
+
+
 def lvgl_path(design_name: str) -> Path:
-    """該 design 的 LVGL 輸出路徑:design/{name}/lvgl/（跟 design 走）。"""
-    return DESIGN_LIB / design_name / "lvgl"
+    """該 design 的 LVGL 輸出路徑（lvgl/ 根；若僅 ui/ 平鋪則回 design 根）。"""
+    lv, _ = _ui_candidates(design_name)
+    return lv
 
 
 def lvgl_src_path(design_name: str) -> Path:
-    """資源進 ui 內:板上只上傳 ui/ 一個資料夾即根目錄。
-    → design/{name}/lvgl/ui/src/（原 lvgl/src → lvgl/ui/src）
-    """
-    return lvgl_path(design_name) / "ui" / "src"
+    """資源進 ui 內:板上只上傳 ui/ 一個資料夾即根目錄。"""
+    lv, ui = _ui_candidates(design_name)
+    if ui is None:
+        return lvgl_path(design_name) / "ui" / "src"
+    return ui / "src"
 
 
 def lvgl_status(design_name: str) -> dict:
     """回傳該 design 的 lvgl 產出狀態（框架/資源是否已生成）。"""
-    lv = lvgl_path(design_name)
-    ui = lv / "ui"
-    src = ui / "src"  # 新路徑 lvgl/ui/src
+    lv, ui = _ui_candidates(design_name)
+    src = ui / "src" if ui else None
     return {
-        "exists": lv.exists(),
-        "ui_files": sorted(p.name for p in ui.glob("*.py")) if ui.exists() else [],
-        "src_files": sorted(p.name for p in src.iterdir()) if src.exists() else [],
+        "exists": lv.exists() and ui is not None,
+        "ui_files": sorted(p.name for p in ui.glob("*.py")) if ui else [],
+        "src_files": sorted(p.name for p in src.iterdir()) if src and src.exists() else [],
     }
 
 
@@ -344,103 +496,448 @@ def simcode(design_name: str, page_file: str) -> str:
 
 
 # ui 框架模式:在模擬器跑 design 的 ui/app（純 UI,不碰 machine）
-FRAMEWORK_CODE = '''# ui 框架模式:在模擬器跑 design 的 ui/app（純 UI,不碰 machine）
-# 模擬器 wasm importer 不支援 package 目錄 → 用 sys.path 指到 ui/ 各層平級 import。
-import imp, usys as sys
-sys.path.append('{origin}/dlib/{design}/lvgl/ui')
-sys.path.append('{origin}/dlib/{design}/lvgl/ui/src')
-sys.path.append('{origin}/dlib/{design}/lvgl/ui/page')
+FRAMEWORK_CODE = """# ui framework shim — WebAssembly simulator <> ESP32 UI project translation layer.
+#
+# 解決三大不相容：
+#   1. MicroPython wasm importer 對「import ui.lvgl.xxx」package 形式不穩定
+#      → 在 sys.modules 預裝虛擬 package，attribute access 自動轉平級模組。
+#   2. 板端服務（lib.sys_bus.bus、lib.hw_manager、I2C/SPI/LCD）不存在
+#      → WebStubBus + _BusAdapter + _consume_input shim，讓 lvgl_init / board 能直接跑
+#   3. URL sys.path（http://...）wasm imp 不總是能 lookup 到檔案
+#      → 在 import 之前先 _preload() 把所有 dlib 的 .py 同步 fetch 寫進 MEMFS（/_wsp/${design}），
+#        sys.path 使用本機 MEMFS 路徑（而非 URL）。
+# ----------------------------------------------------------------------------
+import imp as _imp, usys as _sys
+_W, _H = ${width}, ${height}
 
-# SDL 顯示 + 平級 import(不 import ui package)
-import display_driver
-import lvgl as lv
-import registry
-import app
-import launcher
-import overview, monitor, control, settings  # noqa 平級頁面(註冊)
-
-# 補 mod + 排序
-registry.PAGES["overview"]["mod"] = overview
-registry.PAGES["monitor"]["mod"] = monitor
-registry.PAGES["control"]["mod"] = control
-registry.PAGES["settings"]["mod"] = settings
-
-# 模擬輸入:前端按鈕 → mp_js_do_str("import input_bus; input_bus.push('c')")
-# 由於 mp_js_do_str 用獨立 globals,把 input_bus 注入 sys.modules 供前端 import。
-import usys as sys
-class _InputBus:
-    pass
-_input_bus = _InputBus()
-_input_bus._buf = []
+# 0) 路徑：把所有 dlib_* URL 的 .py 同步拉到 MEMFS
+try:
+    import uos as _os
+except Exception:
+    try:
+        import os as _os
+    except Exception:
+        _os = None
 
 
-def _push(c):
-    _input_bus._buf.append(c)
+def _mkdirs(p):
+    if not p or not _os:
+        return
+    parts = []
+    for seg in p.split('/'):
+        if not seg:
+            continue
+        parts.append(seg)
+        d = '/' + '/'.join(parts)
+        try:
+            _os.mkdir(d)
+        except Exception:
+            pass
 
 
-def _poll():
-    b = _input_bus._buf[:]
-    del _input_bus._buf[:]
-    return b
+def _get_url(url):
+    try:
+        import urequests as _rq
+        r = _rq.get(url)
+        try:
+            if r.status_code != 200:
+                return None
+            try:
+                data = r.content
+            except Exception:
+                data = r.text
+                if isinstance(data, str):
+                    data = data.encode('utf-8')
+            return data
+        finally:
+            try: r.close()
+            except Exception: pass
+    except Exception:
+        return None
 
 
-_input_bus.push = _push
-sys.modules["input_bus"] = _input_bus
+_DLIB_URLS = ['${dlib_ui}', '${dlib_src}', '${dlib_page}', '${dlib_lvgl_root}']
+_WSP = '/_wsp/${design}'
+_WSP_PATHS = [_WSP + '/src', _WSP + '/page', _WSP]
+if _os is None:
+    # 沒有檔系統就直接塞 URL path（舊作法 fallback）
+    for _u in _DLIB_URLS:
+        if _u and _u not in _sys.path:
+            _sys.path.insert(0, _u)
+else:
+    for _p in _WSP_PATHS:
+        _mkdirs(_p)
+        if _p not in _sys.path:
+            _sys.path.insert(0, _p)
+    print("[fw] MEMFS wsp:", _WSP_PATHS)
 
 
-def _enc_delta():
-    # 只消費 l/r 字元,其餘(c/e)塞回,避免 confirm/exit 讀不到
-    d = 0
-    rest = []
-    for c in _poll():
-        if c == "l":
-            d -= 1
-        elif c == "r":
-            d += 1
+def _preload_file(url, fname):
+    """url 單一 .py → 寫到 /_wsp/${design}/{fname}。"""
+    if _os is None or not url or not fname:
+        return False
+    data = _get_url(url)
+    if data is None:
+        return False
+    target = _WSP + '/' + fname
+    try:
+        f = open(target, 'wb')
+        try: f.write(data)
+        finally: f.close()
+        return True
+    except Exception:
+        return False
+
+
+def _preload_dir(dir_url, rel_prefix):
+    """抓 dir_url/index.html 解析出 <a> 連結，把所有 *.py fetch 到 MEMFS。
+    我們的 _serve_dlib 會 autoindex，因此 dir_url 回來有 <a href="..."> 可解析。"""
+    if _os is None or not dir_url:
+        return 0
+    html = _get_url(dir_url + '/')
+    if html is None:
+        html = _get_url(dir_url)
+    if html is None:
+        return 0
+    try:
+        s = html.decode('utf-8', errors='replace') if isinstance(html, (bytes, bytearray)) else str(html)
+    except Exception:
+        return 0
+    import ure as _re
+    try:
+        import re as _re
+    except Exception:
+        pass
+    # 解析 <a href="xxx.py">
+    try:
+        pat = _re.compile(r'href="([^"]+\.py)"')
+    except Exception:
+        return 0
+    cnt = 0
+    last = 0
+    while True:
+        try:
+            m = pat.search(s, last)
+        except Exception:
+            break
+        if not m:
+            break
+        last = m.end()
+        href = m.group(1)
+        if href.startswith('http://') or href.startswith('https://'):
+            furl = href
+        elif href.startswith('/'):
+            # 絕對
+            origin = dir_url.split('/', 3)[0] + '//' + dir_url.split('/', 3)[2]
+            furl = origin + href
         else:
-            rest.append(c)
-    _input_bus._buf = rest + _input_bus._buf
-    return d
+            base = dir_url[:-1] if dir_url.endswith('/') else dir_url
+            furl = base + '/' + href
+        # 取出檔名: href 最尾 xxx.py
+        idx = href.rfind('/')
+        fname = href[idx+1:] if idx >= 0 else href
+        # 如果 rel_prefix（如 src/ 或 page/）指定，要寫到 wsp 子目錄
+        if rel_prefix:
+            target_name = rel_prefix + '/' + fname
+        else:
+            target_name = fname
+        if _preload_file(furl, target_name):
+            cnt += 1
+    return cnt
 
 
-def _confirm():
-    b = _poll()
-    found = "c" in b
-    _input_bus._buf = [x for x in b if x != "c"] + _input_bus._buf
+if _os is not None:
+    total = 0
+    total += _preload_dir('${dlib_ui}', '')        # ui 根模組直接放 wsp 根（registry/app/launcher）
+    total += _preload_dir('${dlib_src}', 'src')
+    total += _preload_dir('${dlib_page}', 'page')
+    # lvgl_root 跟 ui 一樣時，不要重複抓
+    if '${dlib_lvgl_root}' not in ('${dlib_ui}', ''):
+        total += _preload_dir('${dlib_lvgl_root}', '')
+    print("[fw] preload .py files:", total)
+
+del _mkdirs, _get_url, _preload_file, _preload_dir, _WSP, _WSP_PATHS, _DLIB_URLS
+
+
+# ----------------------------------------------------------------------------
+# 1) 虛擬 package 轉址：import ui.lvgl.FOO  → import FOO（平級）
+# ----------------------------------------------------------------------------
+import display_driver  # sim.lvgl.io SDL/wasm driver
+import lvgl as _lv
+
+
+class _VirtualPkg:
+    __name__ = ""
+    __path__ = []
+    __package__ = ""
+
+    def __init__(self, name, aliases=None, prefixes=None):
+        self.__name__ = name
+        self.__path__ = ["<shim:/{}>".format(name)]
+        self.__package__ = name
+        self._aliases = aliases or {}
+        self._prefixes = prefixes or []
+        self._cache = {}
+
+    def __getattr__(self, attr):
+        if attr.startswith("_"):
+            raise AttributeError(attr)
+        if attr in self._cache:
+            return self._cache[attr]
+        real = self._aliases.get(attr)
+        if isinstance(real, str):
+            try:
+                real = __import__(real, None, None, ["*"])
+            except Exception:
+                real = None
+        if real is None:
+            tried = []
+            for prefix in list(self._prefixes) + [""]:
+                cand = (prefix + "." + attr) if prefix else attr
+                tried.append(cand)
+                try:
+                    real = __import__(cand, None, None, ["*"])
+                    break
+                except Exception:
+                    real = None
+        if real is None:
+            raise AttributeError("no attr '{}' in pkg {} (tried {})".format(
+                attr, self.__name__, tried))
+        self._cache[attr] = real
+        return real
+
+
+def _install(dotted, leaf=None):
+    parts = dotted.split(".")
+    parent = None
+    built = []
+    for i, seg in enumerate(parts):
+        built.append(seg)
+        full = ".".join(built)
+        is_leaf = (i == len(parts) - 1)
+        if is_leaf and isinstance(leaf, _VirtualPkg):
+            pkg = leaf
+        elif is_leaf and isinstance(leaf, dict):
+            pkg = _VirtualPkg(full, aliases=leaf)
+        elif is_leaf and isinstance(leaf, (list, tuple)):
+            pkg = _VirtualPkg(full, prefixes=list(leaf))
+        else:
+            if full in _sys.modules and not isinstance(_sys.modules.get(full), _VirtualPkg):
+                parent = _sys.modules[full]
+                continue
+            pkg = _VirtualPkg(full)
+        _sys.modules[full] = pkg
+        if isinstance(parent, _VirtualPkg):
+            parent._cache[seg] = pkg
+        parent = pkg
+    return parent
+
+
+_install("ui", ["", "src", "page", "lvgl"])
+_install("ui.lvgl", ["", "src", "page"])
+_install("lvgl", ["", "src", "page", "ui"])
+
+# ----------------------------------------------------------------------------
+# 2) lib.sys_bus.bus + lib.hw_manager Web stub
+# ----------------------------------------------------------------------------
+class _BusAdapter:
+    def write_cmd_data(self, cmd, data): pass
+    def set_window(self, x1, y1, x2, y2): self._win = (x1,y1,x2,y2)
+    def write_data_async(self, data): self._pending = bytes(data)
+    def flush(self): pass
+
+
+class _StubLcd:
+    def __init__(self): self._bus = _BusAdapter(); self.width = _W; self.height = _H; self.rotation = 0
+
+
+class _Shared(dict):
+    def __missing__(self, k): return None
+
+
+class _WebStubBus:
+    def __init__(self):
+        self._services = {"lcd": _StubLcd()}
+        self.shared = _Shared()
+    def get_service(self, n): return self._services.get(n)
+    def register_service(self, n, s): self._services[n] = s
+    def has_lcd(self): return "lcd" in self._services
+
+
+_sys_bus_mod = _VirtualPkg("lib.sys_bus", aliases={"bus": "__web_bus__"})
+_install("lib", {})
+_sys.modules["lib"]._cache["sys_bus"] = _sys_bus_mod
+_sys.modules["lib.sys_bus"] = _sys_bus_mod
+_sys.modules["__web_bus__"] = _WebStubBus()
+
+
+def _consume_input(kind, idx=None, key=None):
+    try: ib = _sys.modules["input_bus"]
+    except Exception: return None
+    if kind == "enc": return ib.enc_consume() or 0
+    if kind == "pin":
+        if key == "encC": return 1 if ib.consume_flag("c") else 0
+        if key == "btn":  return 1 if ib.consume_flag("e") else 0
+    return None
+
+
+_consume_mod = type("_", (), {"__call__": staticmethod(_consume_input)})()
+_hw_mgr_mod = _VirtualPkg("lib.hw_manager", aliases={
+    "consume_input": "_hw_consume_shim", "HwSampleTask": None})
+_sys.modules["lib"]._cache["hw_manager"] = _hw_mgr_mod
+_sys.modules["lib.hw_manager"] = _hw_mgr_mod
+_sys.modules["_hw_consume_shim"] = _consume_mod
+
+# ----------------------------------------------------------------------------
+# 3) input_bus（對接前端 ◀ ▶ 確認 返回）
+# ----------------------------------------------------------------------------
+class _IB:
+    pass
+_ib = _IB(); _ib._ev = []
+def _push(c): _ib._ev.append(c)
+def _poll():
+    b = _ib._ev[:]; del _ib._ev[:]; return b
+def _enc_consume():
+    t = 0
+    for c in _poll():
+        if c == "l": t -= 1
+        elif c == "r": t += 1
+        else: _ib._ev.append(c)
+    return t
+def _consume_flag(k):
+    rest = []; found = False
+    for c in _poll():
+        if (not found) and c == k: found = True
+        else: rest.append(c)
+    _ib._ev = rest + _ib._ev
     return found
+_ib.push = _push; _ib.poll = _poll
+_ib.enc_consume = _enc_consume; _ib.consume_flag = _consume_flag
+_sys.modules["input_bus"] = _ib
 
+# ----------------------------------------------------------------------------
+# 4) LVGL display init + 動態載入 pages + app啟動
+# ----------------------------------------------------------------------------
+def _safe_import(name):
+    try: return __import__(name, None, None, ["*"])
+    except Exception as e:
+        print("[fw] import {} fail: {}".format(name, e))
+        return None
 
-def _exit():
-    b = _poll()
-    found = "e" in b
-    _input_bus._buf = [x for x in b if x != "e"] + _input_bus._buf
-    return found
+_reg = _safe_import("registry")
+_app = _safe_import("app")
+_launcher = _safe_import("launcher")
 
+def _preimport_pages():
+    cnt = 0
+    try:
+        import uos as _os
+    except Exception:
+        try:
+            import os as _os
+        except Exception:
+            _os = None
+    for _pd in ['/_wsp/${design}/page', '${dlib_page}', '/page']:
+        if not _pd or _os is None:
+            continue
+        try:
+            items = sorted(_os.listdir(_pd))
+        except Exception:
+            continue
+        for it in items:
+            if not it.endswith(".py") or it.startswith("_"):
+                continue
+            mn = it[:-3]
+            if mn == "__init__":
+                continue
+            if _safe_import(mn) is not None:
+                cnt += 1
+    print("[fw] preimport: {} page modules".format(cnt))
+
+_preimport_pages()
+
+# LVGL display init（一次）
+try:
+    if not _lv.is_initialized(): _lv.init()
+    _d = _lv.display_create(_W, _H)
+    try: _d.set_color_format(18)  # RGB565
+    except Exception: pass
+    try:
+        _buf = bytearray(_W * 40 * 2)
+        _d.set_buffers(_buf, None, len(_buf), 0)  # PARTIAL
+    except Exception: pass
+    def _flush_cb(drv, area, cp):
+        try: drv.flush_ready()
+        except Exception: pass
+    try: _d.set_flush_cb(_flush_cb)
+    except Exception: pass
+    print("[fw] lv display ready {}x{}".format(_W, _H))
+except Exception as e:
+    print("[fw] lv display init skip:", e)
 
 def _tick():
-    lv.tick_inc(5)
-    lv.task_handler()
+    _lv.tick_inc(5); _lv.task_handler()
+def _take(): return []
+def _show(*a): pass
+def _enc_delta(): return _ib.enc_consume() or 0
+def _confirm(): return _ib.consume_flag("c")
+def _exit(): return _ib.consume_flag("e")
 
 
-def run():
-    app.init({{
-        "tick": _tick,
-        "take": lambda: [],
-        "show": lambda *a: None,
-        "enc_delta": _enc_delta,
-        "confirm": _confirm,
-        "exit": _exit,
-    }})
-    app.go("launcher")
-    # 前端按鈕每次點擊 → do_str("input_bus.push('c'); input_bus.step()")
-    # step 綁定到 input_bus 供 do_str 呼叫(事件驅動步進,不需 timer)
-    _input_bus.step = app.step
-    _input_bus.go = app.go
-    print("ui 框架啟動: 用前端按鈕 ◀▶=旋轉, 確認, 返回")
+class _Plat: W = _W; H = _H
 
 
-run()
-'''
+def _start():
+    if _app is None: print("[fw] _app missing"); return
+    _uic = _safe_import("ui_common")
+    if _uic is not None:
+        try: _uic.init(_Plat)
+        except Exception as e: print("[fw] uic.init warn:", e)
+        try: _uic.init_fonts()
+        except Exception as e: print("[fw] uic fonts warn:", e)
+    try:
+        _app.build_all()
+    except Exception as e:
+        print("[fw] build_all fail:", e)
+    _app.init({
+        "tick": _tick, "take": _take, "show": _show,
+        "enc_delta": _enc_delta, "confirm": _confirm, "exit": _exit,
+    })
+    _app.go("launcher")
+    _ib.step = _app.step
+    _ib.go = _app.go
+    print("[fw] started ◀▶=enc | Enter=confirm | Esc=exit")
+
+_start()
+"""
+
+
+def render_framework_code(
+    origin: str,
+    design: str,
+    width: int,
+    height: int,
+    dlib_ui: str,
+    dlib_src: str,
+    dlib_page: str,
+    dlib_lvgl_root: str,
+) -> str:
+    """用 $var 模板語法渲染 FRAMEWORK_CODE，避免 dict/set 字面量的 { } 與 .format() 衝突。"""
+    # safe_substitute：遇到未定義 $var 會保留原樣，不報 KeyError
+    return string.Template(FRAMEWORK_CODE).safe_substitute(
+        origin=origin,
+        design=design,
+        width=str(int(width)),
+        height=str(int(height)),
+        dlib_ui=dlib_ui,
+        dlib_src=dlib_src,
+        dlib_page=dlib_page,
+        dlib_lvgl_root=dlib_lvgl_root,
+    )
+
+
+# design.json 保存欄位白名單（read 出來的 dir 不寫回）
+_META_KEYS = ("name", "width", "height", "pages", "interactions", "source")
 
 
 def write_design(name: str, meta: dict) -> None:
@@ -448,7 +945,7 @@ def write_design(name: str, meta: dict) -> None:
 
     d = DESIGN_LIB / name
     d.mkdir(parents=True, exist_ok=True)
-    out = {k: v for k, v in meta.items() if k != "dir"}
+    out = {k: v for k, v in meta.items() if k in _META_KEYS}
     (d / "design.json").write_text(
         json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -464,8 +961,8 @@ def list_designs() -> list[dict]:
             "name": d.name, "width": 320, "height": 240,
             "pages": [], "interactions": [], "dir": str(d),
         }
-        # 沒 design.json 的資料夾也算（顯示未掃描）
         meta["has_meta"] = (d / "design.json").exists()
+        meta["kind"] = design_kind(d.name)
         out.append(meta)
     return out
 
@@ -490,14 +987,37 @@ def create_design(name: str, title: str = "", width: int = 320,
 
 
 def scan_design(name: str) -> dict:
-    """重新掃描 design 資料夾,更新 design.json 的頁面/互動。"""
+    """重新掃描 design 資料夾,更新 design.json 的頁面/互動。
+
+    同時處理 HTML 設計稿頁面 與 LVGL code-only 頁面,兩者合併列出,
+    避免 HTML 與 LVGL 程式頁面互相覆蓋。
+    """
     d = DESIGN_LIB / name
     meta = read_design(name) or {
         "name": name, "width": 320, "height": 240,
     }
     scanned = scan_html_files(d)
-    meta["pages"] = scanned["pages"]
-    meta["interactions"] = scanned["interactions"]
+    lvgl_pages: list[dict] = []
+    lvgl_ui_exists = (
+        (d / "lvgl" / "ui").exists()
+        or (d / "ui").exists()
+        or (d / "page").exists()
+    )
+    if lvgl_ui_exists:
+        lvgl_pages = scan_lvgl_pages(d)
+
+    existing_pages = list(meta.get("pages", []))
+
+    merged: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+    for p in scanned["pages"] + lvgl_pages + existing_pages:
+        key = (p.get("tag", "feature"), p.get("id", ""))
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append(p)
+    meta["pages"] = merged
+    meta["interactions"] = scanned["interactions"] or meta.get("interactions", [])
     write_design(name, meta)
     return read_design(name)
 

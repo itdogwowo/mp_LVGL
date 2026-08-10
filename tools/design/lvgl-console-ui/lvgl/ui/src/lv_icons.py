@@ -4,11 +4,11 @@
 #   from lv_icons import ICONS, load_icon_font, mk_icon
 #   ic = mk_icon(parent, "thermometer", x, y, color=0x1F1F1F)
 #
-# 板上需有 /icons_16.bin（與本檔同層放置）。
+# 板上需有 /ui/lvgl/src/icons_16.bin。
 import lvgl as lv
 
 _ICON = None
-_FONT_FILE = "/ui/src/icons_16.bin"
+_FONT_FILE = "/ui/lvgl/src/icons_16.bin"
 
 # lucide 圖示名 → 字符（Material Symbols Rounded）
 ICONS = {

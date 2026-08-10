@@ -13,12 +13,15 @@
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import re
 import shutil
+import tempfile
 import threading
 import urllib.parse
 import webbrowser
+import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -208,6 +211,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._ui_state()
         if url.path == "/api/designs":
             return self._designs()
+        if url.path == "/api/design/exportzip":
+            return self._design_export_zip()
         if url.path == "/api/design/render":
             return self._design_render()
         if url.path == "/api/design/simcode":
@@ -231,7 +236,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._err("not found", 404)
         body = path.read_bytes()
         self.send_response(200)
-        self.send_header("Content-Type", ctype + "; charset=utf-8")
+        is_text = ctype.startswith("text/") or ctype in (
+            "application/javascript", "application/json")
+        self.send_header("Content-Type",
+                         ctype + ("; charset=utf-8" if is_text else ""))
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         if self.command != "HEAD":
@@ -308,7 +316,7 @@ class Handler(BaseHTTPRequestHandler):
         self._serve_file(p, ctype)
 
     def _designs(self) -> None:
-        """design 庫清單（含每 design 的 meta + 互動 API 數 + lvgl 產出狀態）。"""
+        """design 庫清單（含每 design 的 meta + 互動 API 數 + lvgl 產出狀態 + 資產種類）。"""
         self.studio._migrate_if_needed()
         out = []
         for meta in designlib.list_designs():
@@ -321,6 +329,7 @@ class Handler(BaseHTTPRequestHandler):
                 "pages": len(meta.get("pages", [])),
                 "interactions": meta.get("interactions", []),
                 "has_meta": meta.get("has_meta", False),
+                "kind": meta.get("kind") or designlib.design_kind(name),
                 "lvgl": designlib.lvgl_status(name),
             })
         self._json({"ok": True, "designs": out})
@@ -371,9 +380,31 @@ class Handler(BaseHTTPRequestHandler):
         if not design_name:
             return self._err("需要 design")
         if mode == "framework":
-            code = designlib.FRAMEWORK_CODE.format(
-                origin="http://localhost:{}".format(self.server.server_port),
-                design=design_name)
+            origin = "http://localhost:{}".format(self.server.server_port)
+            meta = designlib.read_design(design_name) or {}
+            W = int(meta.get("width", 320))
+            H = int(meta.get("height", 240))
+            lv, ui = designlib._ui_candidates(design_name)
+            if ui is not None:
+                d_path = ui.relative_to(designlib.DESIGN_LIB).as_posix()
+            else:
+                d_path = design_name + "/lvgl/ui"
+            # lvgl 根 = ui 的 parent（如果 ui 是 lvgl/ui 則 lvgl 根 = lvgl/；如果 ui 就是 design 根或 ui/ 平鋪，則 lvgl 根 = design 根或 ui/）
+            try:
+                lvgl_rel = lv.relative_to(designlib.DESIGN_LIB).as_posix()
+            except Exception:
+                lvgl_rel = design_name
+
+            code = designlib.render_framework_code(
+                origin=origin,
+                design=design_name,
+                width=W,
+                height=H,
+                dlib_ui=f"{origin}/dlib/{d_path}",
+                dlib_src=f"{origin}/dlib/{d_path}/src",
+                dlib_page=f"{origin}/dlib/{d_path}/page",
+                dlib_lvgl_root=f"{origin}/dlib/{lvgl_rel}",
+            )
         else:
             code = designlib.simcode(design_name, page_file or "launcher.html")
         self._json({"ok": True, "code": code})
@@ -441,6 +472,7 @@ class Handler(BaseHTTPRequestHandler):
         ctype = ("text/html" if p.suffix == ".html" else
                  "application/javascript" if p.suffix == ".js" else
                  "text/css" if p.suffix == ".css" else
+                 "application/wasm" if p.suffix == ".wasm" else
                  "application/octet-stream")
         self._serve_file(p, ctype)
 
@@ -522,6 +554,209 @@ class Handler(BaseHTTPRequestHandler):
         self.studio.log(f"🗑 刪除 design: {name}")
         self._json({"ok": True})
 
+    def _design_import_zip(self) -> None:
+        """上傳 ZIP 覆蓋指定 design。
+
+        POST multipart/form-data 到 /api/design/importzip?design=NAME（或表單裡 design=NAME）
+        欄位: zip=檔案（必填）, design=目標 design（建議 query 或 form 都可）
+
+        流程:
+          1. 解析目標 design（query 優先 > form 欄位 > 預設錯誤）
+          2. 刪除目標 design 目錄下全部內容（含 .py / lvgl/ 等）
+          3. 解壓 zip 內容到該 design 目錄（zip 根可以是 {design}/ 包一層或平鋪）
+          4. 掃描 → 更新 design.json
+        """
+        ctype = self.headers.get("Content-Type", "")
+        m = re.search(r"boundary=([^;]+)", ctype)
+        if not m:
+            return self._err("multipart 格式錯誤")
+        boundary = m.group(1).strip().strip('"').encode()
+        body = self._body()
+
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        design_name = (q.get("design", [None])[0] or "").strip()
+
+        zip_bytes: bytes | None = None
+        form_design: str | None = None
+        for part in body.split(b"--" + boundary):
+            if b"\r\n\r\n" not in part:
+                continue
+            head, content = part.split(b"\r\n\r\n", 1)
+            content = content.rstrip(b"\r\n")
+            head_text = head.decode("latin-1", "replace")
+            name_m = re.search(rb'name="([^"]*)"', head)
+            field_name = name_m.group(1).decode("utf-8", "replace") if name_m else ""
+            fm = re.search(rb'filename="([^"]*)"', head)
+            if fm:
+                fname = fm.group(1).decode("utf-8", "replace")
+                if Path(fname).suffix.lower() == ".zip":
+                    zip_bytes = content
+            elif field_name == "design":
+                form_design = content.decode("utf-8", "replace").strip()
+
+        if not design_name and form_design:
+            design_name = form_design
+        if not design_name:
+            return self._err("缺少目標 design 參數（?design=NAME 或 form design=NAME）")
+        if not zip_bytes:
+            return self._err("未找到 ZIP 檔")
+
+        safe_name = re.sub(r"[^A-Za-z0-9_-]", "-", design_name).strip("-")
+        if not safe_name:
+            return self._err("design 名稱無效")
+
+        dest = designlib.DESIGN_LIB / safe_name
+        with tempfile.TemporaryDirectory() as td:
+            td_path = Path(td)
+            extract_root = td_path / "in"
+            extract_root.mkdir()
+            try:
+                with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+                    for name in zf.namelist():
+                        parts = Path(name).parts
+                        if ".." in parts:
+                            return self._err(f"ZIP 包含不安全路徑: {name}")
+                        if parts and (
+                            parts[0] in ("/", "\\") or
+                            (len(parts[0]) == 2 and parts[0][1] == ":")):
+                            return self._err(f"ZIP 包含絕對路徑: {name}")
+                    zf.extractall(extract_root)
+            except zipfile.BadZipFile:
+                return self._err("ZIP 檔損毀或不是有效的壓縮檔")
+
+            candidates = [extract_root]
+            top_dirs = [p for p in extract_root.iterdir() if p.is_dir()]
+            top_files = [p for p in extract_root.iterdir() if p.is_file()]
+            if len(top_dirs) == 1 and not top_files:
+                candidates = [top_dirs[0]]
+            elif any(d.name == safe_name for d in top_dirs):
+                candidates = [d for d in top_dirs if d.name == safe_name]
+
+            src = candidates[0]
+            if not any(src.iterdir()):
+                return self._err("ZIP 解壓後為空")
+
+            def _looks_like_ui_root(path: Path) -> bool:
+                """launcher.py (+ app.py) + page/ 目錄 + 無 lvgl/ = ui 根"""
+                has_launcher = (path / "launcher.py").is_file()
+                has_app = (path / "app.py").is_file()
+                has_page_dir = (path / "page").is_dir()
+                has_lvgl_dir = (path / "lvgl").is_dir()
+                return (has_launcher or has_app) and has_page_dir and not has_lvgl_dir
+
+            dest.mkdir(parents=True, exist_ok=True)
+            # 關鍵：只清 LVGL 程式碼區（lvgl/, ui/, 根的非 web 檔），保留網頁區（HTML/CSS/design.json）
+            designlib.clear_lvgl_code_only(safe_name, keep_web_assets=True)
+
+            src_items = list(src.iterdir())
+            web_like: list[str] = []
+            for p in src_items:
+                if p.is_file() and p.suffix.lower() in designlib.WEB_ASSET_EXTS:
+                    if p.name != "design.json":
+                        web_like.append(p.name)
+
+            lvgl_root_pkg = any(
+                (src / name).exists() and (src / name).is_dir()
+                for name in designlib.LVGL_CODE_DIRS)
+            moved_to_ui = False
+            if lvgl_root_pkg:
+                # Case A: ZIP 已經有 lvgl/ 或 ui/ 子目錄 → 直接放進 dest 根
+                for name in designlib.LVGL_CODE_DIRS:
+                    s = src / name
+                    if not s.exists():
+                        continue
+                    d = dest / name
+                    if d.exists():
+                        shutil.rmtree(d)
+                    shutil.copytree(s, d)
+            elif _looks_like_ui_root(src):
+                # Case B: ZIP 根本身就是 ui 內容 → 搬進 lvgl/ui/
+                ui_dir = dest / "lvgl" / "ui"
+                ui_dir.mkdir(parents=True, exist_ok=True)
+                for p in src_items:
+                    t = ui_dir / p.name
+                    if t.exists():
+                        if t.is_dir():
+                            shutil.rmtree(t)
+                        else:
+                            t.unlink()
+                    if p.is_dir():
+                        shutil.copytree(p, t)
+                    else:
+                        shutil.copy2(p, t)
+                moved_to_ui = True
+            else:
+                # Case C: 散落的 .py / page/ / src/ 等 → 裝進 lvgl/ui/
+                ui_dir = dest / "lvgl" / "ui"
+                ui_dir.mkdir(parents=True, exist_ok=True)
+                for p in src_items:
+                    t = ui_dir / p.name
+                    if t.exists():
+                        if t.is_dir():
+                            shutil.rmtree(t)
+                        else:
+                            t.unlink()
+                    if p.is_dir():
+                        shutil.copytree(p, t)
+                    else:
+                        shutil.copy2(p, t)
+                moved_to_ui = True
+
+            if web_like:
+                self.studio.log(
+                    f"ℹ 匯入 ZIP 內含 {len(web_like)} 個網頁類檔案"
+                    f"（{', '.join(web_like[:3])}…）已跳過，不覆蓋設計稿")
+            if moved_to_ui:
+                self.studio.log("ℹ 匯入的程式碼自動歸檔到 lvgl/ui/")
+
+        designlib.scan_design(safe_name)
+        meta = designlib.read_design(safe_name) or {}
+        pages = len(meta.get("pages", []))
+        kind = designlib.design_kind(safe_name)
+        self.studio.log(
+            f"📦 匯入 LVGL 程式碼到 {safe_name} [{kind}]: 清理程式碼區,"
+            f" 解壓並掃描 ({pages} 頁,"
+            f" {len(meta.get('interactions', []))} 互動)")
+        self._json({"ok": True, "design": safe_name,
+                    "pages": pages,
+                    "kind": kind,
+                    "moved_to_ui": moved_to_ui,
+                    "skipped_web_assets": len(web_like),
+                    "interactions": len(meta.get("interactions", []))})
+
+    def _design_export_zip(self) -> None:
+        """匯出指定 design 成 ZIP 下載。
+
+        GET /api/design/exportzip?design=NAME
+        → 回傳 application/zip 檔: {NAME}.zip（zip 根為 {NAME}/ 目錄）
+        """
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        design_name = (q.get("design", [None])[0] or "").strip()
+        if not design_name:
+            return self._err("缺少 design 參數")
+        src = designlib.DESIGN_LIB / design_name
+        if not src.exists() or not src.is_dir():
+            return self._err("design 不存在")
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for p in sorted(src.rglob("*")):
+                if not p.is_file():
+                    continue
+                arc = f"{design_name}/{p.relative_to(src).as_posix()}"
+                zf.write(p, arc)
+        data = buf.getvalue()
+        dl_name = f"{design_name}.zip"
+        self.send_response(200)
+        self.send_header("Content-Type", "application/zip")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Content-Disposition",
+                         f'attachment; filename="{dl_name}"')
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(data)
+        self.studio.log(f"⬇ 匯出 design: {design_name} ({len(data)} bytes)")
+
     def _msnames(self) -> None:
         """Material Symbols 全部名稱→碼點（前端做字形預覽/查詢用）。"""
         try:
@@ -582,6 +817,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._design_scan()
             if url.path == "/api/design/upload":
                 return self._design_upload()
+            if url.path == "/api/design/importzip":
+                return self._design_import_zip()
             if url.path == "/api/design/delete":
                 return self._design_delete()
             if url.path == "/api/design/savecode":

@@ -117,7 +117,8 @@
     </div>
     <p class="hint" style="margin-top:8px">
       上傳格式:檔名前面加「{design}/」即上傳到該 design,例如 <code>lvgl-console-ui/launcher.html</code>。
-      已存在的 design 資料夾可用右側「重新掃描」更新 design.json。</p>
+      已存在的 design 資料夾可用右側「重新掃描」更新 design.json。
+      每個 design 可獨立「匯入 ZIP」覆蓋全部內容,或「匯出 ZIP」打包下載。</p>
   </section>
 
   <!-- 資產（Icons/中文/動效） -->
@@ -329,15 +330,33 @@ async function loadDesigns() {
   } catch (e) { logLine("✗ " + e.message); return []; }
 }
 function renderDesigns(list) {
+  const kindBadge = k => ({
+    html:  '🖼 HTML 網頁',
+    lvgl:  '🐍 LVGL 程式',
+    mixed: '🖼🐍 混合',
+    empty: '∅ 空',
+  }[k] || k || '');
+  const kindColor = k => ({
+    html:  'background:#e3f2fd;color:#02569b',
+    lvgl:  'background:#e8f5e9;color:#2e7d32',
+    mixed: 'background:#fff3e0;color:#e65100',
+    empty: 'background:#eceff1;color:#455a64',
+  }[k] || '');
   $("dlib-panel").style.display = list.length ? "" : "none";
   $("dlib-empty").style.display = list.length ? "none" : "";
   $("dlib-rows").innerHTML = list.map(d =>
-    `<tr><td><b>${d.title}</b> <span class="hint">(${d.name})</span></td>
+    `<tr><td><b>${d.title}</b> <span class="hint">(${d.name})</span>
+      <span class="badge" style="${kindColor(d.kind)};font-size:11px">${kindBadge(d.kind)}</span>
+     </td>
      <td>${d.width}×${d.height}</td><td>${d.pages}</td>
      <td>${d.interactions.length}</td>
      <td style="white-space:nowrap">
        <button onclick="scanDesign('${d.name}')">重新掃描</button>
        <button onclick="previewDesign('${d.name}')">預覽</button>
+       <button onclick="importZipForDesign('${d.name}')"
+         title="上傳 LVGL 程式 ZIP → 只覆蓋 lvgl/ 與 ui/ 區，網頁 HTML/CSS 保留">📦 匯入 LVGL ZIP</button>
+       <button onclick="exportZipForDesign('${d.name}')"
+         title="下載此 design 全部內容（網頁 + LVGL）成 ZIP">⬇ 匯出 ZIP</button>
        <button onclick="delDesign('${d.name}')">刪除</button>
      </td></tr>`).join("");
 }
@@ -389,6 +408,40 @@ async function uploadDesignFiles(files) {
     logLine("↑ 上傳: " + r.saved.join(", "));
     await loadDesigns();
   } catch (e) { logLine("✗ " + e.message); }
+}
+
+// ---------- 單 design 的 ZIP 匯入/匯出 ----------
+function importZipForDesign(designName) {
+  const inp = document.createElement("input");
+  inp.type = "file"; inp.accept = ".zip";
+  inp.onchange = () => {
+    if (!inp.files || !inp.files[0]) return;
+    const zipFile = inp.files[0];
+    doImportZip(designName, zipFile);
+  };
+  inp.click();
+}
+async function doImportZip(designName, zipFile) {
+  logLine(`📦 匯入 ZIP → ${designName}: ${zipFile.name} (${(zipFile.size/1024).toFixed(1)} KB)，將覆蓋舊內容…`);
+  const fd = new FormData();
+  fd.append("zip", zipFile, zipFile.name);
+  fd.append("design", designName);
+  try {
+    const r = await api("/api/design/importzip?design=" + encodeURIComponent(designName),
+      { method: "POST", body: fd });
+    logLine(`✅ 匯入成功: ${r.design}（${r.pages} 頁, ${r.interactions} 互動）`);
+    await loadDesigns();
+  } catch (e) {
+    logLine("✗ ZIP 匯入失敗: " + e.message);
+    alert("匯入失敗: " + e.message);
+  }
+}
+function exportZipForDesign(designName) {
+  const url = "/api/design/exportzip?design=" + encodeURIComponent(designName);
+  logLine(`⬇ 匯出 ZIP: ${designName} …`);
+  const a = document.createElement("a");
+  a.href = url; a.download = designName + ".zip";
+  document.body.appendChild(a); a.click(); a.remove();
 }
 
 // ---------- 掃描 ----------

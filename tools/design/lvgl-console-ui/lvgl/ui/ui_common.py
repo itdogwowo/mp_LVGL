@@ -1,50 +1,54 @@
-# lvgl_ui_common.py — lvgl-console-ui 共用 UI 層
+# ui/lvgl/ui_common.py — 共用 UI 層(palette / 字型 / widget builder)
 #
-# 把 lvgl-console-ui 設計稿（colors_and_type.css / components.css）
-# 轉成 LVGL9 橫屏 320×240 可用的 palette / 字體 / 元件 builder。
+# 移植自 mp_LVGL/ui/lvgl_ui_common.py,差異:
+#   - 字型路徑改 /ui/lvgl/src/zh_hant_16.bin(slave new 佈局)
+#   - W/H 不寫死:由 init(plat) 注入(lvgl_init 從 bus 讀 tft_width/tft_height)
+#   - 加 sw_set/sw_get wrapper(binding 版本差異防護)
 #
-# 注意（對應 DEV_NOTES 踩坑）：
-#   - 字體用 getattr fallback（binding 沒編到的尺寸自動降級）
-#   - 枚举常數能用整數就用整數（soft reboot 後常數可能不穩）
-#   - 所有容器 pad_all(0) + 移除 SCROLLABLE（預設樣式會干擾佈局）
-
+# 注意(對應 DEV_NOTES 踩坑):
+#   - 字體用 getattr fallback(binding 沒編到的尺寸自動降級)
+#   - 枚舉常數能用整數就用整數(soft reboot 後常數可能不穩)
+#   - 所有容器 pad_all(0) + 移除 SCROLLABLE(預設樣式會干擾佈局)
 import lvgl as lv
 
-# ====== 版面（橫屏 ST7789，MADCTL=0x60） ======
-W = 320
-H = 240
+# ====== 版面(由 init 注入;fallback 240×320 直向) ======
+W = 240
+H = 320
 
-# ====== Palette（來自 colors_and_type.css） ======
-BG       = 0xF5F5F5   # --bg-base-secondary
-SURFACE  = 0xFFFFFF   # --bg-base-default
-BORDER   = 0xE0E0E0   # --border-neutral-l1
-TEXT     = 0x1F1F1F   # --text-default
-TEXT2    = 0x5F5F5F   # --text-secondary
-TEXT3    = 0x8F8F8F   # --text-tertiary
-PRIMARY  = 0x1A73E8   # --bg-brand
-SUCCESS  = 0x188038   # --status-success-default
-WARNING  = 0xF9AB00   # --status-warning-default
-DANGER   = 0xD93025   # --status-danger-default
-TRACK    = 0xDADCE0   # --bg-overlay-l3
-FOCUS_BG = 0xE8F0FE   # 焦點卡片底色（brand 淡色）
-DANGER_BG = 0xFCE8E6  # danger-subtle 按鈕底色
+# ====== Palette(來自 colors_and_type.css) ======
+BG       = 0xF5F5F5
+SURFACE  = 0xFFFFFF
+BORDER   = 0xE0E0E0
+TEXT     = 0x1F1F1F
+TEXT2    = 0x5F5F5F
+TEXT3    = 0x8F8F8F
+PRIMARY  = 0x1A73E8
+SUCCESS  = 0x188038
+WARNING  = 0xF9AB00
+DANGER   = 0xD93025
+TRACK    = 0xDADCE0
+FOCUS_BG = 0xE8F0FE
+DANGER_BG = 0xFCE8E6
+
+
+def init(plat):
+    """注入螢幕尺寸(lvgl_init.LvglDisp 的 W/H,從 bus 讀)。"""
+    global W, H
+    W = getattr(plat, "W", 240)
+    H = getattr(plat, "H", 320)
+
 
 # ====== 字體 ======
-# 繁體中文 .bin 字體須在 lv.init() 之後才能載入，
-# 因此用 init_fonts() 延遲載入（由 lvgl_ui_app 在 fb.setup() 後呼叫）。
 ZH = None
 
 def init_fonts():
-    """在 lv.init() 完成後呼叫，載入繁體中文 .bin 字體。
-    用 Python open() 讀檔 → binfont_create_from_buffer()，
-    繞過 LVGL FS 驅動（lv_conf 未啟用 POSIX/STDIO/FATFS）。
-    """
+    """在 lv.init() 完成後呼叫,載入繁中 .bin 字體。
+    slave new 佈局:/ui/lvgl/src/zh_hant_16.bin"""
     global ZH
     if ZH:
         return
-    # 方法：Python 讀檔 → buffer 載入
     try:
-        with open("/zh_hant_16.bin", "rb") as fp:
+        with open("/ui/lvgl/src/zh_hant_16.bin", "rb") as fp:
             buf = fp.read()
         print("[font] read {} bytes".format(len(buf)))
         f = None
@@ -52,7 +56,6 @@ def init_fonts():
             try:
                 f = lv.binfont_create_from_buffer(bytearray(buf), len(buf))
             except TypeError:
-                # binding 可能只需一個參數（自動推斷 size）
                 try:
                     f = lv.binfont_create_from_buffer(bytearray(buf))
                 except Exception as e2:
@@ -68,11 +71,9 @@ def init_fonts():
         print("[font] from_buffer returned None")
     except Exception as _e:
         print("[font] buffer load fail:", _e)
-    # 最後 fallback：內建 CJK（通常未編入）
     ZH = getattr(lv, "font_simsun_16_cjk", None)
     print("[font] fallback:", ZH)
 
-# 此 binding 沒有 lv.font_default()，用 montserrat_14（LVGL 主題預設字體）兜底
 _BASE_FONT = None
 for _n in ("font_montserrat_14", "font_montserrat_16", "font_montserrat_12",
            "font_montserrat_18", "font_montserrat_20"):
@@ -80,12 +81,10 @@ for _n in ("font_montserrat_14", "font_montserrat_16", "font_montserrat_12",
     if _BASE_FONT:
         break
 
-# ====== 圖示字體（lv_icons.py，由 tools/ 工具產生） ======
-# 板上沒有 icons_16.bin 時全部降級為 None，不影響其他功能。
+# ====== 圖示字體(src/lv_icons.py) ======
 _icon_font = None
 
 def _icon_font_ready():
-    """回傳 icon 字體（首次使用才載入）。"""
     global _icon_font
     if _icon_font is None:
         try:
@@ -97,7 +96,6 @@ def _icon_font_ready():
     return _icon_font or None
 
 def mk_icon(parent, name, x, y, color=TEXT2):
-    """建立圖示 label（lucide 名）。icon 字體不可用時回傳 None。"""
     f = _icon_font_ready()
     if f is None:
         return None
@@ -111,8 +109,7 @@ def mk_icon(parent, name, x, y, color=TEXT2):
     lb.set_style_text_font(f, 0)
     return lb
 
-# ====== 動效 helper（lv_ui_fx.py，由 tools/ 工具產生） ======
-# 板上沒有 lv_ui_fx.py 時降級為 no-op。
+# ====== 動效 helper(src/lv_ui_fx.py) ======
 try:
     from lv_ui_fx import pulse as _fx_pulse, fade_in as _fx_fade_in
 except Exception:
@@ -129,17 +126,17 @@ def fade_in(wid, dy=6, time_ms=300, delay_ms=0):
     return None
 
 def font(*names):
-    """依序嘗試字體名，全部沒有就回 montserrat 基本字體。"""
     for n in names:
         f = getattr(lv, n, None)
         if f:
             return f
     return _BASE_FONT
 
-# 數字/拉丁用 Montserrat（binding 有編到哪個尺寸就用哪個）
 F_NUM_L = font("font_montserrat_22", "font_montserrat_20", "font_montserrat_18")
 F_NUM_M = font("font_montserrat_16", "font_montserrat_14")
 F_NUM_S = font("font_montserrat_12", "font_montserrat_10")
+F_NUM_XL = font("font_montserrat_28", "font_montserrat_26", "font_montserrat_24",
+                "font_montserrat_22", "font_montserrat_20")
 
 # ====== 基礎 builder ======
 
@@ -170,7 +167,7 @@ def mk_card(parent, x, y, w, h):
     return c
 
 def mk_appbar(scr, title, right=""):
-    """頂欄 36px：返回符號 + 標題 + 右側狀態。"""
+    """頂欄 36px:返回符號 + 標題 + 右側狀態。"""
     bar = lv.obj(scr)
     bar.set_size(W, 36)
     bar.set_pos(0, 0)
@@ -180,8 +177,6 @@ def mk_appbar(scr, title, right=""):
     bar.set_style_border_width(1, 0)
     bar.set_style_pad_all(0, 0)
     bar.remove_flag(lv.obj.FLAG.SCROLLABLE)
-
-    # 返回指示（BTN42）：優先 icon 字體,沒有就文字符號
     back = mk_icon(bar, "chevron-left", 8, 9, TEXT2)
     if back is None:
         mk_label(bar, "<", 10, 9, TEXT2, F_NUM_M)
@@ -193,7 +188,6 @@ def mk_appbar(scr, title, right=""):
     return bar, r
 
 def mk_btn(parent, text, x, y, w, h, kind="primary"):
-    """kind: primary / secondary / danger-subtle"""
     b = lv.button(parent)
     b.set_size(w, h)
     b.set_pos(x, y)
@@ -205,7 +199,7 @@ def mk_btn(parent, text, x, y, w, h, kind="primary"):
         b.set_style_bg_color(C(DANGER_BG), 0)
         b.set_style_border_width(0, 0)
         fg = DANGER
-    else:  # secondary
+    else:
         b.set_style_bg_color(C(SURFACE), 0)
         b.set_style_border_color(C(BORDER), 0)
         b.set_style_border_width(1, 0)
@@ -224,7 +218,7 @@ def mk_slider(parent, x, y, w, lo, hi, val, color=PRIMARY):
     s.set_size(w, 8)
     s.set_pos(x, y)
     s.set_range(lo, hi)
-    s.set_value(val, 0)   # 0 = ANIM_OFF
+    s.set_value(val, 0)
     s.set_style_bg_color(C(TRACK), lv.PART.MAIN)
     s.set_style_radius(4, lv.PART.MAIN)
     s.set_style_bg_color(C(color), lv.PART.INDICATOR)
@@ -233,6 +227,24 @@ def mk_slider(parent, x, y, w, lo, hi, val, color=PRIMARY):
     s.set_style_radius(8, lv.PART.KNOB)
     s.set_style_pad_all(4, lv.PART.KNOB)
     return s
+
+def mk_arc(parent, x, y, size, color, lo=0, hi=100):
+    """環形進度量表(不可調整,knob 隱藏)。"""
+    a = lv.arc(parent)
+    a.set_size(size, size)
+    a.set_pos(x, y)
+    a.set_range(lo, hi)
+    a.set_value(hi)
+    a.set_style_arc_width(6, lv.PART.MAIN)
+    a.set_style_arc_color(C(TRACK), lv.PART.MAIN)
+    a.set_style_arc_width(6, lv.PART.INDICATOR)
+    a.set_style_arc_color(C(color), lv.PART.INDICATOR)
+    # 隱藏 knob
+    a.set_style_arc_opa(0, lv.PART.KNOB)
+    a.set_style_bg_opa(0, lv.PART.KNOB)
+    a.set_style_outline_width(0, lv.PART.KNOB)
+    a.remove_flag(lv.obj.FLAG.CLICKABLE)
+    return a
 
 def mk_switch(parent, x, y, on=False, color=PRIMARY):
     s = lv.switch(parent)
@@ -246,86 +258,133 @@ def mk_switch(parent, x, y, on=False, color=PRIMARY):
     s.set_style_radius(10, lv.PART.KNOB)
     s.set_style_shadow_width(0, lv.PART.KNOB)
     if on:
-        s.add_state(lv.STATE.CHECKED)
+        sw_set(s, True)
     return s
 
-def mk_arc(parent, x, y, size, color):
-    """環形量表（不可調整，knob 隱藏）。"""
-    a = lv.arc(parent)
-    a.set_size(size, size)
-    a.set_pos(x, y)
-    a.set_range(0, 100)
-    a.set_style_arc_width(8, lv.PART.MAIN)
-    a.set_style_arc_color(C(TRACK), lv.PART.MAIN)
-    a.set_style_arc_width(8, lv.PART.INDICATOR)
-    a.set_style_arc_color(C(color), lv.PART.INDICATOR)
-    # 隱藏 knob（不設透明會畫出一個圓點）
-    a.set_style_arc_opa(0, lv.PART.KNOB)
-    a.set_style_bg_opa(0, lv.PART.KNOB)
-    a.set_style_outline_width(0, lv.PART.KNOB)
-    return a
+# ====== switch state 防護 wrapper(binding 版本差異) ======
+def _state_const():
+    try:
+        return lv.STATE.CHECKED
+    except Exception:
+        return 1
 
-def mk_bar(parent, x, y, w, h, val, color=PRIMARY):
-    b = lv.bar(parent)
-    b.set_size(w, h)
-    b.set_pos(x, y)
-    b.set_range(0, 100)
-    b.set_value(val, 0)
-    b.set_style_bg_color(C(TRACK), lv.PART.MAIN)
-    b.set_style_radius(4, lv.PART.MAIN)
-    b.set_style_bg_color(C(color), lv.PART.INDICATOR)
-    b.set_style_radius(4, lv.PART.INDICATOR)
-    return b
+def sw_set(sw, on):
+    """設定 switch 開/關。跨 binding 防護(add_state/clear_state/add_flag/clear_flag)。"""
+    chk = _state_const()
+    if on:
+        for m in ("add_state", "add_flag"):
+            fn = getattr(sw, m, None)
+            if fn is not None:
+                try:
+                    fn(chk if m == "add_state" else getattr(lv.obj.STATE, "CHECKED", 0x1000))
+                    return
+                except TypeError:
+                    try:
+                        fn(); return
+                    except Exception:
+                        continue
+                except Exception:
+                    continue
+    else:
+        for m in ("clear_state", "clear_flag"):
+            fn = getattr(sw, m, None)
+            if fn is not None:
+                try:
+                    fn(chk if m == "clear_state" else getattr(lv.obj.STATE, "CHECKED", 0x1000))
+                    return
+                except TypeError:
+                    try:
+                        fn(); return
+                    except Exception:
+                        continue
+                except Exception:
+                    continue
 
-# chart 常量（binding 差異防護）
-_CHART_TYPE_LINE = getattr(getattr(lv, "CHART_TYPE", None), "LINE", 1)
-_CHART_AXIS_Y = getattr(getattr(lv, "CHART_AXIS", None), "PRIMARY_Y", 0)
-
-def mk_chart(parent, x, y, w, h, color, points=24, ymax=100):
-    """迷你趨勢圖（LINE，無座標軸文字）。"""
-    ch = lv.chart(parent)
-    ch.set_size(w, h)
-    ch.set_pos(x, y)
-    ch.set_type(_CHART_TYPE_LINE)
-    ch.set_point_count(points)
-    # LVGL 9.3：set_range 改名為 set_axis_range(axis, min, max)
-    # 某些 port(JS/wasm)較舊,用 set_range 或無 → 都 try
-    try:
-        ch.set_axis_range(_CHART_AXIS_Y, 0, ymax)
-    except Exception:
-        try:
-            ch.set_range(0, ymax)
-        except Exception:
-            pass
-    try:
-        ch.set_div_line_count(3, 0)
-    except Exception:
-        pass
-    # 樣式設定:某些 port(JS/wasm)的 chart 缺部分 set_style_* → 整段保護,
-    # 趨勢圖核心(軸/線/資料)不受影響。
-    try:
-        ch.set_style_bg_opa(0, 0)
-        ch.set_style_border_width(0, 0)
-        ch.set_style_pad_all(2, 0)
-        ch.set_style_line_width(2, lv.PART.ITEMS)
-        ch.set_style_line_color(C(color), lv.PART.ITEMS)
-    except Exception:
-        pass
-    # LVGL 9.3：set_style_size 改為 (width, height, selector)；設 0 不畫資料點
-    try:
-        ch.set_style_size(0, 0, lv.PART.INDICATOR)
-    except Exception:
-        pass
-    ser = ch.add_series(C(color), _CHART_AXIS_Y)
-    return ch, ser
+def sw_get(sw):
+    """讀 switch 是否開。跨 binding 防護(has_state/get_state)。"""
+    for m in ("has_state", "get_state"):
+        fn = getattr(sw, m, None)
+        if fn is not None:
+            try:
+                return bool(fn(_state_const()))
+            except TypeError:
+                try:
+                    return bool(fn())
+                except Exception:
+                    continue
+            except Exception:
+                continue
+    return False
 
 # ====== 焦點視覺 ======
-
 def set_focus(wid, on, editing=False):
-    """外框焦點環：藍=導覽中、琥珀=編輯中。"""
     if on:
         wid.set_style_outline_color(C(WARNING if editing else PRIMARY), 0)
-        wid.set_style_outline_width(2, 0)
+        wid.set_style_outline_width(3, 0)
         wid.set_style_outline_pad(3, 0)
     else:
         wid.set_style_outline_width(0, 0)
+
+
+# ====== list helper ======
+# 用 lv.list 顯示文字清單;選中項用手動背景色標示(不依賴 LVGL indev group)。
+
+def mk_list(parent, x, y, w, h, items, font=None):
+    """建立 lv.list 並填入文字項。回傳 (list_widget, [按鈕widgets])。
+    items: 文字清單 list[str]。font: 指定字體(預設用 ZH)。"""
+    lst = lv.list(parent)
+    lst.set_size(w, h)
+    lst.set_pos(x, y)
+    f = font or ZH
+    btns = []
+    for txt in items:
+        b = lst.add_text(txt)
+        if f:
+            try:
+                b.set_style_text_font(f, 0)
+            except Exception:
+                pass
+        btns.append(b)
+    return lst, btns
+
+
+def mk_led(parent, x, y, size=12, on=False, on_color=SUCCESS, off_color=BORDER):
+    """LED 方格:亮(on_color)/滅(off_color)。回傳 widget,用 led_set() 切換。"""
+    d = lv.obj(parent)
+    d.set_size(size, size)
+    d.set_pos(x, y)
+    d.set_style_radius(size // 2, 0)
+    d.set_style_bg_color(C(on_color if on else off_color), 0)
+    d.set_style_border_width(0, 0)
+    d.set_style_pad_all(0, 0)
+    d.remove_flag(lv.obj.FLAG.SCROLLABLE)
+    return d
+
+
+def led_set(led, on, on_color=SUCCESS, off_color=BORDER):
+    """切換 LED 亮/滅。"""
+    try:
+        led.set_style_bg_color(C(on_color if on else off_color), 0)
+    except Exception:
+        pass
+
+
+def list_select(btns, idx, color=PRIMARY):
+    """標示 list 第 idx 項為選中(背景色);其他項清除。
+    color: PRIMARY(選中) / WARNING(編輯中/已送出等回覆) / SUCCESS(已確認)。"""
+    n = len(btns)
+    if n == 0:
+        return
+    idx = max(0, min(idx, n - 1))
+    for i, b in enumerate(btns):
+        try:
+            if i == idx:
+                b.set_style_bg_color(C(color), 0)
+                b.set_style_text_color(C(0xFFFFFF), 0)
+            else:
+                b.set_style_bg_color(C(BG), 0)
+                b.set_style_text_color(C(TEXT), 0)
+        except Exception:
+            pass
+
+
