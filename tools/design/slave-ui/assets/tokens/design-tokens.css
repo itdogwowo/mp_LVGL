@@ -1,0 +1,32 @@
+/* design-tokens.css — 由 tokengen.py 自動產生，請勿人工編輯。
+   真相來源：tokens.json。修改 tokens.json 後重跑 generate_tokens。 */
+:root {
+  /* colors */
+  --color-primary: #4B3FE3;  /* 主色 */
+  --color-surface: #F5F5F5;  /* 卡片表面 */
+  --color-bg: #F5F5F5;  /* 頁面背景 */
+  --color-bg-base: #FFFFFF;  /* 基礎背景 */
+  --color-text: #171717;  /* 主文字 */
+  --color-text-2: #404040;  /* 次文字 */
+  --color-text-3: #737373;  /* 弱文字 */
+  --color-track: #E5E5E5;  /* 軌道 */
+  /* fonts */
+  --font-body-xs: 10px;  /* 內文 XS */
+  --font-body-sm: 11px;  /* 內文 SM */
+  --font-body-md: 12px;  /* 內文 MD */
+  --font-body-base: 14px;  /* 內文 BASE */
+  --font-body-lg: 18px;  /* 內文 LG */
+  /* spacers */
+  --spacer-4: 4px;  /* 間距 4 */
+  --spacer-8: 8px;  /* 間距 8 */
+  --spacer-12: 12px;  /* 間距 12 */
+  --spacer-16: 16px;  /* 間距 16 */
+  --spacer-20: 20px;  /* 間距 20 */
+  --spacer-24: 24px;  /* 間距 24 */
+  --spacer-32: 32px;  /* 間距 32 */
+  /* radii */
+  --radii-4: 4px;  /* 圓角 4 */
+  --radii-8: 8px;  /* 圓角 8 */
+  --radii-12: 12px;  /* 圓角 12 */
+  --radii-16: 16px;  /* 圓角 16 */
+}

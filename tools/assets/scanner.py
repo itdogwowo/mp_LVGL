@@ -20,6 +20,9 @@ _INTERACT_RE = re.compile(
     r"([.#A-Za-z][\w.\\\-]*)\s*:(hover|active|focus|focus-visible|focus-within)\b[^{]*\{"
 )
 _NONASCII_RE = re.compile(r"[^\x00-\x7F]")
+# :root { --var: value; } 區塊解析（給 token 系統初始化用）
+_ROOT_BLOCK_RE = re.compile(r":root\s*\{([^}]*)\}", re.S)
+_CSS_VAR_RE = re.compile(r"--([\w-]+)\s*:\s*([^;{}]+)")
 
 SUPPORTED_EXT = (".html", ".css", ".design", ".json")
 
@@ -94,3 +97,84 @@ def scan(design_dir: Path | None = None) -> dict:
             "hover": hover[:200],
         },
     }
+
+
+# ============ Token 抽取（給 tokengen 初始化 tokens.json 用） ============
+
+def _parse_value(raw: str, raw_vars: dict[str, str],
+                 _seen: set[str] | None = None) -> str:
+    """把 CSS 變數值解析成最終值（遞迴解 var(--xxx) 引用）。
+
+    例如 var(--bg-brand) → #4B3FE3（若 --bg-brand 定義為 #4B3FE3）。
+    無法解析（循環/未定義）就回原值。
+    """
+    v = raw.strip()
+    if _seen is None:
+        _seen = set()
+    # 處理 var(--xxx[, fallback])
+    m = re.match(r"^var\(\s*(--[\w-]+)(?:\s*,\s*([^)]+))?\)$", v)
+    if m:
+        ref = m.group(1)[2:]  # 去 --
+        if ref in _seen:  # 循環引用
+            return m.group(2).strip() if m.group(2) else v
+        _seen.add(ref)
+        resolved = raw_vars.get(ref)
+        if resolved is None:
+            return m.group(2).strip() if m.group(2) else v
+        return _parse_value(resolved, raw_vars, _seen)
+    return v
+
+
+def extract_tokens_from_css(css_text: str) -> dict:
+    """從 CSS 文字抽 :root{} 的設計 token，分群回傳。
+
+    回傳結構（與 tokengen.generate_tokens 的 tokens.json 格式對齊）：
+      {
+        "raw": {"--bg-brand": "#4B3FE3", "--color-surface": "var(--bg-base-secondary)", ...},
+        "resolved": {"--bg-brand": "#4B3FE3", "--color-surface": "#F5F5F5", ...},
+        "groups": {"colors": {...}, "fonts": {...}, "spacers": {...}, "radii": {...}}
+      }
+    raw = 原始值（保留 var() 引用）；resolved = 解析到最終值。
+    groups 依前綴分群：bg/color/text/icon/border/accent/brand/status → colors，
+      font/body/heading/code → fonts，spacer → spacers，radius → radii。
+    """
+    raw_vars: dict[str, str] = {}
+    for block_m in _ROOT_BLOCK_RE.finditer(css_text):
+        for vm in _CSS_VAR_RE.finditer(block_m.group(1)):
+            name = vm.group(1)   # 不含 -- 前綴
+            raw_vars[name] = vm.group(2).strip()
+
+    # resolved：逐項解析 var() 引用
+    resolved: dict[str, str] = {}
+    for name, raw in raw_vars.items():
+        resolved[name] = _parse_value(raw, raw_vars)
+
+    # 分群（依名稱前綴）
+    groups: dict[str, dict[str, str]] = {
+        "colors": {}, "fonts": {}, "spacers": {}, "radii": {}, "icons": {},
+        "other": {},
+    }
+    color_prefixes = ("bg", "color", "text", "icon", "border", "accent",
+                      "brand", "status", "viz", "code-text", "code-doc",
+                      "code-link", "code-number", "code-action",
+                      "code-instruction", "code-function", "code-constant",
+                      "code-parameter", "code-attribute", "code-tag")
+    for name, val in resolved.items():
+        key = name.lower()
+        if key.startswith(color_prefixes) or re.match(
+                r"(bg|color|text|icon|border|accent|brand|status|viz)-", key):
+            groups["colors"]["--" + name] = val
+        elif key.startswith(("font", "body", "heading", "code-", "code_")):
+            groups["fonts"]["--" + name] = val
+        elif key.startswith("spacer"):
+            groups["spacers"]["--" + name] = val
+        elif key.startswith("radius"):
+            groups["radii"]["--" + name] = val
+        elif key.startswith("icon-size"):
+            groups["icons"]["--" + name] = val
+        else:
+            groups["other"]["--" + name] = val
+
+    # 去空群
+    groups = {k: v for k, v in groups.items() if v}
+    return {"raw": raw_vars, "resolved": resolved, "groups": groups}

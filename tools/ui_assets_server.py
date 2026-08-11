@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 import io
 import json
 import re
@@ -37,7 +38,7 @@ from assets import (
     load_config,
     save_config,
 )
-from assets import designlib, fxgen, icons, scanner, uiframe, vendor, zhfont
+from assets import designlib, fxgen, icons, scanner, tokengen, uiframe, vendor, zhfont
 
 # ============ 背景執行緒:log 緩衝 + 生成佇列 ============
 
@@ -144,27 +145,52 @@ class Studio:
         design = item.get("design")
         self.log(f"── 開始生成: {task}"
                  + (f"（design: {design}）" if design else "") + " ──")
-        # 輸出目標:design 模式下寫到 design/{name}/lvgl/{src|ui};否則 workspace/out
+        # 輸出目標:design 模式下真相寫 assets/{fonts,icons,tokens}/，
+        # 再複本一份到 lvgl/ui/src/ 給板子部署；否則 workspace/out
         if design:
-            src_out = designlib.lvgl_src_path(design)
             ui_out = designlib.lvgl_path(design)
+            src_out = designlib.lvgl_src_path(design)        # 部署複本（lvgl/ui/src/）
+            assets_fonts = designlib.assets_subpath(design, "fonts")
+            assets_icons = designlib.assets_subpath(design, "icons")
+            assets_tokens = designlib.assets_subpath(design, "tokens")
+            design_dir = designlib.DESIGN_LIB / design
         else:
-            src_out = OUT_DIR
             ui_out = OUT_DIR
+            src_out = OUT_DIR
+            assets_fonts = assets_icons = assets_tokens = OUT_DIR
+            design_dir = self._design_dir(design)
+
+        def _copy_to_src(names: list[str], from_dir: Path) -> None:
+            """把 assets/ 產出複本到 lvgl/ui/src/（板子部署用）。"""
+            if not design or not src_out.exists():
+                return
+            for n in names:
+                src_file = from_dir / n
+                if src_file.exists():
+                    shutil.copy2(src_file, src_out / n)
+
         if task in ("icons", "all"):
-            r = icons.generate_icons(mapping, self.log, out_root=src_out)
+            # 真相寫 assets/icons/，複本到 lvgl/ui/src/
+            r = icons.generate_icons(mapping, self.log, out_root=assets_icons)
+            _copy_to_src(["icons_16.bin", "lv_icons.py"], assets_icons)
             self.log(f"✓ icons: {r['count']} 個圖示, 缺碼點 {r['missing_codepoints']}")
         if task in ("zh", "all"):
-            # 掃描該 design（無指定則第一個有設計稿的）
-            design_dir = self._design_dir(design)
-            r = zhfont.generate_zh(design_dir, extra, log=self.log, out_root=src_out)
+            r = zhfont.generate_zh(design_dir, extra, log=self.log, out_root=assets_fonts)
+            _copy_to_src(["zh_hant_16.bin"], assets_fonts)
             self.log(f"✓ zh: {r['char_count']} 個字符, 缺 {r['missing']}")
         if task in ("fx", "all"):
             if not self.scan_cache or design != getattr(self, "_scan_design", None):
                 self.scan_cache = self.scan(design)
                 self._scan_design = design
+            # fx 只有 .py + .md，直接寫 src（無獨立 assets 區）
             r = fxgen.generate_fx(self.scan_cache, self.log, out_root=src_out)
             self.log(f"✓ fx: {r['animations']} 動畫, {r['hover_states']} hover 狀態")
+        if task in ("tokens", "all"):
+            # 真相寫 assets/tokens/，py 複本到 lvgl/ui/src/
+            r = tokengen.generate_tokens(design_dir, log=self.log, out_root=assets_tokens)
+            if r.get("ok"):
+                _copy_to_src(["design-tokens.py"], assets_tokens)
+                self.log(f"✓ tokens: {r['counts']}")
         if task in ("ui", "all"):
             # project_root = tools 的上一層 = mp_LVGL（工具內部推定,不需外部輸入）
             project_root = TOOLS_DIR.parent
@@ -185,6 +211,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("Access-Control-Allow-Origin", "*")  # 跨源模擬器 iframe
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)
@@ -219,6 +246,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._design_simcode()
         if url.path == "/api/design/savecode":
             return self._design_savecode()
+        if url.path == "/api/design/files":
+            return self._design_files()
+        if url.path == "/api/design/simfiles":
+            return self._design_simfiles()
+        if url.path == "/api/design/file":
+            return self._design_file_get()
         if url.path.startswith("/preview/"):
             return self._serve_preview(url.path)
         if url.path.startswith("/dlib/"):
@@ -234,6 +267,21 @@ class Handler(BaseHTTPRequestHandler):
     def _serve_file(self, path: Path, ctype: str) -> None:
         if not path.exists():
             return self._err("not found", 404)
+        st = path.stat()
+        # 條件式請求:Last-Modified + ETag → 304,避免每次按 ▶ 重載模擬器 iframe
+        # 都把 micropython.js / firmware.wasm(5.5MB) 重新下載一遍。
+        lm = datetime.datetime.fromtimestamp(
+            st.st_mtime, datetime.timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
+        etag = '"%x-%x"' % (st.st_mtime_ns & 0xFFFFFFFF, st.st_size)
+        inm = self.headers.get("If-None-Match")
+        ims = self.headers.get("If-Modified-Since")
+        if (inm is not None and inm == etag) or \
+           (ims is not None and ims == lm):
+            self.send_response(304)
+            self.send_header("ETag", etag)
+            self.send_header("Last-Modified", lm)
+            self.end_headers()
+            return
         body = path.read_bytes()
         self.send_response(200)
         is_text = ctype.startswith("text/") or ctype in (
@@ -241,6 +289,12 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type",
                          ctype + ("; charset=utf-8" if is_text else ""))
         self.send_header("Content-Length", str(len(body)))
+        # 模擬器/離線資源是靜態檔:允許瀏覽器快取,但每次重新驗證(304)
+        # 開發時改檔仍能生效(Last-Modified 變了就會 200)。
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("ETag", etag)
+        self.send_header("Last-Modified", lm)
+        self.send_header("Access-Control-Allow-Origin", "*")  # 跨源模擬器 iframe
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)
@@ -281,11 +335,20 @@ class Handler(BaseHTTPRequestHandler):
         self._json({"ok": True, "lines": lines, "last": last})
 
     def _serve_preview(self, path: str) -> None:
-        """提供「離線完整 HTML」版設計稿（script 指本地 vendor,iframe 直接開）。"""
+        """提供「離線完整 HTML」版設計稿（script 指本地 vendor,iframe 直接開）。
+
+        page 路徑可以是多段（如 html/page/control_panel.html），把 design 後的
+        所有段 join 成相對路徑再交給 render_full_html（其內部 _resolve_html_path
+        會做 html/ 與 html/page/ 的解析 + 防穿越）。
+        """
         parts = path[len("/preview/"):].split("/")
         if len(parts) < 2:
             return self._err("not found", 404)
-        design_name, page_file = parts[0], Path(parts[1]).name
+        design_name = urllib.parse.unquote(parts[0])
+        # join 剩餘段成相對頁面路徑（保留 html/page/ 子目錄），逐段 unquote
+        page_file = "/".join(urllib.parse.unquote(p) for p in parts[1:] if p)
+        if not page_file:
+            return self._err("not found", 404)
         html = designlib.render_full_html(design_name, page_file)
         if not html:
             return self._err("not found", 404)
@@ -297,23 +360,76 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _serve_dlib(self, path: str) -> None:
-        """提供 design 庫內的檔（/dlib/{design}/{file}）。"""
+        """提供 design 庫內的檔（/dlib/{design}/{file}）。
+
+        目录 URL（結尾有/無斜線皆可）→ Apache-style HTML 目錄列表，
+        让模擬器 framework shim 的 _preload_dir 能解析 <a href="xxx.py"> 抓檔。
+        基於安全：只對三個規範化區（lvgl/、html/、assets/）下的目錄放行列表，
+        design 根與其他子目錄仍回 403，避免暴露結構。
+        """
         parts = path[len("/dlib/"):].split("/")
         if len(parts) < 2:
             return self._err("not found", 404)
         design_name = parts[0]
         fname = "/".join(parts[1:])
-        p = (designlib.DESIGN_LIB / design_name / fname).resolve()
-        # 防穿越:必須在該 design 目錄內
         base = designlib.DESIGN_LIB / design_name
+        p = (base / fname).resolve()
+        # 防穿越:必須在該 design 目錄內
         if not str(p).startswith(str(base.resolve())):
             return self._err("forbidden", 403)
-        if not p.exists() or not p.is_file():
+        # 目錄 → Apache-style 列表（僅限三個規範化區，避免暴露其他結構）
+        if p.is_dir():
+            rel = p.relative_to(base.resolve()).as_posix()
+            head = rel.split("/", 1)[0] if rel and rel != "." else ""
+            if head not in designlib.PROTECTED_DIRS:
+                return self._err("forbidden", 403)
+            return self._serve_dlib_dir(design_name, p)
+        if not p.is_file():
             return self._err("not found", 404)
         ctype = ("text/html" if p.suffix == ".html" else
                  "text/css" if p.suffix == ".css" else
+                 "application/json" if p.suffix == ".json" else
                  "application/octet-stream")
         self._serve_file(p, ctype)
+
+    def _serve_dlib_dir(self, design_name: str, dir_path: Path) -> None:
+        """Apache-style HTML 目錄列表（給 _preload_dir 解析用）。
+
+        列出的副檔名依目錄所屬區域決定：
+          - lvgl/、ui/、assets/tokens  → .py（程式碼 + token helper）
+          - html/                      → .html（網頁設計稿）
+          - assets/fonts、assets/icons → .bin + .py（字體/圖示資源 + helper）
+        href 用絕對路徑 /dlib/{design}/{rel}，與 _preload_dir 的 href 解析邏輯相容。
+        """
+        rel_base = dir_path.relative_to(designlib.DESIGN_LIB).as_posix()
+        # rel_base 形如 "{design}/{region}/..."，取 region（第二段）與其後路徑
+        parts = rel_base.split("/", 2)
+        # parts[0] = design, parts[1] = region (html/lvgl/assets 等), parts[2] = 子路徑
+        region = parts[1] if len(parts) >= 2 else ""
+        sub = parts[2] if len(parts) >= 3 else ""
+        if region == "html":
+            exts = {".html"}
+        elif region == designlib.ASSETS_DIR and sub.split("/", 1)[0] in ("fonts", "icons"):
+            exts = {".bin", ".py"}
+        else:  # lvgl / ui / assets/tokens 等
+            exts = {".py"}
+        rows = []
+        for child in sorted(dir_path.iterdir()):
+            if not child.is_file() or child.suffix.lower() not in exts:
+                continue
+            href = "/dlib/{}/{}".format(rel_base, child.name)
+            rows.append('<a href="{}">{}</a>'.format(href, child.name))
+        html = ("<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
+                "<title>Index of {}</title></head><body>"
+                "<h1>Index of /{}</h1><ul><li>{}</li></ul></body></html>").format(
+            rel_base, rel_base, "</li><li>".join(rows))
+        body = html.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(body)
 
     def _designs(self) -> None:
         """design 庫清單（含每 design 的 meta + 互動 API 數 + lvgl 產出狀態 + 資產種類）。"""
@@ -336,7 +452,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def _design_pages(self, design_name: str | None = None
                       ) -> tuple[list[dict], dict, dict]:
-        """依 design 組 PAGES + ROUTES + META。"""
+        """依 design 組 PAGES + ROUTES + META。
+
+        routes 委派給 designlib.compute_routes（與 render_full_html 注入的
+        postMessage 橋接同一份邏輯，避免兩處 drift）。
+        """
         self.studio._migrate_if_needed()
         if design_name:
             meta = designlib.read_design(design_name)
@@ -353,22 +473,7 @@ class Handler(BaseHTTPRequestHandler):
                 "title": p["title"],
                 "tag": p.get("tag", "feature"),
             })
-        routes: dict[str, str] = {}
-        # 路由:launcher 的 card-X → page-X;任何 btn-back → launcher
-        launcher_id = next((p["id"] for p in pages if p["tag"] == "launcher"),
-                           pages[0]["id"])
-        for p in meta["pages"]:
-            fname = p["file"]
-            txt = (designlib.DESIGN_LIB / Path(meta["dir"]).name / fname
-                   ).read_text(encoding="utf-8", errors="replace")
-            for m in re.finditer(r'data-dom-id="([^"]+)"', txt):
-                dom = m.group(1)
-                if dom.startswith("card-"):
-                    target = "page-" + dom[len("card-"):]
-                    if any(x["id"] == target for x in pages):
-                        routes[dom] = target
-                elif dom == "btn-back":
-                    routes[dom] = launcher_id
+        routes = designlib.compute_routes(Path(meta["dir"]).name)
         return pages, routes, meta
 
     def _design_simcode(self) -> None:
@@ -436,9 +541,17 @@ class Handler(BaseHTTPRequestHandler):
         r = designlib.extract_render(design_name, page_file)
         if not r:
             return self._err("設計稿不存在")
-        # 附頁面清單(供原生頁面按鈕列)
+        # 附頁面清單(供原生頁面按鈕列)。
+        # 規範化結構下 page 有 web_file/lvgl_file 雙欄位；為了向後相容前端讀 p.file，
+        # 補一個 file 別名（優先 web_file，否則 lvgl_file），讓既有 JS 不用改。
         meta = designlib.read_design(design_name) or {}
-        r["pages"] = meta.get("pages", [])
+        pages_out = []
+        for p in meta.get("pages", []):
+            pp = dict(p)  # 淺拷貝避免改到原 meta
+            if "file" not in pp:
+                pp["file"] = pp.get("web_file") or pp.get("lvgl_file") or ""
+            pages_out.append(pp)
+        r["pages"] = pages_out
         r["ok"] = True
         self._json(r)
 
@@ -500,6 +613,98 @@ class Handler(BaseHTTPRequestHandler):
                         f"{len(meta['pages'])} 頁, {len(meta['interactions'])} 互動")
         self._json({"ok": True, "pages": len(meta["pages"]),
                     "interactions": len(meta["interactions"])})
+
+    # ---- 編輯器：列出/讀取/儲存 design 檔案（html/、lvgl/、assets/ 三區） ----
+    _EDITABLE_EXTS = (".py", ".html", ".htm", ".css", ".js", ".mjs",
+                      ".json", ".md", ".txt")
+
+    def _design_files(self) -> None:
+        """列出 design 的可編輯檔案（相對路徑 + 大小）。"""
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        design_name = (q.get("design", [None])[0] or "").strip()
+        d = designlib.DESIGN_LIB / design_name
+        if not d.is_dir():
+            return self._err("design 不存在")
+        files = []
+        for region in ("html", "lvgl", "assets"):
+            rd = d / region
+            if not rd.is_dir():
+                continue
+            for p in sorted(rd.rglob("*")):
+                if p.is_file() and p.suffix.lower() in self._EDITABLE_EXTS:
+                    files.append({
+                        "path": p.relative_to(d).as_posix(),
+                        "size": p.stat().st_size,
+                        "region": region,
+                    })
+        self._json({"ok": True, "design": design_name, "files": files})
+
+    def _design_simfiles(self) -> None:
+        """一次回傳 design 的 lvgl ui .py 內容（模擬器 JS 預載用）。
+
+        路徑相對 ui 根（如 registry.py / page/control_panel.py / src/lv_icons.py），
+        讓 lvgl.html 一次請求就寫完整個 /_wsp/{design}/，省掉逐檔 XHR。
+        """
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        design_name = (q.get("design", [None])[0] or "").strip()
+        if not design_name:
+            return self._err("需要 design 參數")
+        _lv, ui = designlib._ui_candidates(design_name)
+        if ui is None or not ui.is_dir():
+            return self._err("design 不存在")
+        files: dict[str, str] = {}
+        for p in sorted(ui.rglob("*.py")):
+            rel = p.relative_to(ui).as_posix()
+            files[rel] = p.read_text(encoding="utf-8", errors="replace")
+        self._json({"ok": True, "design": design_name, "files": files})
+
+    def _design_file_get(self) -> None:
+        """讀取 design 內單一文字檔內容（編輯器用）。"""
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        design_name = (q.get("design", [None])[0] or "").strip()
+        path = (q.get("path", [None])[0] or "").strip()
+        p = (designlib.DESIGN_LIB / design_name / path).resolve()
+        base = (designlib.DESIGN_LIB / design_name).resolve()
+        if not str(p).startswith(str(base)):
+            return self._err("forbidden", 403)
+        if not p.is_file() or p.suffix.lower() not in self._EDITABLE_EXTS:
+            return self._err("not found", 404)
+        self._json({"ok": True, "design": design_name,
+                    "path": p.relative_to(base).as_posix(),
+                    "content": p.read_text(encoding="utf-8", errors="replace")})
+
+    def _design_file_save(self) -> None:
+        """儲存 design 內單一文字檔（編輯器用）。
+
+        只允許 html/、lvgl/、assets/（PROTECTED_DIRS）下的文字檔；
+        儲存後自動重新掃描（頁面/導航可能變動）。
+        """
+        data = json.loads(self._body() or b"{}")
+        design_name = data.get("design", "")
+        path = data.get("path", "")
+        content = data.get("content", "")
+        if not design_name or not path:
+            return self._err("需要 design 與 path")
+        d = designlib.DESIGN_LIB / design_name
+        p = (d / path).resolve()
+        base = d.resolve()
+        if not str(p).startswith(str(base)):
+            return self._err("forbidden", 403)
+        rel = p.relative_to(base).as_posix()
+        head = rel.split("/", 1)[0]
+        if head not in designlib.PROTECTED_DIRS:
+            return self._err("forbidden: 只允許 html/ lvgl/ assets/ 下的檔案")
+        if p.suffix.lower() not in self._EDITABLE_EXTS:
+            return self._err(f"不支援編輯副檔名: {p.suffix}")
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(content, encoding="utf-8")
+        # 儲存後重新掃描（HTML 頁面 / LVGL @register 可能變動）
+        try:
+            designlib.scan_design(design_name)
+        except Exception as e:
+            self.studio.log(f"⚠ 儲存後掃描失敗: {e}")
+        self.studio.log(f"💾 儲存: {design_name}/{rel} ({len(content)} chars)")
+        self._json({"ok": True, "saved": rel})
 
     def _design_upload(self) -> None:
         ctype = self.headers.get("Content-Type", "")
@@ -658,8 +863,24 @@ class Handler(BaseHTTPRequestHandler):
             lvgl_root_pkg = any(
                 (src / name).exists() and (src / name).is_dir()
                 for name in designlib.LVGL_CODE_DIRS)
+            # Case D（規範化）：ZIP 有 html/ 或 assets/ 子目錄 → 規範化三區結構，
+            # 直接把各區 copytree 到 dest 對應目錄（html/、assets/ 必保留；lvgl/ 亦然）
+            has_html_dir = (src / "html").is_dir()
+            has_assets_dir = (src / designlib.ASSETS_DIR).is_dir()
             moved_to_ui = False
-            if lvgl_root_pkg:
+            if has_html_dir or has_assets_dir:
+                # 規範化結構：逐區複製
+                for region in ("html", designlib.ASSETS_DIR, "lvgl"):
+                    s = src / region
+                    if not s.exists():
+                        continue
+                    d = dest / region
+                    if d.exists():
+                        shutil.rmtree(d)
+                    shutil.copytree(s, d)
+                self.studio.log(
+                    f"ℹ 規範化結構匯入: html/+lvgl/+assets/ 各區就位")
+            elif lvgl_root_pkg:
                 # Case A: ZIP 已經有 lvgl/ 或 ui/ 子目錄 → 直接放進 dest 根
                 for name in designlib.LVGL_CODE_DIRS:
                     s = src / name
@@ -823,6 +1044,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._design_delete()
             if url.path == "/api/design/savecode":
                 return self._design_savecode()
+            if url.path == "/api/design/file":
+                return self._design_file_save()
             self._err("not found", 404)
         except Exception as e:
             self._err(str(e))
@@ -868,7 +1091,7 @@ class Handler(BaseHTTPRequestHandler):
     def _generate(self) -> None:
         data = json.loads(self._body() or b"{}")
         task = data.get("task", "")
-        if task not in ("icons", "zh", "fx", "ui", "all"):
+        if task not in ("icons", "zh", "fx", "tokens", "ui", "all"):
             return self._err(f"未知 task: {task}")
         mapping = data.get("icons_mapping") or {}
         extra = data.get("extra_chars", "")

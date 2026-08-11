@@ -25,12 +25,19 @@ from . import TOOLS_DIR
 
 DESIGN_LIB = TOOLS_DIR / "design"
 
-# ── 資產分區：網頁設計（HTML 設計稿）vs LVGL 程式（.mpy 模擬代碼） ─────────────
-# 所有在 design 根目錄出現的 HTML/CSS/圖資/design.json 一律視為「網頁設計區」。
-# LVGL 程式碼嚴格只能出現在 LVGL_CODE_DIRS 指定的子目錄中，絕不混入根目錄。
-# 匯入 ZIP 時，只會清理 & 寫入 LVGL_CODE_DIRS，不會碰到根目錄的 HTML/CSS。
+# ── 資產三分區：網頁設計（html/）· LVGL 程式（lvgl/）· 共用資源（assets/） ────
+# 規範化結構：每個 design 下三個平行資料夾，各自存放、互相對應。
+#   html/    網頁設計稿（*.html, *.css, page/*.html）— 設計迭代用
+#   lvgl/    LVGL 程式碼（ui/, page/, src/）— 板端運行 + 模擬器
+#   assets/  共用資源（tokens/, fonts/, icons/）— 真相來源，產出複本到 lvgl/ui/src/
+# 匯入 ZIP 時，只會清理 & 寫入 LVGL_CODE_DIRS，不會碰到 html/ 與 assets/。
+# 向後相容：根目錄的 HTML/CSS（舊結構）仍視為網頁區，不會被刪。
 
 LVGL_CODE_DIRS: tuple[str, ...] = ("lvgl", "ui")
+# 網頁設計區目錄（規範化結構 + 向後相容的根目錄副檔名）
+WEB_DIRS: tuple[str, ...] = ("html",)
+# 共用資源區目錄（字體/圖標/token 的真相來源，絕不可被誤刪）
+ASSETS_DIR = "assets"
 # 根目錄副檔名若符合 WEB_ASSET_EXTS，屬於網頁設計資產，不允許刪除
 WEB_ASSET_EXTS: tuple[str, ...] = (
     ".html", ".htm", ".css", ".js", ".mjs",
@@ -39,16 +46,18 @@ WEB_ASSET_EXTS: tuple[str, ...] = (
     ".mp3", ".wav", ".ogg", ".webm", ".mp4",
     ".json", ".txt", ".md", ".map",
 )
+# 規範化 design 的三個頂層目錄（不可被 clear_lvgl_code_only 誤刪）
+PROTECTED_DIRS: tuple[str, ...] = LVGL_CODE_DIRS + WEB_DIRS + (ASSETS_DIR,)
 
 
 def is_web_asset(path: Path, design_root: Path) -> bool:
-    """判斷某個檔案/資料夾是不是「網頁設計區」資產（不得被 LVGL 匯入覆蓋）。
+    """判斷某個檔案/資料夾是不是「不可被 LVGL 匯入覆蓋」的資產。
 
     規則：
-      - 任何 design 根目錄下、副檔名屬於 WEB_ASSET_EXTS 的檔案 = 網頁資產
-      - design 根目錄下副檔名不屬於 LVGL code 的檔案（如 .bin 資源）= 網頁資產
-      - 不在 LVGL_CODE_DIRS 子目錄裡的檔案/目錄，若父輩是根目錄，歸屬網頁區
-      - LVGL_CODE_DIRS 子目錄下的所有東西 = 程式碼區（可刪可換）
+      - html/ 與 assets/ 下的所有東西 = 受保護（網頁設計區 / 共用資源區）
+      - design 根目錄下、副檔名屬於 WEB_ASSET_EXTS 的檔案 = 網頁資產（向後相容）
+      - design.json = 受保護
+      - LVGL_CODE_DIRS（lvgl/ui）下的所有東西 = 程式碼區（可刪可換）
     """
     try:
         rel = path.relative_to(design_root).as_posix()
@@ -59,14 +68,21 @@ def is_web_asset(path: Path, design_root: Path) -> bool:
     head = rel.split("/", 1)[0]
     if head in LVGL_CODE_DIRS:
         return False
-    return True
+    return True  # html/、assets/、根目錄 web 檔都受保護
 
 
 def web_assets_exist(design_name: str) -> bool:
+    """有沒有網頁設計稿（html/ 下或根目錄的 .html/.css）。"""
     d = DESIGN_LIB / design_name
-    return d.exists() and any(
-        (p.suffix.lower() in WEB_ASSET_EXTS)
-        for p in d.iterdir() if p.is_file())
+    if not d.exists():
+        return False
+    # 規範化：html/ 目錄存在且有檔
+    html_dir = d / "html"
+    if html_dir.exists() and any(html_dir.rglob("*")):
+        return True
+    # 向後相容：根目錄的 web 檔
+    return any(p.suffix.lower() in WEB_ASSET_EXTS
+               for p in d.iterdir() if p.is_file())
 
 
 def lvgl_code_exists(design_name: str) -> bool:
@@ -88,11 +104,11 @@ def design_kind(design_name: str) -> str:
 
 
 def clear_lvgl_code_only(design_name: str, keep_web_assets: bool = True) -> None:
-    """只清理 LVGL 程式碼區，保留網頁設計區 & design.json。
+    """只清理 LVGL 程式碼區，保留網頁設計區、共用資源區 & design.json。
 
     - 刪除 LVGL_CODE_DIRS（"lvgl"/"ui"）整個子目錄
+    - **絕不刪除** PROTECTED_DIRS 中的 html/ 與 assets/（規範化結構的另兩區）
     - 清理 design 根目錄中不屬於 WEB_ASSET_EXTS（也就是誤植的 .py / .bin 等）
-      只在 keep_web_assets=True 且沒有同名 LVGL 目錄已存在時執行根目錄掃蕩
     """
     d = DESIGN_LIB / design_name
     if not d.exists():
@@ -105,8 +121,8 @@ def clear_lvgl_code_only(design_name: str, keep_web_assets: bool = True) -> None
         for p in list(d.iterdir()):
             if p.name == "design.json":
                 continue
-            if p.name in LVGL_CODE_DIRS:
-                continue  # 已經清掉了
+            if p.name in PROTECTED_DIRS:
+                continue  # html/、assets/、(已清的 lvgl/ui) 都跳過
             if p.is_file():
                 if p.suffix.lower() not in WEB_ASSET_EXTS:
                     p.unlink()
@@ -152,6 +168,43 @@ def scope_css(css: str) -> str:
     return css
 
 
+def _resolve_html_path(design_name: str, page_file: str) -> Path | None:
+    """把 page_file（可能是檔名或相對路徑）解析成 design 內的 HTML 檔完整路徑。
+
+    搜尋順序：
+      1. 規範化：page_file 視為相對 design 根的路徑（如 html/page/x.html）
+      2. 規範化 html/ 根：design/html/{basename}
+      3. 規範化 html/page/：design/html/page/{basename}
+      4. 向後相容：design 根目錄 {basename}
+    """
+    d = DESIGN_LIB / design_name
+    fname = Path(page_file).name  # 防穿越：只用檔名
+    # 1: 規範化相對路徑（page_file 可能是 html/page/control_panel.html）
+    if "/" in page_file:
+        rel = Path(page_file).as_posix()
+        # 防穿越：不允許 .. 或絕對路徑
+        parts = Path(page_file).parts
+        if ".." not in parts and not page_file.startswith(("/", "\\")):
+            cand = d / rel
+            if cand.exists() and cand.is_file():
+                # 必須在 design 目錄內
+                try:
+                    cand.resolve().relative_to(d.resolve())
+                    return cand
+                except ValueError:
+                    pass
+    # 2-3: html/ 與 html/page/
+    for sub in ("html", "html/page"):
+        cand = d / sub / fname
+        if cand.exists() and cand.is_file():
+            return cand
+    # 4: 根目錄（向後相容）
+    cand = d / fname
+    if cand.exists() and cand.is_file():
+        return cand
+    return None
+
+
 def extract_render(design_name: str, page_file: str) -> dict | None:
     """讀設計稿 html,拆成可原生嵌入工具頁的片段。
 
@@ -161,9 +214,8 @@ def extract_render(design_name: str, page_file: str) -> dict | None:
       scripts   外部 script 的本地/原 URL 列表
       inline    內嵌 script 內容列表
     """
-    d = DESIGN_LIB / design_name
-    p = d / Path(page_file).name
-    if not p.exists():
+    p = _resolve_html_path(design_name, page_file)
+    if p is None:
         return None
     text = _read(p)
 
@@ -217,10 +269,13 @@ def render_full_html(design_name: str, page_file: str) -> str | None:
 
     與 extract_render 不同:回傳完整 HTML 文件,iframe 直接載入,
     不會污染工具主頁面,但 script 已改本地路徑。
+
+    注入 postMessage 橋接:把 design.json 的 routes（card-X → page-X、
+    btn-back → launcher）嵌進頁面，點擊任何 [data-dom-id] 元素時，
+    透過 window.parent.postMessage 通知父視窗工具切換預覽頁。
     """
-    d = DESIGN_LIB / design_name
-    p = d / Path(page_file).name
-    if not p.exists():
+    p = _resolve_html_path(design_name, page_file)
+    if p is None:
         return None
     text = _read(p)
 
@@ -241,7 +296,39 @@ def render_full_html(design_name: str, page_file: str) -> str | None:
         return "<script{}>{}</script>".format(attrs, body)
 
     text = _SCRIPT_RE.sub(_repl, text)
+    # 注入 postMessage 橋接（只在被嵌入 iframe 時生效）
+    routes = compute_routes(design_name)
+    bridge = _bridge_script(routes)
+    if "</body>" in text.lower():
+        # 在最後一個 </body> 前（不分大小寫）注入
+        idx = text.lower().rfind("</body>")
+        text = text[:idx] + bridge + text[idx:]
+    else:
+        text = text + bridge
     return text
+
+
+# 預覽導覽橋接 script：注入到每個預覽 HTML，讓 [data-dom-id] 點擊
+# 透過 postMessage 通知父視窗切頁。只在 window.parent !== window 時啟用。
+_BRIDGE_SCRIPT = '''<script>(function(){
+  if (window.parent === window) return;  // 獨立開窗時不啟用
+  var ROUTES = %s;
+  document.addEventListener('click', function(e){
+    var el = e.target.closest ? e.target.closest('[data-dom-id]') : null;
+    if (!el) return;
+    var id = el.getAttribute('data-dom-id');
+    var target = ROUTES[id];
+    if (target) {
+      e.preventDefault();
+      window.parent.postMessage({type:'ds-nav', page: target, source:'ds-preview'}, '*');
+    }
+  }, true);
+})();</script>'''
+
+
+def _bridge_script(routes: dict) -> str:
+    import json
+    return _BRIDGE_SCRIPT % json.dumps(routes, ensure_ascii=False)
 
 
 def _read(p: Path) -> str:
@@ -252,38 +339,77 @@ def _read(p: Path) -> str:
 
 
 # ---------- 掃描 ----------
+def _collect_html_files(design_dir: Path) -> list[Path]:
+    """收集 design 的所有 HTML 頁面檔（規範化 html/ 結構 + 向後相容根目錄）。
+
+    搜尋順序：
+      1. design/html/*.html        ← 規範化（launcher 在根）
+      2. design/html/page/*.html   ← 規範化（feature 頁在 page/ 子目錄）
+      3. design/*.html             ← 向後相容（舊結構 flat 在根目錄）
+    重複檔名（同 stem）以規範化路徑優先。
+    """
+    seen_stems: set[str] = set()
+    out: list[Path] = []
+    html_dir = design_dir / "html"
+    # 規範化：html/ 根（launcher 等）+ html/page/ 子目錄
+    if html_dir.is_dir():
+        for p in sorted(html_dir.glob("*.html")):
+            if p.stem not in seen_stems:
+                seen_stems.add(p.stem)
+                out.append(p)
+        page_sub = html_dir / "page"
+        if page_sub.is_dir():
+            for p in sorted(page_sub.glob("*.html")):
+                if p.stem not in seen_stems:
+                    seen_stems.add(p.stem)
+                    out.append(p)
+    # 向後相容：根目錄 flat HTML（舊結構）
+    for p in sorted(design_dir.glob("*.html")):
+        if p.stem not in seen_stems:
+            seen_stems.add(p.stem)
+            out.append(p)
+    # launcher 優先（檔名含 launcher，否則第一個）
+    out.sort(key=lambda p: (p.name != "launcher.html", p.name))
+    return out
+
+
 def scan_html_files(design_dir: Path) -> dict:
-    """掃描一個 design 資料夾:頁面清單 + 互動 API + 檔案清單。"""
-    htmls = sorted(p for p in design_dir.glob("*.html"))
-    # launcher 優先（檔名含 launcher,否則第一個）
-    htmls.sort(key=lambda p: (p.name != "launcher.html", p.name))
+    """掃描一個 design 資料夾:頁面清單 + 互動 API + 檔案清單。
+
+    規範化結構：HTML 在 html/ 與 html/page/ 下；page id = 檔名 stem（不加 page- 前綴），
+    與 LVGL @register id 對齊（例如 control_panel.html ↔ @register(id="control_panel")）。
+    file 欄位是相對 design 根的路徑（如 html/page/control_panel.html）。
+    """
+    htmls = _collect_html_files(design_dir)
 
     pages = []
-    for i, p in enumerate(htmls):
+    for p in htmls:
         title = p.stem
         m = _TITLE_RE.search(_read(p))
         if m:
             title = m.group(1).strip()
+        rel = p.relative_to(design_dir).as_posix()
         pages.append({
-            "id": "page-" + p.stem,
+            "id": p.stem,                      # control_panel.html → "control_panel"
             "title": title,
-            "file": p.name,
+            "file": rel,                        # html/page/control_panel.html
             "tag": "launcher" if p.name == "launcher.html" else "feature",
+            "source": "html",                   # 網頁設計區頁面
         })
 
     interactions: list[dict] = []
     seen = set()
     for p in htmls:
+        rel = p.relative_to(design_dir).as_posix()
         txt = _read(p)
         for dom in _DOMID_RE.findall(txt):
             if dom not in seen:
                 seen.add(dom)
-                label = dom
                 interactions.append({
                     "id": dom,
                     "type": "button",
-                    "label": label,
-                    "file": p.name,
+                    "label": dom,
+                    "file": rel,
                 })
         for m in _INPUT_RE.finditer(txt):
             name = m.group(1)
@@ -294,7 +420,7 @@ def scan_html_files(design_dir: Path) -> dict:
                     "id": name,
                     "type": kind,
                     "label": name,
-                    "file": p.name,
+                    "file": rel,
                 })
         # 無 name/id 的 range 輸入（如 ds-slider）
         for m in _SLIDER_RE.finditer(txt):
@@ -306,7 +432,7 @@ def scan_html_files(design_dir: Path) -> dict:
                     "id": mm.group(1),
                     "type": "slider",
                     "label": mm.group(1),
-                    "file": p.name,
+                    "file": rel,
                 })
 
     return {
@@ -337,6 +463,7 @@ def scan_lvgl_pages(design_dir: Path) -> list[dict]:
             "title": "功能選擇",
             "file": (f"{rel_ui}/launcher.py").lstrip("/") if rel_ui else "launcher.py",
             "tag": "launcher",
+            "source": "lvgl",   # LVGL 程式區頁面
         })
     page_dir = ui / "page"
     if page_dir.exists():
@@ -354,6 +481,7 @@ def scan_lvgl_pages(design_dir: Path) -> list[dict]:
                 "icon": m.group(3) or "",
                 "file": prefix + p.name,
                 "tag": "feature",
+                "source": "lvgl",
             })
     return pages
 
@@ -379,11 +507,16 @@ def read_design(name: str) -> dict | None:
 
 
 def _ui_candidates(design_name: str) -> tuple[Path, Path | None]:
-    """回傳 (lv 根, ui 目錄)；優先 lvgl/ui, 其次平鋪 ui/, 最後 design 根本身。"""
+    """回傳 (lv 根, ui 目錄)；優先 lvgl/ui, 其次平鋪 ui/, 最後 design 根本身。
+
+    lv 根：lvgl/ui → design/{name}/lvgl；ui 平鋪 → design/{name}。
+    （舊實作對 lvgl/ui 回傳 design 根，導致 lvgl_path/ui 找不到目錄。）
+    """
     d = DESIGN_LIB / design_name
     for ui_path in [d / "lvgl" / "ui", d / "ui"]:
         if ui_path.exists():
-            return (ui_path.parent.parent if ui_path.parent.name == "ui" else d), ui_path
+            lv_root = ui_path.parent if ui_path.parent.name == "lvgl" else d
+            return lv_root, ui_path
     # Fallback: 當 design 根本身就是 ui 展開（有 launcher.py + page/)
     if (d / "launcher.py").exists() or (d / "page").exists():
         return d, d
@@ -402,6 +535,22 @@ def lvgl_src_path(design_name: str) -> Path:
     if ui is None:
         return lvgl_path(design_name) / "ui" / "src"
     return ui / "src"
+
+
+def assets_path(design_name: str) -> Path:
+    """該 design 的共用資源區根目錄（design/{name}/assets/）。
+
+    規範化結構下，字體/圖標/token 的真相來源都放這裡；
+    產出後由呼叫端複本一份到 lvgl/ui/src/ 給板子部署。
+    """
+    return DESIGN_LIB / design_name / ASSETS_DIR
+
+
+def assets_subpath(design_name: str, kind: str) -> Path:
+    """該 design 的 assets 子目錄（kind = 'tokens' | 'fonts' | 'icons'）。"""
+    p = assets_path(design_name) / kind
+    p.mkdir(parents=True, exist_ok=True)
+    return p
 
 
 def lvgl_status(design_name: str) -> dict:
@@ -468,14 +617,20 @@ def simcode(design_name: str, page_file: str) -> str:
     """生成模擬器展示代碼(自包含,含該頁的互動元素)。"""
     meta = read_design(design_name) or {}
     pages = meta.get("pages", [])
-    page = next((p for p in pages if p["file"] == Path(page_file).name), None)
+    # 比對 web_file / lvgl_file / 舊 file 欄位（向後相容）
+    target_name = Path(page_file).name
+    page = next((p for p in pages
+                 if Path(p.get("web_file", "")).name == target_name
+                 or Path(p.get("lvgl_file", "")).name == target_name
+                 or p.get("file", "") == target_name), None)
     if page is None and pages:
         page = pages[0]
     page_title = page.get("title", page_file) if page else page_file
 
-    # 該頁的互動元素
+    # 該頁的互動元素（interactions.file 現在是相對路徑如 html/page/x.html，
+    # 比對檔名部分即可）
     iap = [i for i in meta.get("interactions", [])
-           if i.get("file") == Path(page_file).name]
+           if Path(i.get("file", "")).name == target_name]
 
     widgets_code = []
     for i, item in enumerate(iap):
@@ -496,7 +651,7 @@ def simcode(design_name: str, page_file: str) -> str:
 
 
 # ui 框架模式:在模擬器跑 design 的 ui/app（純 UI,不碰 machine）
-FRAMEWORK_CODE = """# ui framework shim — WebAssembly simulator <> ESP32 UI project translation layer.
+FRAMEWORK_CODE = '''# ui framework shim — WebAssembly simulator <> ESP32 UI project translation layer.
 #
 # 解決三大不相容：
 #   1. MicroPython wasm importer 對「import ui.lvgl.xxx」package 形式不穩定
@@ -573,13 +728,19 @@ else:
 
 
 def _preload_file(url, fname):
-    """url 單一 .py → 寫到 /_wsp/${design}/{fname}。"""
+    # fetch single .py at url -> write to MEMFS at /_wsp/${design}/{fname}
     if _os is None or not url or not fname:
         return False
+    target = _WSP + '/' + fname
+    # JS 端（lvgl.html）已用 XHR 預載過（快幾百倍）→ 跳過慢速 urequests
+    try:
+        _os.stat(target)
+        return True
+    except Exception:
+        pass
     data = _get_url(url)
     if data is None:
         return False
-    target = _WSP + '/' + fname
     try:
         f = open(target, 'wb')
         try: f.write(data)
@@ -590,8 +751,11 @@ def _preload_file(url, fname):
 
 
 def _preload_dir(dir_url, rel_prefix):
-    """抓 dir_url/index.html 解析出 <a> 連結，把所有 *.py fetch 到 MEMFS。
-    我們的 _serve_dlib 會 autoindex，因此 dir_url 回來有 <a href="..."> 可解析。"""
+    # fetch dir_url autoindex, parse <a href="*.py">, write each to MEMFS.
+    #
+    # Our _serve_dlib serves apache-style directory listing with <a href="xxx.py">
+    # links (for plain URL access). rel_prefix like 'src' or 'page' puts the
+    # downloaded .py under wsp/{rel_prefix}/ so it can be imported later.
     if _os is None or not dir_url:
         return 0
     html = _get_url(dir_url + '/')
@@ -647,14 +811,48 @@ def _preload_dir(dir_url, rel_prefix):
 
 
 if _os is not None:
+    # JS 端（lvgl.html seed block）已把 dlib .py 預載到 /_wsp 並寫 .preloaded →
+    # 跳過慢速 urequests（wasm 同步 bridge 每檔 ~0.5s）
+    _js_preloaded = False
+    try:
+        _os.stat(_WSP + '/.preloaded')
+        _js_preloaded = True
+    except Exception:
+        pass
     total = 0
-    total += _preload_dir('${dlib_ui}', '')        # ui 根模組直接放 wsp 根（registry/app/launcher）
-    total += _preload_dir('${dlib_src}', 'src')
-    total += _preload_dir('${dlib_page}', 'page')
-    # lvgl_root 跟 ui 一樣時，不要重複抓
-    if '${dlib_lvgl_root}' not in ('${dlib_ui}', ''):
-        total += _preload_dir('${dlib_lvgl_root}', '')
+    if not _js_preloaded:
+        total += _preload_dir('${dlib_ui}', '')        # ui 根模組直接放 wsp 根（registry/app/launcher）
+        total += _preload_dir('${dlib_src}', 'src')
+        total += _preload_dir('${dlib_page}', 'page')
+        # lvgl_root 跟 ui 一樣時，不要重複抓
+        if '${dlib_lvgl_root}' not in ('${dlib_ui}', ''):
+            total += _preload_dir('${dlib_lvgl_root}', '')
     print("[fw] preload .py files:", total)
+
+# 字體/圖示 bin：板端 ui_common 開 '/ui/lvgl/src/*.bin'。模擬器 MEMFS 沒有該路徑，
+# 目錄由 lvgl.html seed block 預建（ensureDir），這裡從 dlib_src fetch 寫入。
+# 放在 _get_url 被 del 之前。JS 端已 seed 過（XHR）→ stat 命中就跳過慢速 urequests。
+for _bin in ('zh_hant_16.bin', 'icons_16.bin'):
+    # _os=None（uos/os 非 builtin）時 JS 端一定已 seed 過，直接跳過；
+    # 避免 fallback 去 import urequests 觸發 wasm_file_api 的 404 探測風暴。
+    if _os is None:
+        continue
+    try:
+        _os.stat('/ui/lvgl/src/' + _bin)
+        continue
+    except Exception:
+        pass
+    try:
+        _d = _get_url('${dlib_src}/' + _bin)
+        if _d:
+            _f = open('/ui/lvgl/src/' + _bin, 'wb')
+            try:
+                _f.write(_d)
+            finally:
+                _f.close()
+            print("[fw] seeded bin {} ({} bytes)".format(_bin, len(_d)))
+    except Exception as _e:
+        print("[fw] seed bin fail {}: {}".format(_bin, _e))
 
 del _mkdirs, _get_url, _preload_file, _preload_dir, _WSP, _WSP_PATHS, _DLIB_URLS
 
@@ -662,7 +860,6 @@ del _mkdirs, _get_url, _preload_file, _preload_dir, _WSP, _WSP_PATHS, _DLIB_URLS
 # ----------------------------------------------------------------------------
 # 1) 虛擬 package 轉址：import ui.lvgl.FOO  → import FOO（平級）
 # ----------------------------------------------------------------------------
-import display_driver  # sim.lvgl.io SDL/wasm driver
 import lvgl as _lv
 
 
@@ -735,7 +932,9 @@ def _install(dotted, leaf=None):
 
 _install("ui", ["", "src", "page", "lvgl"])
 _install("ui.lvgl", ["", "src", "page"])
-_install("lvgl", ["", "src", "page", "ui"])
+# 注意：不能 _install("lvgl", ...) — 那會把 sys.modules["lvgl"] 覆蓋成 _VirtualPkg，
+# 真正的 lvgl C 模組（import lvgl as lv → lv.obj）就沒了，板端代碼全掛。
+# lvgl 是 builtin，直接保留。
 
 # ----------------------------------------------------------------------------
 # 2) lib.sys_bus.bus + lib.hw_manager Web stub
@@ -824,9 +1023,36 @@ def _safe_import(name):
         print("[fw] import {} fail: {}".format(name, e))
         return None
 
+# 把平級模組預裝到「ui.lvgl.{name}」的 sys.modules 名稱：
+# firmware 的 import 對「import ui.lvgl.registry」會找 ui.lvgl.registry.py（點號不拆），
+# 即使載入成功後還可能 getattr 失敗（AttributeError）。預裝 sys.modules 讓
+# import/from 直接命中，不觸發 importer。
+def _register_ui_lvgl(name, mod):
+    if mod is None:
+        return
+    try:
+        _sys.modules["ui.lvgl." + name] = mod
+    except Exception:
+        pass
+
+# 順序很重要：先載入並註冊 registry/launcher/ui_common/nav，
+# 最後才 import app（app.py 內部 import ui.lvgl.registry / ui.lvgl.launcher，
+# 需要那些名稱已在 sys.modules）。
 _reg = _safe_import("registry")
-_app = _safe_import("app")
+_uic = _safe_import("ui_common")
+_nav = _safe_import("nav")
+_register_ui_lvgl("registry", _reg)
+_register_ui_lvgl("ui_common", _uic)
+_register_ui_lvgl("nav", _nav)
 _launcher = _safe_import("launcher")
+_register_ui_lvgl("launcher", _launcher)
+# ui.lvgl.page 虛擬 package（預裝，讓 ui.lvgl.page.xxx 直接命中）
+try:
+    if "ui.lvgl.page" not in _sys.modules:
+        _sys.modules["ui.lvgl.page"] = _VirtualPkg("ui.lvgl.page", prefixes=["page"])
+except Exception:
+    pass
+_app = _safe_import("app")
 
 def _preimport_pages():
     cnt = 0
@@ -837,6 +1063,10 @@ def _preimport_pages():
             import os as _os
         except Exception:
             _os = None
+    # 內嵌 page module 清單（render 時從 lvgl/ui/page/*.py 抽出）。
+    # uos/os 在此 wasm build 可能 import 不了（_os=None），listdir 失效 →
+    # 直接用清單逐一 _safe_import（firmware 的 URL import + shim normalize 可抓檔）。
+    _PAGE_MODULES = ${page_modules}
     for _pd in ['/_wsp/${design}/page', '${dlib_page}', '/page']:
         if not _pd or _os is None:
             continue
@@ -850,27 +1080,45 @@ def _preimport_pages():
             mn = it[:-3]
             if mn == "__init__":
                 continue
+            if mn not in _PAGE_MODULES:
+                _PAGE_MODULES.append(mn)
             if _safe_import(mn) is not None:
                 cnt += 1
+    for _mn in _PAGE_MODULES:
+        m = _safe_import(_mn)
+        if m is not None:
+            cnt += 1
+            # 預裝 ui.lvgl.page.{name}，讓 from ui.lvgl.page import xxx 直接命中
+            try:
+                _sys.modules["ui.lvgl.page." + _mn] = m
+            except Exception:
+                pass
     print("[fw] preimport: {} page modules".format(cnt))
 
 _preimport_pages()
 
-# LVGL display init（一次）
+# LVGL display init（一次）—— 用 SDL window 當 display，canvas 才會真的更新。
+# 注意:不可用 display_create + 空 flush_cb（畫面會載入到不會畫的 display，
+# canvas 永遠不動）；display_driver 的 420x320 範例 window 也不 import（尺寸不合）。
 try:
     if not _lv.is_initialized(): _lv.init()
-    _d = _lv.display_create(_W, _H)
-    try: _d.set_color_format(18)  # RGB565
-    except Exception: pass
     try:
-        _buf = bytearray(_W * 40 * 2)
-        _d.set_buffers(_buf, None, len(_buf), 0)  # PARTIAL
-    except Exception: pass
-    def _flush_cb(drv, area, cp):
-        try: drv.flush_ready()
+        _d = _lv.sdl_window_create(_W, _H)
+        print("[fw] display: SDL window {}x{}".format(_W, _H))
+    except Exception as _e:
+        # fallback：SDL 不可用時才退回自建 display（無實體輸出，canvas 不會更新）
+        print("[fw] sdl_window_create fail: {}".format(_e))
+        _d = _lv.display_create(_W, _H)
+        try:
+            _buf = bytearray(_W * 40 * 2)
+            _d.set_buffers(_buf, None, len(_buf), 0)  # PARTIAL
         except Exception: pass
-    try: _d.set_flush_cb(_flush_cb)
-    except Exception: pass
+        def _flush_cb(drv, area, cp):
+            try: drv.flush_ready()
+            except Exception: pass
+        try: _d.set_flush_cb(_flush_cb)
+        except Exception: pass
+        print("[fw] display: fallback no-op flush (canvas 不會更新!)")
     print("[fw] lv display ready {}x{}".format(_W, _H))
 except Exception as e:
     print("[fw] lv display init skip:", e)
@@ -909,7 +1157,32 @@ def _start():
     print("[fw] started ◀▶=enc | Enter=confirm | Esc=exit")
 
 _start()
-"""
+
+# 例外保護:板端 code 在模擬器不支援的 API 拋例外時,例外若穿過 task_handler
+# （C 程式碼）中途會把 LVGL 的 flush 旗標卡住 → 之後每次渲染永遠等待 → 整個
+# 頁面凍結。這裡包一層:例外印到 REPL 不外洩,並解除 display flush 鎖定。
+def _safe_step():
+    try:
+        return _app.step()
+    except Exception as _e:
+        try:
+            import io as _io, sys as _s
+            _b = _io.StringIO()
+            try:
+                _s.print_exception(_e, _b)
+            except Exception:
+                _b.write(str(_e))
+            print("[fw] step err: " + _b.getvalue().replace("\\n", " | "))
+        except Exception:
+            pass
+        try:
+            _d.flush_ready()   # 解除可能的 flush 鎖定,避免後續卡死
+        except Exception:
+            pass
+        return 0
+
+_ib.step = _safe_step
+'''
 
 
 def render_framework_code(
@@ -923,6 +1196,20 @@ def render_framework_code(
     dlib_lvgl_root: str,
 ) -> str:
     """用 $var 模板語法渲染 FRAMEWORK_CODE，避免 dict/set 字面量的 { } 與 .format() 衝突。"""
+    # 內嵌 page module 清單（給 preimport 用；wasm build 的 uos/os 可能 import 不了，
+    # listdir 失效時直接逐一 import 這些 module）。
+    import json as _json
+    try:
+        _lv, _ui = _ui_candidates(design)
+        page_dir = _ui / "page" if _ui else None
+        modules: list[str] = []
+        if page_dir and page_dir.is_dir():
+            modules = sorted(
+                p.stem for p in page_dir.glob("*.py")
+                if p.name != "__init__.py" and not p.name.startswith("_"))
+        page_modules = _json.dumps(modules)
+    except Exception:
+        page_modules = "[]"
     # safe_substitute：遇到未定義 $var 會保留原樣，不報 KeyError
     return string.Template(FRAMEWORK_CODE).safe_substitute(
         origin=origin,
@@ -933,11 +1220,12 @@ def render_framework_code(
         dlib_src=dlib_src,
         dlib_page=dlib_page,
         dlib_lvgl_root=dlib_lvgl_root,
+        page_modules=page_modules,
     )
 
 
 # design.json 保存欄位白名單（read 出來的 dir 不寫回）
-_META_KEYS = ("name", "width", "height", "pages", "interactions", "source")
+_META_KEYS = ("name", "width", "height", "pages", "interactions", "source", "layout", "nav")
 
 
 def write_design(name: str, meta: dict) -> None:
@@ -989,8 +1277,11 @@ def create_design(name: str, title: str = "", width: int = 320,
 def scan_design(name: str) -> dict:
     """重新掃描 design 資料夾,更新 design.json 的頁面/互動。
 
-    同時處理 HTML 設計稿頁面 與 LVGL code-only 頁面,兩者合併列出,
-    避免 HTML 與 LVGL 程式頁面互相覆蓋。
+    規範化：HTML 頁與 LVGL 頁用「同 id 補欄位」合併。每筆 page 含：
+      id        統一 id（HTML 檔名 stem = LVGL @register id，如 control_panel）
+      web_file  HTML 路徑（如 html/page/control_panel.html）；無 HTML 則空字串
+      lvgl_file LVGL 路徑（如 lvgl/ui/page/control_panel.py）；無 .py 則空字串
+      title/icon/tag 等其他欄位任一邊有就採用（HTML 優先）
     """
     d = DESIGN_LIB / name
     meta = read_design(name) or {
@@ -1008,18 +1299,154 @@ def scan_design(name: str) -> dict:
 
     existing_pages = list(meta.get("pages", []))
 
-    merged: list[dict] = []
-    seen: set[tuple[str, str]] = set()
-    for p in scanned["pages"] + lvgl_pages + existing_pages:
-        key = (p.get("tag", "feature"), p.get("id", ""))
-        if key in seen:
-            continue
-        seen.add(key)
-        merged.append(p)
-    meta["pages"] = merged
+    # 同 id 補欄位合併：先建 id → page 的累積 dict，逐源頭補 web_file/lvgl_file
+    by_id: dict[str, dict] = {}
+    order: list[str] = []
+
+    def _merge(src: list[dict], which: str) -> None:
+        """which = 'web' | 'lvgl' | 'existing'；把該源頭的欄位補進 by_id。
+
+        檔案路徑（web_file/lvgl_file）：各源頭只填自己那欄，後寫覆蓋。
+        meta（title/icon/desc/tag）：掃描源頭（web/lvgl）的值覆蓋 existing，
+        讓實際掃出的內容（如 HTML <title>）優先於舀存的 design.json。
+        """
+        scanned_src = which in ("web", "lvgl")
+        for p in src:
+            pid = p.get("id", "")
+            if not pid:
+                continue
+            if pid not in by_id:
+                by_id[pid] = {"id": pid, "title": pid, "tag": "feature",
+                              "web_file": "", "lvgl_file": ""}
+                order.append(pid)
+            rec = by_id[pid]
+            # 補檔案路徑
+            if which == "web" and p.get("file"):
+                rec["web_file"] = p["file"]
+            elif which == "lvgl" and p.get("file"):
+                rec["lvgl_file"] = p["file"]
+            # 補 meta：掃描源頭覆蓋；existing 只補缺
+            for k in ("title", "icon", "desc", "tag", "source"):
+                v = p.get(k)
+                if not v:
+                    continue
+                if scanned_src:
+                    rec[k] = v           # 掃描值覆蓋（HTML <title> 等）
+                elif not rec.get(k):
+                    rec[k] = v           # existing 只補空格
+            # tag: launcher 優先（任一邊是 launcher 就是 launcher）
+            if p.get("tag") == "launcher":
+                rec["tag"] = "launcher"
+
+    # 順序：existing 先（保留手改的 icon/desc）→ HTML → LVGL 覆蓋實際掃描值
+    _merge(existing_pages, "existing")
+    _merge(scanned["pages"], "web")
+    _merge(lvgl_pages, "lvgl")
+
+    meta["pages"] = [by_id[pid] for pid in order]
     meta["interactions"] = scanned["interactions"] or meta.get("interactions", [])
+    meta["nav"] = compute_nav(name)
+    meta["layout"] = compute_layout(name)
     write_design(name, meta)
     return read_design(name)
+
+
+def compute_layout(design_name: str) -> dict:
+    """計算 design 的三分區清單（html / lvgl / assets），寫進 design.json。
+
+    回傳:
+      {
+        "html":   ["html/launcher.html", "html/page/control_panel.html", ...],
+        "lvgl":   ["lvgl/ui/app.py", "lvgl/ui/page/...", ...],
+        "assets": ["assets/tokens/tokens.json", "assets/fonts/zh_hant_16.bin", ...]
+      }
+    讓匯出/檢視時一眼看出三區內容。
+    """
+    d = DESIGN_LIB / design_name
+    html_files: list[str] = []
+    lvgl_files: list[str] = []
+    assets_files: list[str] = []
+    if not d.exists():
+        return {"html": html_files, "lvgl": lvgl_files, "assets": assets_files}
+
+    def _list_dir_files(subdir: Path) -> list[str]:
+        if not subdir.is_dir():
+            return []
+        return [fp.relative_to(d).as_posix()
+                for fp in sorted(subdir.rglob("*")) if fp.is_file()]
+
+    # 規範化三區
+    html_files = _list_dir_files(d / "html")
+    assets_files = _list_dir_files(d / ASSETS_DIR)
+    for name in LVGL_CODE_DIRS:
+        lvgl_files.extend(_list_dir_files(d / name))
+    # 向後相容：根目錄的 web 檔（舊結構）也算 html 區
+    for p in sorted(d.iterdir()):
+        if p.is_file() and p.suffix.lower() in WEB_ASSET_EXTS and p.name != "design.json":
+            html_files.append(p.name)
+    return {"html": html_files, "lvgl": lvgl_files, "assets": assets_files}
+
+
+def compute_nav(design_name: str) -> list[dict]:
+    """計算預覽導覽路由清單（顯式 dom_id → 目標 page id）。
+
+    每筆 {from, dom_id, to, label}:
+      from    來源頁 id
+      dom_id  點擊元素的 data-dom-id
+      to      目標頁 id
+      label   標籤（可用於 UI 顯示）
+
+    規則：
+      - data-dom-id 等於某 page id → 直連該頁（規範化：卡片 id = 目標頁 id）
+      - data-dom-id 開頭 card- → 舊慣例，target = page-{X} 或 {X}（擇存在者）
+      - data-dom-id 為 btn-back / back / nav-launcher → 回 launcher
+    只掃 HTML 頁面。
+    """
+    meta = read_design(design_name) or {}
+    pages = meta.get("pages", [])
+    if not pages:
+        return []
+    launcher_id = next((p["id"] for p in pages if p.get("tag") == "launcher"),
+                       pages[0]["id"])
+    page_ids = {p["id"] for p in pages}
+    nav: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+    for p in pages:
+        web_file = p.get("web_file") or ""
+        if not web_file.endswith((".html", ".htm")):
+            continue
+        txt = _read(DESIGN_LIB / design_name / web_file)
+        src_pid = p["id"]
+        for m in _DOMID_RE.finditer(txt):
+            dom = m.group(1)
+            key = (src_pid, dom)
+            if key in seen:
+                continue
+            target = None
+            label = dom
+            if dom in page_ids:                      # 規範化：dom_id = page id
+                target = dom
+            elif dom.startswith("card-"):            # 舊慣例 card-X
+                stem = dom[len("card-"):]
+                target = stem if stem in page_ids else (
+                    "page-" + stem if ("page-" + stem) in page_ids else None)
+            elif dom in ("btn-back", "back", "nav-launcher"):
+                target = launcher_id
+                label = "返回"
+            if target and target != src_pid:         # 不列自我跳轉
+                seen.add(key)
+                nav.append({"from": src_pid, "dom_id": dom,
+                            "to": target, "label": label})
+    return nav
+
+
+def compute_routes(design_name: str) -> dict[str, str]:
+    """計算預覽導覽路由（dom_id → 目標 page id），給 postMessage 橋接用。
+
+    這是 compute_nav 的 dict 投影（只取第一個命中）。保留是為了向後相容
+    既有 _design_pages / render_full_html 的呼叫端。
+    """
+    return {item["dom_id"]: item["to"] for item in compute_nav(design_name)}
 
 
 def migrate_legacy(source_dir: Path, design_name: str = "lvgl-console-ui",

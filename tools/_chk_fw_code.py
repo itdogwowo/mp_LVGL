@@ -1,49 +1,61 @@
-"""本機端驗證：render_framework_code 合法 Python 語法。"""
-import sys
 from pathlib import Path
 
+p = Path(__file__).parent / "assets" / "designlib.py"
+txt = p.read_text(encoding="utf-8")
+
+# 找出 FRAMEWORK_CODE = """ 開頭
+idx_head = txt.find('FRAMEWORK_CODE = """')
+if idx_head < 0:
+    raise SystemExit("FRAMEWORK_CODE head not found")
+head_end = txt.find("\n", idx_head) + 1  # 第一個 triple-quote 行結束
+
+# 找出其後下一個行首 """\n（關閉）
+idx_close = txt.find('\n"""', head_end)
+if idx_close < 0:
+    raise SystemExit("FRAMEWORK_CODE close not found")
+close_end = idx_close + 4  # 吃掉 \n"""
+extracted = txt[head_end:idx_close]
+print(f"head line end offset={head_end}, close_offset={idx_close} length={len(extracted)}")
+
+# 1) 當設計庫模塊看能不能 import
+import sys
 sys.path.insert(0, str(Path(__file__).parent))
-from assets import designlib
+try:
+    from assets import designlib
+    print("import designlib OK")
+except SyntaxError as e:
+    print(f"SyntaxError: {e}")
+    lines = txt.splitlines()
+    bad = lines[e.lineno - 1]
+    print(f"L{e.lineno}: {bad}")
+    raise SystemExit(1)
 
+# 2) 渲染出 framework 碼再 compile
+code = designlib.render_framework_code(
+    origin="http://localhost:8600",
+    design="lvgl-console-ui",
+    width=320,
+    height=240,
+    dlib_ui="http://localhost:8600/dlib/lvgl-console-ui/lvgl/ui",
+    dlib_src="http://localhost:8600/dlib/lvgl-console-ui/lvgl/ui/src",
+    dlib_page="http://localhost:8600/dlib/lvgl-console-ui/lvgl/ui/page",
+    dlib_lvgl_root="http://localhost:8600/dlib/lvgl-console-ui",
+)
+try:
+    compile(code, "<framework-rendered>", "exec")
+    print(f"compile rendered OK, {len(code)} bytes, {code.count(chr(10))} lines")
+except SyntaxError as e:
+    print(f"rendered SyntaxError: {e}")
+    lines = code.splitlines()
+    a = max(0, e.lineno - 5)
+    b = min(len(lines), e.lineno + 5)
+    for lno in range(a, b):
+        marker = " >>" if lno == e.lineno - 1 else "   "
+        print(f"{marker} {lno+1:4}: {lines[lno]}")
+    raise SystemExit(1)
 
-def main():
-    origin = "http://localhost:8600"
-    design_name = "lvgl-console-ui"
-    meta = designlib.read_design(design_name) or {}
-    W = int(meta.get("width", 320))
-    H = int(meta.get("height", 240))
-    lv, ui = designlib._ui_candidates(design_name)
-    if ui is not None:
-        d_path = ui.relative_to(designlib.DESIGN_LIB).as_posix()
-    else:
-        d_path = design_name + "/lvgl/ui"
-    try:
-        lvgl_rel = lv.relative_to(designlib.DESIGN_LIB).as_posix()
-    except Exception:
-        lvgl_rel = design_name
-    code = designlib.render_framework_code(
-        origin=origin, design=design_name,
-        width=W, height=H,
-        dlib_ui=f"{origin}/dlib/{d_path}",
-        dlib_src=f"{origin}/dlib/{d_path}/src",
-        dlib_page=f"{origin}/dlib/{d_path}/page",
-        dlib_lvgl_root=f"{origin}/dlib/{lvgl_rel}",
-    )
-    try:
-        compile(code, "<framework>", "exec")
-        print("[OK] Python syntax valid. bytes=", len(code), "lines=", code.count("\n"))
-    except SyntaxError as e:
-        print(f"[FAIL] {e.msg} line {e.lineno}")
-        lines = code.splitlines()
-        for lno in range(max(0, e.lineno - 5), min(len(lines), e.lineno + 5)):
-            print(f"  {lno+1:4}: {lines[lno]}")
-        return 1
-    # Dump first 70 lines for review
-    print("--- HEAD 70 lines ---")
-    for i, line in enumerate(code.splitlines()[:70]):
-        print(f"{i+1:3} | {line}")
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
+# dump head
+print("==== RENDERED HEAD (first 40 lines) ====")
+lines = code.splitlines()
+for i, line in enumerate(lines[:40]):
+    print(f"  L{i+1:3}| {line}")

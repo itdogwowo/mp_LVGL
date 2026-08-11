@@ -71,19 +71,20 @@ def cmd_import(src: Path, name: str) -> None:
     ui_dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(src, ui_dst)
 
-    # 更新 meta:來源路徑 + 掃描頁面（code-only:從 @register 抽）
+    # 更新 meta:來源路徑 + 完整掃描（scan_design 會合併 HTML/LVGL 雙欄位）
     meta = designlib.read_design(name) or {}
     meta["source"] = str(src.resolve())
-    meta["pages"] = designlib.scan_lvgl_pages(d)
-    meta["interactions"] = []
     designlib.write_design(name, meta)
+    meta = designlib.scan_design(name)   # 重建 pages/nav/layout（含 lvgl_file 欄位）
 
     n_files = sum(1 for _ in ui_dst.rglob("*") if _.is_file())
     pages = [p for p in meta["pages"] if p.get("tag") != "launcher"]
     print(f"✓ 導入完成: {src} → design/{name}/lvgl/ui/")
     print(f"  {n_files} 個檔案, {len(pages)} 個頁面:")
     for p in pages:
-        print(f"    - {p['id']}: {p['title']} ({p['file']})")
+        wf = "✓" if p.get("web_file") else " "
+        lf = "✓" if p.get("lvgl_file") else " "
+        print(f"    [{wf}{lf}] {p['id']}: {p.get('title', '')} ({p.get('lvgl_file', '')})")
     print("  之後直接改 design 庫裡的檔案即可;tools 網頁「重新掃描」會更新頁面清單。")
 
 

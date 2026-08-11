@@ -31,6 +31,8 @@
   button.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
   button.primary:hover { opacity: .9; color: #fff; }
   button:disabled { opacity: .5; cursor: not-allowed; }
+  .simkey { min-width: 72px; padding: 8px 12px; font-size: 14px; user-select: none; }
+  .simkey-press { background: var(--brand); border-color: var(--brand); color: #fff; }
   input[type=text], textarea, select {
     border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px;
     font-size: 13px; font-family: inherit; background: #fff; }
@@ -85,15 +87,14 @@
 </header>
 
 <nav class="tabs" id="tabs">
-  <button class="tab is-active" data-tab="tab-design">設計稿</button>
+  <button class="tab" data-tab="tab-design">設計稿</button>
   <button class="tab" data-tab="tab-assets">資產</button>
-  <button class="tab" data-tab="tab-ui">UI 框架</button>
-  <button class="tab" data-tab="tab-preview">設計預覽 / 模擬器</button>
+  <button class="tab is-active" data-tab="tab-workspace">工作區</button>
 </nav>
 
 <main>
   <!-- Design 庫 -->
-  <section class="tabpane" id="tab-design">
+  <section class="tabpane" id="tab-design" style="display:none">
     <h2>Design 庫 <span class="badge">tools/design/ 下多個 design</span></h2>
     <div id="dlib-empty" class="hint">尚無 design。可新增,或把設計稿檔上傳（自動建 design）。</div>
     <div id="dlib-panel" style="display:none">
@@ -189,84 +190,126 @@
     </div>
   </section>
 
-  <!-- 設計預覽 + 模擬器（上下對比一頁） -->
-  <section class="tabpane" id="tab-preview" style="display:none">
-    <h2>設計預覽 <span class="badge">iframe 預覽框 · 設計稿原樣顯示</span></h2>
-    <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap">
-      <label class="hint">Design:
-        <select id="pv-select" onchange="previewSwitch()"></select>
-      </label>
-      <span class="hint" id="pv-meta"></span>
-      <span style="margin-left:auto" class="zoom" id="pv-zoom">
-        <button data-z="1">1×</button><button data-z="1.5" class="is-on">1.5×</button><button data-z="2">2×</button>
-      </span>
-    </div>
-    <div id="pv-pages" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px"></div>
-    <div id="pv-empty" class="hint">design 庫沒有設計稿 .html,請先上傳。</div>
-    <div id="pv-frame-wrap" style="display:none; border:1px solid var(--line); border-radius:8px; background:#f5f5f5; overflow:hidden">
-      <iframe id="pv-frame" style="display:block; border:0; background:#f5f5f5"></iframe>
-    </div>
-    <div style="margin-top:8px">
-      <span class="hint">Interactions · MPY 交互 API:</span>
-      <div id="pv-interactions" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:4px"></div>
-    </div>
-
-    <hr style="border:0; border-top:1px solid var(--line); margin:18px 0">
-    <h2>模擬器 <span class="badge">本地離線 · MicroPython + LVGL 9</span></h2>
-    <!-- 四區拆分:頂欄 / Display canvas / 代碼 textarea / REPL -->
-    <div style="display:flex; gap:8px; align-items:center; margin:8px 0; flex-wrap:wrap">
-      <span class="hint" id="sim-status">離線就緒</span>
-      <span style="margin-left:auto; display:flex; gap:6px">
-        <button onclick="simRun()">▶ 跑</button>
-        <button onclick="simSave()">💾 儲存</button>
-        <button onclick="simReloadCode()">↻ 重新載入代碼</button>
-      </span>
-    </div>
-    <div style="display:flex; gap:12px; flex-wrap:wrap">
-      <!-- Display canvas（lvgl.html 抓父頁面 #canvas） -->
-      <div style="border:1px solid var(--line); border-radius:8px; background:#0b0d12; padding:10px">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px">
-          <span class="hint">Display</span>
-          <span class="hint" id="sim-size">320×240</span>
+  <!-- 工作區：設計預覽 | 模擬器 | 編輯器 三合一 -->
+  <section class="tabpane" id="tab-workspace" style="grid-column: 1 / -1">
+    <!-- 上排：預覽（左） + 模擬器（右） -->
+    <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap">
+      <!-- 左：設計預覽 -->
+      <div style="flex:1; min-width:340px">
+        <h2>設計預覽 <span class="badge">HTML 設計稿</span></h2>
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap">
+          <label class="hint">Design:
+            <select id="pv-select" onchange="previewSwitch()"></select>
+          </label>
+          <span class="hint" id="pv-meta"></span>
+          <span style="margin-left:auto" class="zoom" id="pv-zoom">
+            <button data-z="1">1×</button><button data-z="1.5" class="is-on">1.5×</button><button data-z="2">2×</button>
+          </span>
         </div>
-        <canvas id="canvas" width="320" height="240"
-                style="width:320px; height:240px; background:#1a1e27; border-radius:4px"></canvas>
-        <div style="display:flex; gap:6px; margin-top:8px; justify-content:center">
-          <button onclick="simInput('l')">◀ 旋轉</button>
-          <button onclick="simInput('c')" style="border-color:var(--brand);color:var(--brand)">確認</button>
-          <button onclick="simInput('r')">▶ 旋轉</button>
-          <button onclick="simInput('e')" style="border-color:var(--warn,#b06000);color:var(--warn,#b06000)">返回</button>
+        <div id="pv-pages" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px"></div>
+        <div id="pv-empty" class="hint">design 庫沒有設計稿 .html,請先上傳。</div>
+        <div id="pv-frame-wrap" style="display:none; border:1px solid var(--line); border-radius:8px; background:#f5f5f5; overflow:hidden">
+          <iframe id="pv-frame" style="display:block; border:0; background:#f5f5f5"></iframe>
+        </div>
+        <div style="margin-top:8px">
+          <span class="hint">Interactions · MPY 交互 API:</span>
+          <div id="pv-interactions" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:4px"></div>
         </div>
       </div>
-      <!-- 代碼區 + REPL -->
-      <div style="flex:1; min-width:320px; display:flex; flex-direction:column; gap:8px">
+
+      <!-- 右：模擬器（導航走 app.go 中間函數，不需模擬硬體） -->
+      <div style="flex:1; min-width:340px">
+        <h2>模擬器 <span class="badge">MicroPython + LVGL 9 · ui 框架</span></h2>
+        <div style="display:flex; gap:8px; align-items:center; margin:8px 0; flex-wrap:wrap">
+          <span class="hint" id="sim-status">離線就緒</span>
+          <span class="hint">鍵盤: ◀ ▶ = 旋鈕 · Enter = 確認 · Esc = 返回（焦點在輸入框時不攔截）</span>
+          <span style="margin-left:auto; display:flex; gap:6px">
+            <button onclick="simRun()">▶ 跑</button>
+            <button onclick="simReloadCode()">↻ 重新載入</button>
+          </span>
+        </div>
+        <div style="display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap">
+          <!-- 顯示面板（獨立） -->
+          <div style="border:1px solid var(--line); border-radius:8px; background:#0b0d12; padding:10px; display:inline-block">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px">
+              <span class="hint">Display</span>
+              <span class="hint" id="sim-size">320×240</span>
+            </div>
+            <canvas id="canvas" width="320" height="240"
+                    style="width:320px; height:240px; background:#1a1e27; border-radius:4px"></canvas>
+          </div>
+          <!-- 操作面板（獨立:按鈕 + 直接切頁） -->
+          <div style="border:1px solid var(--line); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:10px; min-width:210px">
+            <div>
+              <span class="hint" style="font-weight:600">操作</span>
+              <span class="hint">（等同旋鈕/按鍵，走 input_bus）</span>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap">
+              <button class="simkey" onclick="simKey('l', this)" title="◀ 旋鈕上一個">◀</button>
+              <button class="simkey" onclick="simKey('r', this)" title="▶ 旋鈕下一個">▶</button>
+              <button class="simkey primary" onclick="simKey('c', this)" title="Enter 確認">OK</button>
+              <button class="simkey" onclick="simKey('e', this)" title="Esc 返回">Esc</button>
+            </div>
+            <span class="hint" id="sim-key-fb">（未操作）</span>
+            <div style="display:flex; gap:6px; align-items:center">
+              <span class="hint">直接切頁</span>
+              <select id="sim-goto" style="min-width:150px" onchange="simGoTo(this.value)">
+                <option value="">— 頁面 —</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <!-- 模擬器翻譯層代碼（simRun 執行用，隱藏不需要看） -->
+        <textarea id="sim-code" spellcheck="false" style="display:none"></textarea>
+      </div>
+    </div>
+
+    <!-- 中排：REPL（橫跨全寬，獨立一行） -->
+    <!-- 下排：REPL + 編輯器 整合（共用檔案清單：右側上 REPL、下編輯區） -->
+    <hr style="border:0; border-top:1px solid var(--line); margin:18px 0">
+    <h2>輸出 / 編輯 <span class="badge">REPL 模擬器輸出 · design 檔案即時編輯（儲存後自動刷新）</span></h2>
+    <div style="display:flex; gap:10px; align-items:flex-start">
+      <!-- 左：檔案清單 -->
+      <div style="width:280px; border:1px solid var(--line); border-radius:8px; padding:8px; max-height:360px; overflow:auto; flex-shrink:0">
+        <div style="display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap">
+          <select id="ed-design" style="flex:1; min-width:0">
+            <option value="">— 選擇 design —</option>
+          </select>
+          <button onclick="loadEditor()" title="重新整理檔案清單">↻</button>
+        </div>
+        <div id="ed-files" class="hint" style="font-size:12px">選擇 design 後顯示檔案清單</div>
+      </div>
+      <!-- 右：REPL（上）+ 路徑/儲存 + 編輯區（下） -->
+      <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:8px">
         <div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
-            <span class="hint">代碼</span>
-            <span style="display:flex; gap:6px">
-              <button class="sim-mode-btn" data-mode="page" style="border-color:var(--brand);color:var(--brand)">單頁展示碼</button>
-              <button class="sim-mode-btn" data-mode="framework">ui 框架</button>
-            </span>
-          </div>
-          <textarea id="sim-code" rows="10" spellcheck="false"
-            style="width:100%; font-family:ui-monospace,monospace; font-size:12px;
-                   background:#0f1720; color:#c9d6e2; border:1px solid var(--line);
-                   border-radius:6px; padding:8px; resize:vertical"></textarea>
-        </div>
-        <div style="flex:1">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
-            <span class="hint">REPL</span>
+            <span class="hint">REPL · 模擬器輸出</span>
             <span class="hint" id="sim-repl-cursor"></span>
           </div>
           <div id="sim-repl" tabindex="0" contenteditable="false"
-            style="height:120px; overflow-y:auto; font-family:ui-monospace,monospace; font-size:12px;
+            style="height:150px; overflow-y:auto; font-family:ui-monospace,monospace; font-size:12px;
                    background:#0d1016; color:#c9d6e2; border:1px solid var(--line);
                    border-radius:6px; padding:8px; white-space:pre-wrap"></div>
         </div>
+        <div style="display:flex; align-items:center; gap:8px">
+          <code id="ed-path" style="flex:1; color:var(--muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">（未選擇檔案）</code>
+          <span id="ed-status" class="hint"></span>
+          <button class="primary" onclick="saveEditorFile()">💾 儲存</button>
+        </div>
+        <textarea id="ed-code" rows="12" spellcheck="false"
+          style="width:100%; font-family:ui-monospace,monospace; font-size:12px;
+                 background:#0f1720; color:#c9d6e2; border:1px solid var(--line);
+                 border-radius:6px; padding:8px; resize:vertical"></textarea>
+        <div class="hint">編輯 HTML → 儲存後刷新網頁預覽；編輯 .py → 儲存後重新載入模擬器代碼（按 ▶ 跑生效）。</div>
       </div>
     </div>
-    <!-- 隱藏:模擬器 runtime iframe（id 必須是 emscripten-iframe,runtime 讀父頁面） -->
-    <iframe id="emscripten-iframe" src="/sim/lvgl.html" style="display:none"></iframe>
+    <!-- 隱藏:模擬器 runtime iframe（id 必須是 emscripten-iframe,runtime 讀父頁面）
+         螢幕外定位(非 display:none):rAF 不被節流,SDL 渲染才不會變 20 秒級。
+         src 用「反轉 hostname」(localhost ↔ 127.0.0.1) 達成跨源 → iframe 獨立
+         執行緒,模擬器卡死不會凍結主頁面(可自動偵測重啟)。 -->
+    <iframe id="emscripten-iframe" src="about:blank"
+      style="position:fixed;top:0;left:0;width:0;height:0;border:0"
+      aria-hidden="true" tabindex="-1"></iframe>
   </section>
 </main>
 
@@ -277,6 +320,15 @@
 </footer>
 
 <script>
+// 模擬器 runtime（lvgl.html）在 REPL 啟動後會呼叫 window.top.reenableButton()
+// （見 vendor/sim/lvgl.html:645/684）。父頁面必須定義，否則拋
+// "TypeError: window.top.reenableButton is not a function" 中斷啟動鏈。
+// 定義成 no-op（可恢復「跑」按鈕的擴充點）。
+window.reenableButton = window.reenableButton || function () {
+  const b = document.querySelector('button[onclick="simRun()"]');
+  if (b) b.disabled = false;
+};
+
 const state = { msNames: {}, scan: null, mapping: {}, logAfter: 0, defaults: {}, designNames: [], previewDesign: null };
 const $ = id => document.getElementById(id);
 
@@ -307,6 +359,12 @@ async function init() {
       if (!state.previewDesign && designs.length) state.previewDesign = designs[0].name;
       syncPreviewDesigns();
       if (designs.length) { awaitScanForIcons(); }
+      // 工作區是預設 tab：初次載入就初始化預覽/模擬器/編輯器
+      if (designs.length) {
+        previewSwitch();
+        simCheck();
+        loadEditor();
+      }
     });
   } catch (e) { logLine("✗ " + e.message); }
   // ms codepoints
@@ -385,7 +443,7 @@ function previewDesign(name) {
   state.previewDesign = name;
   const sel = $("pv-select");
   if (sel) sel.value = name;
-  document.querySelector(`.tab[data-tab="tab-preview"]`).click();
+  document.querySelector(`.tab[data-tab="tab-workspace"]`).click();
 }
 // 上傳到 design 庫（檔名前綴 {design}/ 指定目標）
 const dz2 = $("dz2");
@@ -571,8 +629,11 @@ document.getElementById("tabs").addEventListener("click", e => {
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("is-active", t === b));
   document.querySelectorAll(".tabpane").forEach(p =>
     p.style.display = p.id === b.dataset.tab ? "" : "none");
-  if (b.dataset.tab === "tab-ui") loadUiState();
-  if (b.dataset.tab === "tab-preview") { if (state.previewDesign || state.designNames.length) previewSwitch(); simCheck(); }
+  if (b.dataset.tab === "tab-workspace") {
+    if (state.previewDesign || state.designNames.length) previewSwitch();
+    simCheck();
+    loadEditor();
+  }
 });
 
 // ---------- UI 框架 ----------
@@ -590,7 +651,10 @@ async function loadUiState() {
 }
 
 // ---------- 設計預覽（iframe 直接開設計稿,不污染工具頁） ----------
-const pvState = { design: null, dim: { w: 320, h: 240 }, zoom: 1.5 };
+const pvState = { design: null, dim: { w: 320, h: 240 }, zoom: 1.5,
+                  pages: [],          // design.json 的頁面清單（含 id/file/title/tag）
+                  idToFile: {},       // page id → file（給 postMessage 導覽用）
+                  navWired: false };  // postMessage listener 是否已掛（冪等）
 
 function pvApplyZoom() {
   const f = $("pv-frame"), wrap = $("pv-frame-wrap");
@@ -620,21 +684,65 @@ async function previewSwitch() {
   const meta = await api(`/api/design/render?design=${encodeURIComponent(name)}&page=launcher.html`)
     .then(r => r).catch(() => ({ pages: [] }));
   const pages = meta.pages && meta.pages.length ? meta.pages : [];
-  $("pv-pages").innerHTML = pages.map(p =>
-    `<button class="pv-page-btn" data-file="${p.file}" ${p.file === "launcher.html" ? 'style="border-color:var(--brand);color:var(--brand)"' : ""}>${p.title}</button>`).join("");
+  pvState.pages = pages;
+  pvState.idToFile = {};
+  pages.forEach(p => { pvState.idToFile[p.id] = p.file; });
+  // 預覽按鈕列只放「有網頁設計稿」的頁（file 結尾 .html）。
+  // lvgl-only 頁（只有 lvgl_file，如 pca9685.py）沒 HTML 可預覽，不建按鈕，
+  // 避免點了 404。用 p.file（render 端已補 file 別名 = web_file||lvgl_file）。
+  const isWeb = p => (p.file || "").toLowerCase().endsWith(".html");
+  const webPages = pages.filter(isWeb);
+  const lvglOnly = pages.filter(p => !isWeb(p));
+  // launcher 偵測：file 結尾是 launcher.html（相容 html/launcher.html 與舊 launcher.html）
+  const isLauncher = f => (f || "").toLowerCase().endsWith("launcher.html");
+  $("pv-pages").innerHTML = webPages.map(p =>
+    `<button class="pv-page-btn" data-file="${p.file}" data-id="${p.id}" ${isLauncher(p.file) ? 'style="border-color:var(--brand);color:var(--brand)"' : ""}>${p.title}</button>`).join("")
+    + (lvglOnly.length ? `<span class="hint" title="這些頁只有 LVGL 程式碼，無 HTML 設計稿">${lvglOnly.map(p => p.id).join(", ")} (僅LVGL)</span>` : "");
   $("pv-pages").querySelectorAll(".pv-page-btn").forEach(b =>
     b.onclick = () => pvShow(b.dataset.file, b));
-  pvShow("launcher.html");
+  pvWireNav();  // 掛 postMessage 接聽（冪等）
+  fillSimGoto(pages);  // 模擬器「直接切頁」下拉（lvgl 頁面）
+  // 預覽第一頁（launcher 優先，否則第一個 web 頁；全無 web 頁就不載入 iframe）
+  if (webPages.length) {
+    const firstFile = (webPages.find(p => isLauncher(p.file)) || webPages[0]).file;
+    pvShow(firstFile);
+  } else {
+    $("pv-frame").src = "about:blank";
+    $("pv-frame-wrap").style.display = "none";
+    $("pv-empty").style.display = "";
+    $("pv-empty").textContent = "此 design 沒有網頁設計稿（只有 LVGL 程式碼），請先上傳 HTML。";
+  }
 }
-function pvShow(pageFile, btn) {
+function pvShow(pageFile, btn, noCache) {
+  // pageFile 可以是 file（html/launcher.html 或 launcher.html）或 page id，
+  // postMessage 導覽會傳 id，這裡統一解析成 file。
+  const resolved = pvState.idToFile[pageFile] || pageFile;
   const f = $("pv-frame");
-  f.src = `/preview/${encodeURIComponent(pvState.design)}/${encodeURIComponent(pageFile)}`;
+  // 分段編碼：保留路徑分隔斜線（不把 / 編成 %2F），只編每段內容，
+  // 讓 server 端 Path 解析拿到乾淨的相對路徑。
+  const encPath = resolved.split("/").map(encodeURIComponent).join("/");
+  // noCache（編輯器儲存後刷新）→ 加時間戳避免瀏覽器快取舊內容
+  f.src = `/preview/${encodeURIComponent(pvState.design)}/${encPath}` + (noCache ? "?t=" + Date.now() : "");
+  // 同步頁面按鈕列高亮（比對 file 或 id）
   $("pv-pages").querySelectorAll(".pv-page-btn").forEach(b =>
-    b.style.cssText = b === btn ? "border-color:var(--brand);color:var(--brand)" : "");
+    b.style.cssText = (b === btn || b.dataset.file === resolved || b.dataset.id === pageFile)
+      ? "border-color:var(--brand);color:var(--brand)" : "");
   pvApplyZoom();
-  // 切頁連動模擬器:單頁展示碼模式載入該頁
-  sim.page = pageFile;
-  if (sim.mode === "page" && sim.loadedLz) simLoadCode();
+  // （固定 ui 框架模式：模擬器跑整個 app，切頁不需重載代碼）
+}
+// postMessage 導覽接聽：預覽 iframe 點 [data-dom-id] → 父視窗切頁。
+// 訊息格式 {type:'ds-nav', page:<page id>, source:'ds-preview'}。
+function pvWireNav() {
+  if (pvState.navWired) return;
+  pvState.navWired = true;
+  window.addEventListener("message", (e) => {
+    const d = e.data;
+    if (!d || d.type !== "ds-nav" || !d.page) return;
+    const file = pvState.idToFile[d.page];
+    if (!file) return;  // 未知 page id，忽略
+    const btn = document.querySelector(`.pv-page-btn[data-id="${d.page}"]`);
+    pvShow(file, btn || undefined);
+  });
 }
 function renderPvInteractions(list) {
   $("pv-interactions").innerHTML = (list || []).length
@@ -656,38 +764,89 @@ document.addEventListener("click", (e) => {
 });
 
 // ---------- 模擬器（四區拆分:頂欄/Display/代碼/REPL,全本地離線） ----------
-const sim = { iframe: null, repl: null, loadedLz: false, currentDesign: null, mode: "page", page: "launcher.html" };
-
-// 模式切換
-document.querySelectorAll(".sim-mode-btn").forEach(b => {
-  b.onclick = () => {
-    sim.mode = b.dataset.mode;
-    document.querySelectorAll(".sim-mode-btn").forEach(x => {
-      const on = x === b;
-      x.style.borderColor = on ? "var(--brand)" : "";
-      x.style.color = on ? "var(--brand)" : "";
-    });
-    simLoadCode();
-  };
-});
+// 固定 ui 框架模式（板端完整 UI）；不再提供「單頁展示碼」切換。
+const sim = { iframe: null, repl: null, loadedLz: false, currentDesign: null, mode: "framework", page: "launcher.html" };
 
 function simInput(ch) {
-  // 注入字元 + 步進:do_str("input_bus.push('c'); input_bus.step()")
-  // fallback process_char
-  const ifr = sim.iframe;
-  if (!ifr || !ifr.contentWindow) { sim.repl.textContent += "(iframe 未就緒)\n"; return; }
-  const w = ifr.contentWindow;
-  const code = "import input_bus; input_bus.push('" + ch + "'); input_bus.step()";
-  let used = "";
-  if (typeof w.mp_js_do_str === "function") {
-    try { w.mp_js_do_str(code); used = "do_str"; } catch (e) { used = "do_str ERR"; }
-  } else if (w.Module && typeof w.Module._mp_js_do_str === "function") {
-    try { w.Module._mp_js_do_str(code); used = "Module"; } catch (e) { used = "Module ERR"; }
-  } else if (w.process_char) {
-    w.process_char(ch.charCodeAt(0));
-    used = "proc_char";
-  } else { used = "無 API"; }
-  if (used.includes("ERR")) sim.repl.textContent += "[in " + ch + " " + used + "]\n";
+  // 注入字元 + 步進:iframe 內執行 "input_bus.push('c'); input_bus.step()"。
+  // 例外會把 traceback 印到 REPL（方便查板端 code 在模擬器不支援的 API）。
+  // 跨源 → postMessage,iframe 卡死不會凍結主頁面。
+  if (!sim.iframe || !sim.iframe.contentWindow) { sim.repl.textContent += "(iframe 未就緒)\n"; return; }
+  const code = "try:\n" +
+    "    import input_bus\n" +
+    "    input_bus.push('" + ch + "')\n" +
+    "    input_bus.step()\n" +
+    "except Exception as e:\n" +
+    "    import io, sys\n" +
+    "    b = io.StringIO()\n" +
+    "    sys.print_exception(e, b)\n" +
+    "    print('[sim ERR] ' + b.getvalue().replace(chr(10), ' | '))";
+  if (!simPost("sim-do-str", { code })) sim.repl.textContent += "(iframe 未就緒)\n";
+}
+
+// 實體操作按鈕:等同鍵盤 ◀ ▶ Enter Esc（經 input_bus 注入）。
+// 按下時按鈕閃藍色 + 右側顯示「已按 X」回饋。
+const _SIMKEY_LABEL = { l: "◀ 上一個", r: "▶ 下一個", c: "OK 確認", e: "Esc 返回" };
+function simKey(ch, btn) {
+  simInput(ch);
+  const fb = $("sim-key-fb");
+  if (fb) fb.textContent = "已按 " + (_SIMKEY_LABEL[ch] || ch) + " · " + new Date().toLocaleTimeString();
+  if (btn) {
+    btn.classList.add("simkey-press");
+    setTimeout(() => btn.classList.remove("simkey-press"), 250);
+  }
+}
+
+// 模擬器鍵盤操作:◀ ▶ = 旋鈕(enc),Enter = 確認,Esc = 返回。
+// 對應 framework 的 input_bus 中間參數鏈(input_bus.push → app.step →
+// platform enc_delta/confirm/exit → 頁面 on_enc/on_confirm/on_exit)。
+document.addEventListener("keydown", (e) => {
+  const tag = (e.target && e.target.tagName || "").toUpperCase();
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || e.target.isContentEditable) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  let handled = false;
+  switch (e.key) {
+    case "ArrowLeft":  e.preventDefault(); simInput("l"); handled = true; break;
+    case "ArrowRight": e.preventDefault(); simInput("r"); handled = true; break;
+    case "Escape":     e.preventDefault(); simInput("e"); handled = true; break;
+    case "Enter":
+      // 焦點在按鈕/下拉時 Enter 有原生行為,不攔截
+      if (tag === "BODY" || tag === "DIV" || tag === "CANVAS" || tag === "SPAN") {
+        e.preventDefault(); simInput("c"); handled = true;
+      }
+      break;
+  }
+  // 處理過按鍵就把焦點還給 body,避免焦點卡在按鈕/下拉上讓後續按鍵沒反應
+  if (handled && document.activeElement && document.activeElement !== document.body) {
+    document.activeElement.blur();
+  }
+});
+
+// ── 跨源模擬器 iframe ──
+// 用「反轉 hostname」(localhost ↔ 127.0.0.1) 讓 iframe 與主頁面跨源 →
+// 瀏覽器給 iframe 獨立執行緒:模擬器卡死只會卡死自己,主頁面永遠不凍結。
+// 所有通訊走 postMessage;SDL 畫到 iframe 自己的 canvas,主頁面鏡像顯示。
+const SIM_ORIGIN = (() => {
+  const host = location.hostname === "localhost" ? "127.0.0.1" : "localhost";
+  return location.protocol + "//" + host + ":" + (location.port || 80);
+})();
+const _simWin = () => sim.iframe && sim.iframe.contentWindow;
+let _simAck = 0;      // 最後一次收到 iframe ack 的時間(看門狗用)
+let _simStarted = false;
+
+function simPost(type, payload) {
+  const w = _simWin();
+  if (!w) return false;
+  try { w.postMessage(Object.assign({ type }, payload), "*"); return true; }
+  catch (e) { return false; }
+}
+
+function simReloadIframe() {
+  // 從跨源 URL 重載 iframe(主頁面執行緒不受影響,一定成功)
+  if (!sim.iframe) return;
+  sim.iframe.src = SIM_ORIGIN + "/sim/lvgl.html";
+  sim.repl.textContent += "↻ 模擬器重啟中…\n";
+  _simStarted = false;
 }
 
 function simCheck() {
@@ -696,12 +855,49 @@ function simCheck() {
   if (!sim.iframe) {
     sim.iframe = $("emscripten-iframe");
     sim.repl = $("sim-repl");
-    // 監聽 runtime 輸出（lvgl.html 送 micropython-print 事件到父頁面）
-    window.addEventListener("micropython-print", (e) => {
-      const t = (new TextDecoder()).decode(new Uint8Array(e.detail));
-      sim.repl.textContent += t;
-      sim.repl.scrollTop = sim.repl.scrollHeight;
+    // iframe 載入後送 config(cscript/design 由 simRun 更新後再送)
+    sim.iframe.addEventListener("load", () => {
+      _simAck = Date.now();
+      simPost("sim-config", { cscript: sim.iframe.getAttribute("data-cscript") || "",
+                              design: sim.iframe.getAttribute("data-design") || "" });
     });
+    // 監聽 runtime 輸出與 ack（跨源 → message 事件）
+    window.addEventListener("message", (e) => {
+      const d = e.data;
+      if (!d || typeof d !== "object") return;
+      if (d.type === "micropython-print") {
+        sim.repl.textContent += d.text || "";
+        sim.repl.scrollTop = sim.repl.scrollHeight;
+      } else if (d.type === "sim-ack") {
+        _simAck = Date.now();
+      } else if (d.type === "sim-frame") {
+        // iframe 送嚟嘅畫面幀(dataURL)→ 畫到主頁面 #canvas
+        if (typeof d.data === "string" && d.data.startsWith("data:image")) {
+          const img = new Image();
+          img.onload = () => {
+            const dst = document.getElementById("canvas");
+            if (dst) dst.getContext("2d").drawImage(img, 0, 0, dst.width, dst.height);
+          };
+          img.src = d.data;
+        }
+      } else if (d.type === "sim-ready") {
+        // iframe 開機就緒,回送 config（握手,無 load 事件 race）
+        simPost("sim-config", {
+          cscript: sim.iframe.getAttribute("data-cscript") || "",
+          design: sim.iframe.getAttribute("data-design") || "",
+        });
+      }
+    });
+    // 畫面鏡像改由 iframe 主動送 sim-frame(dataURL) — 主頁面跨源讀唔到
+    // iframe 的 DOM,唔可以再直接 drawImage。
+    // 看門狗:iframe 超過 8 秒無回應 → 自動重啟（主頁面不受影響）
+    setInterval(() => {
+      if (!_simStarted) return;
+      if (Date.now() - _simAck > 8000) {
+        sim.repl.textContent += "⚠ 模擬器無回應,自動重啟\n";
+        simReloadIframe();
+      }
+    }, 2000);
   }
   // 載入本地 lz-string（離線壓縮代碼用）
   if (!sim.loadedLz) {
@@ -716,32 +912,73 @@ function simCheck() {
 }
 
 async function simLoadCode() {
-  // 依模式載入:單頁展示碼(該頁) 或 ui 框架
+  // 固定 ui 框架模式（板端完整 UI）
   const d = state.previewDesign || (state.designNames[0]);
   if (!d) return;
   sim.currentDesign = d;
   try {
-    let url = `/api/design/simcode?design=${encodeURIComponent(d)}`;
-    if (sim.mode === "framework") {
-      url += "&mode=framework";
-    } else {
-      url += `&page=${encodeURIComponent(sim.page || "launcher.html")}`;
-    }
+    const url = `/api/design/simcode?design=${encodeURIComponent(d)}&mode=framework`;
     const r = await api(url);
     $("sim-code").value = r.code;
   } catch (e) { $("sim-repl").textContent += "✗ 載入代碼失敗: " + e.message + "\n"; }
 }
 
+// 「直接切頁」下拉：列出有 LVGL 實作的頁面（lvgl_file 非空）
+function fillSimGoto(pages) {
+  const sel = $("sim-goto");
+  if (!sel) return;
+  const lvglPages = (pages || []).filter(p => p.lvgl_file);
+  sel.innerHTML = `<option value="">— 頁面 —</option>` +
+    lvglPages.map(p => `<option value="${p.id}">${p.title} (${p.id})</option>`).join("");
+}
+// 直接切頁：呼叫 framework 註冊的中間函數 app.go()（input_bus.go）。
+// 板端導航是 app.go() 控制，不需模擬 encoder 硬體。
+function simGoTo(pageId) {
+  if (!pageId) return;
+  if (!sim.iframe || !sim.iframe.contentWindow) { sim.repl.textContent += "(iframe 未就緒)\n"; return; }
+  const code = "try:\n" +
+    "    import input_bus\n" +
+    "    input_bus.go('" + pageId + "')\n" +
+    "    input_bus.step()\n" +
+    "except Exception as e:\n" +
+    "    import io, sys\n" +
+    "    b = io.StringIO()\n" +
+    "    sys.print_exception(e, b)\n" +
+    "    print('[go ERR] ' + b.getvalue().replace(chr(10), ' | '))";
+  simPost("sim-do-str", { code });
+  // 焦點還給 body,讓後續鍵盤操作(◀▶/Enter)直接命中
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+}
+
 function simRun() {
   sim.repl.textContent = "";
+  if (!window.LZString) {
+    // 初次進頁 LZString 可能還在載入：等待就緒後自動執行
+    sim.repl.textContent += "⏳ LZString 載入中…\n";
+    const t0 = Date.now();
+    const wait = setInterval(() => {
+      if (window.LZString) { clearInterval(wait); simRun(); }
+      else if (Date.now() - t0 > 15000) { clearInterval(wait); sim.repl.textContent += "✗ LZString 載入逾時\n"; }
+    }, 200);
+    return;
+  }
   const code = $("sim-code").value;
-  if (!window.LZString) { sim.repl.textContent += "✗ LZString 未載入\n"; return; }
-  // 送代碼給 runtime（data-cscript + 重載 lvgl.html iframe）
+  if (!code) {
+    // 代碼還沒載入（simLoadCode 是異步）：先載入，完成後自動跑
+    sim.repl.textContent += "⏳ 載入代碼中…\n";
+    simLoadCode().then(() => simRun());
+    return;
+  }
+  // 送代碼給 runtime（跨源 iframe 重載 + postMessage config）
   const ifr = sim.iframe;
   ifr.setAttribute("data-cscript", LZString.compressToEncodedURIComponent(code));
-  ifr.src = "/sim/lvgl.html";
-  ifr.contentWindow && ifr.contentWindow.location.reload();
+  // 告訴 runtime 目前 design（lvgl.html seed block 用它從 dlib fetch 字體/圖示 bin）
+  if (sim.currentDesign) ifr.setAttribute("data-design", sim.currentDesign);
+  simReloadIframe();
+  _simStarted = true;
   sim.repl.textContent += "▶ 執行中…\n";
+  // 焦點還給 body:按完 ▶ 後焦點若停在按鈕上,Enter 會被按鈕原生行為吃掉
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
 }
 
 async function simSave() {
@@ -755,6 +992,117 @@ async function simSave() {
 
 function simReloadCode() {
   simLoadCode();
+}
+
+// ---------- 編輯器：design 檔案即時編輯 ----------
+const edState = { design: null, path: null };
+
+async function loadEditor() {
+  // 同步 design 下拉
+  const sel = $("ed-design");
+  const prev = sel.value;
+  sel.innerHTML = state.designNames.map(n =>
+    `<option value="${n}" ${n === prev ? "selected" : ""}>${n}</option>`).join("");
+  if (state.designNames.length && !prev) {
+    sel.value = state.previewDesign || state.designNames[0];
+  }
+  const d = sel.value;
+  if (!d) {
+    $("ed-files").textContent = "選擇 design 後顯示檔案清單";
+    return;
+  }
+  try {
+    const j = await api(`/api/design/files?design=${encodeURIComponent(d)}`);
+    renderEditorFiles(j.files || []);
+  } catch (e) { $("ed-files").textContent = "✗ " + e.message; }
+}
+$("ed-design") && ($("ed-design").onchange = loadEditor);
+
+function renderEditorFiles(files) {
+  // 依路徑建立樹狀結構（html/ lvgl/ assets/ 為頂層資料夾，可點 summary 收合/展開）
+  const label = { html: "🖼 html/（網頁設計稿）", lvgl: "🐍 lvgl/（LVGL 程式碼）", assets: "📦 assets/（共用資源）" };
+  const root = { dirs: {}, files: [] };
+  files.forEach(f => {
+    const parts = f.path.split("/");
+    let node = root;
+    for (let i = 0; i < parts.length - 1; i++) {
+      node.dirs[parts[i]] = node.dirs[parts[i]] || { dirs: {}, files: [] };
+      node = node.dirs[parts[i]];
+    }
+    node.files.push(f);
+  });
+  const row = f =>
+    `<div class="ed-file" data-path="${f.path}" data-size="${f.size}" title="${f.path}"
+          style="cursor:pointer;padding:3px 6px;border-radius:4px;font-size:12px;
+                 font-family:ui-monospace,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+          onclick="openEditorFile('${f.path}')">${f.path.split("/").pop()}</div>`;
+  const dir = (name, node) => {
+    const kids = [];
+    Object.keys(node.dirs).sort().forEach(n => kids.push(dir(n, node.dirs[n])));
+    node.files.sort((a, b) => a.path.localeCompare(b.path)).forEach(f => kids.push(row(f)));
+    return `<details open><summary style="cursor:pointer;margin:4px 0 2px;font-weight:600;
+                 color:var(--muted);font-size:11px">${label[name] || "📁 " + name + "/"} <span class="hint">${kids.length}</span></summary>
+      <div style="margin-left:12px;border-left:1px solid var(--line);padding-left:6px">${kids.join("")}</div></details>`;
+  };
+  let html = "";
+  root.files.sort((a, b) => a.path.localeCompare(b.path)).forEach(f => html += row(f));
+  const ordered = [...new Set([...["html", "lvgl", "assets"], ...Object.keys(root.dirs).sort()])];
+  ordered.forEach(n => { if (root.dirs[n]) html += dir(n, root.dirs[n]); });
+  $("ed-files").innerHTML = html || '<span class="hint">此 design 沒有可編輯檔案</span>';
+}
+
+async function openEditorFile(path) {
+  const d = $("ed-design").value;
+  if (!d) return;
+  try {
+    const j = await api(`/api/design/file?design=${encodeURIComponent(d)}&path=${encodeURIComponent(path)}`);
+    edState.design = d;
+    edState.path = j.path;
+    $("ed-path").textContent = `${d}/${j.path}`;
+    $("ed-code").value = j.content;
+    $("ed-status").textContent = "";
+    // 高亮選中的檔案 + 展開其所在資料夾
+    document.querySelectorAll(".ed-file").forEach(el => {
+      if (el.dataset.path === j.path) {
+        el.style.background = "var(--brand-bg)";
+        let d = el.closest("details");
+        while (d) { d.open = true; d = d.parentElement && d.parentElement.closest("details"); }
+      } else {
+        el.style.background = "";
+      }
+    });
+  } catch (e) { $("ed-status").textContent = "✗ " + e.message; }
+}
+
+async function saveEditorFile() {
+  if (!edState.path) { $("ed-status").textContent = "✗ 先選擇檔案"; return; }
+  const d = edState.design, path = edState.path;
+  const content = $("ed-code").value;
+  try {
+    await api("/api/design/file", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ design: d, path, content }),
+    });
+    $("ed-status").textContent = "✓ 已儲存 " + new Date().toLocaleTimeString();
+    logLine(`💾 已儲存: ${d}/${path}`);
+    // 即時顯示：重新掃描 + 依類型刷新
+    await loadDesigns().catch(() => {});
+    if (path.endsWith(".html") || path.endsWith(".htm")) {
+      // 刷新網頁預覽（重新載入當前預覽頁，加 cache-bust）
+      if (state.previewDesign === d && $("pv-frame").src) {
+        // 從目前 iframe src 解析當前預覽頁（/preview/{design}/{file}[?t=...]）
+        const m = $("pv-frame").src.match(/\/preview\/[^/]+\/(.+?)(?:\?.*)?$/);
+        const cur = m ? decodeURIComponent(m[1]) : "launcher.html";
+        pvShow(cur, null, true);
+      }
+    } else if (path.endsWith(".py")) {
+      // 重新載入模擬器代碼（下次按 ▶ 跑生效）
+      if (state.previewDesign === d) simReloadCode();
+    } else if (path.endsWith("design.json")) {
+      if (state.previewDesign === d) { previewSwitch(); simReloadCode(); }
+    }
+  } catch (e) { $("ed-status").textContent = "✗ " + e.message; }
 }
 
 init();
