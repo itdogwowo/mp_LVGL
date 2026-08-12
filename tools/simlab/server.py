@@ -1,24 +1,30 @@
 # simlab/server.py — SimLab 請求處理(純 stdlib,掛在既有 server 上)
 #
+# 項目儲存 = 本地完整複製件(自包含、可匯入匯出):
+#   tools/simlab/projects/{name}/
+#       lvgl/    真機 LVGL 代碼複製(page/ src/ + 根模組 .py)
+#       html/    HTML 設計稿複製
+#       assets/  字體/圖示 bin
+#   projects.json = 索引(meta + entry 配置 + source 來源路徑)
+#
 # 路由全在 /simlab/* 命名空間:
 #   /simlab/                → web/index.html(SimLab 單頁)
 #   /simlab/sim/*           → 本地 runtime(wasm/js/lvgl.html/驅動 py)
-#   /simlab/bin/{name}/*    → 跨倉 bin(字體/圖示,以 git root 相對路徑解析)
-#   /simlab/proj/{name}/*   → 項目真機代碼(唯讀,防穿越)
-#   /simlab/api/projects    → 項目清單
+#   /simlab/proj/{name}/*   → 項目本地複製件(lvgl/ html/ assets/,防穿越)
+#   /simlab/api/projects    → 項目清單 / POST(save|scan|import|export)
 #   /simlab/api/code?proj=  → 渲染後的 shim 代碼(text/plain)
-#   /simlab/api/files?proj= → 項目全部 .py {rel: content}(JS 預載用)
+#   /simlab/api/files?proj= → 項目 lvgl 全部 .py {rel: content}(JS 預載用)
 #   /simlab/api/bins?proj=  → 項目字體/圖示 {vfs, url}
+#   /simlab/api/code_pairs  → HTML ↔ LVGL 頁面對照
+#   /simlab/api/tree        → 代碼區摺疊樹
 #   /simlab/api/config      → perf 常數(GET/POST)
 #   /simlab/api/runtime     → runtime 狀態
-#
-# 回覆統一借用 host handler 的 _serve_file/_json/_err/_body
-# (ETag/304/CORS 等行為與 Asset Studio 一致),路徑解析與邏輯全在本檔。
 from __future__ import annotations
 
 import fnmatch
 import json
 import re
+import shutil
 from pathlib import Path
 from string import Template
 from urllib.parse import parse_qs
@@ -27,6 +33,7 @@ HERE = Path(__file__).resolve().parent
 WEB_DIR = HERE / "web"
 SIM_DIR = HERE / "sim"
 SHIM_DIR = HERE / "shim"
+PROJ_ROOT = HERE / "projects"
 PROJECTS_FILE = HERE / "projects.json"
 CONFIG_FILE = HERE / "config.json"
 GIT_ROOT = HERE.parent.parent.parent  # tools/simlab → mp_LVGL/tools → mp_LVGL → git root
@@ -62,7 +69,7 @@ def _save_config(cfg: dict) -> None:
         json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-# ============ 項目 ============
+# ============ 項目(本地複製件) ============
 
 def _load_projects() -> list[dict]:
     try:
@@ -83,21 +90,40 @@ def _project(name: str) -> dict | None:
     return None
 
 
+def _proj_dir(proj: dict) -> Path:
+    """本地複製件根:tools/simlab/projects/{name}。"""
+    return PROJ_ROOT / proj["name"]
+
+
 def _proj_base(proj: dict) -> Path:
-    """項目根(相對 git root 解析;防穿越到 git root 外)。"""
-    base = (GIT_ROOT / proj["path"]).resolve()
-    if not str(base).startswith(str(GIT_ROOT.resolve())):
-        raise ValueError("project path outside git root")
-    return base
+    """LVGL 代碼目錄(本地複製件)。"""
+    return _proj_dir(proj) / "lvgl"
+
+
+def _proj_html(proj: dict) -> Path:
+    return _proj_dir(proj) / "html"
+
+
+def _proj_assets(proj: dict) -> Path:
+    return _proj_dir(proj) / "assets"
+
+
+def _entry(proj: dict) -> dict:
+    return proj.get("entry") or {}
+
+
+def _kind(proj: dict) -> str:
+    return _entry(proj).get("kind", "framework")
 
 
 def _files_for(proj: dict) -> dict[str, str]:
-    """項目要預載的全部 .py(rel → content)。framework:根+page+src;mp_lvgl:根層(套 exclude)。"""
+    """項目 lvgl 要預載的全部 .py(rel → content)。framework:根+page+src;mp_lvgl:根層(套 exclude)。"""
     base = _proj_base(proj)
-    entry = proj.get("entry", {})
-    kind = entry.get("kind", "framework")
+    entry = _entry(proj)
     out: dict[str, str] = {}
-    if kind == "framework":
+    if not base.is_dir():
+        return out
+    if _kind(proj) == "framework":
         page_dir = entry.get("page_dir", "page")
         src_dir = entry.get("src_dir", "src")
         for p in sorted(base.rglob("*.py")):
@@ -114,123 +140,55 @@ def _files_for(proj: dict) -> dict[str, str]:
 
 
 def _bins_for(proj: dict) -> list[dict]:
-    """項目字體/圖示清單:[{vfs, url}]。bin 可跨到 git root 內其他倉(借字體);
-    url 統一以 git root 相對路徑表示,由 /simlab/bin/{name}/{rel} 服務。"""
-    entry = proj.get("entry", {})
-    base = _proj_base(proj)
+    """字體/圖示清單:[{vfs, url}](本地 projects/{name}/assets/)。"""
+    entry = _entry(proj)
+    d = _proj_dir(proj)
     out: list[dict] = []
     for vfs, rel in (entry.get("bins") or {}).items():
-        src = (base / rel).resolve()
-        if not src.is_file():
+        src = (d / rel).resolve()  # rel 形如 "assets/zh_hant_16.bin"
+        if not src.is_file() or not str(src).startswith(str(d.resolve())):
             continue
-        if not str(src).startswith(str(GIT_ROOT.resolve())):
-            continue
-        gitrel = src.relative_to(GIT_ROOT).as_posix()
         out.append({"vfs": str(vfs).lstrip("/"),
-                    "url": "/simlab/bin/{}/{}".format(proj["name"], gitrel)})
+                    "url": "/simlab/proj/{}/{}".format(proj["name"], rel)})
     return out
-
-
-def _page_modules(proj: dict) -> list[str]:
-    entry = proj.get("entry", {})
-    if entry.get("kind") == "mp_lvgl":
-        return list(entry.get("modules", []))
-    base = _proj_base(proj)
-    page_dir = base / entry.get("page_dir", "page")
-    out: list[str] = []
-    if page_dir.is_dir():
-        out = sorted(p.stem for p in page_dir.glob("*.py")
-                     if p.name != "__init__.py" and not p.name.startswith("_"))
-    return out
-
-
-def _project_tree(proj: dict) -> list[dict]:
-    """代碼區摺疊式檔案樹:[{icon, title, items:[{name, path, size, url}]}]。
-    🐍 lvgl 代碼(項目根 .py)+ 🖼 HTML 稿(html_dir)+ 📦 資源(bins)。"""
-    entry = proj.get("entry", {})
-    name = proj["name"]
-    base = _proj_base(proj)
-    groups: list[dict] = []
-    # 🐍 LVGL 程式碼
-    lv: list[dict] = []
-    for p in sorted(base.rglob("*.py")):
-        rel = p.relative_to(base).as_posix()
-        lv.append({"name": p.name, "path": rel, "size": p.stat().st_size,
-                   "url": "/simlab/proj/{}/{}".format(name, rel)})
-    if lv:
-        groups.append({"icon": "🐍", "title": "LVGL 程式碼 (lvgl/)", "items": lv})
-    # 🖼 HTML 稿
-    hdir = entry.get("html_dir")
-    if hdir:
-        hbase = (GIT_ROOT / hdir).resolve()
-        html_items: list[dict] = []
-        if hbase.is_dir() and str(hbase).startswith(str(GIT_ROOT.resolve())):
-            for p in sorted(hbase.rglob("*")):
-                if not p.is_file() or p.suffix.lower() not in (".html", ".css", ".js"):
-                    continue
-                gitrel = p.relative_to(GIT_ROOT).as_posix()
-                html_items.append({"name": p.name,
-                                   "path": p.relative_to(hbase).as_posix(),
-                                   "size": p.stat().st_size,
-                                   "url": "/simlab/bin/{}/{}".format(name, gitrel)})
-        if html_items:
-            groups.append({"icon": "🖼", "title": "網頁設計稿 (html/)", "items": html_items})
-    # 📦 資源(字體/圖示)
-    assets: list[dict] = []
-    for vfs, rel in (entry.get("bins") or {}).items():
-        src = (base / rel).resolve()
-        if not src.is_file() or not str(src).startswith(str(GIT_ROOT.resolve())):
-            continue
-        gitrel = src.relative_to(GIT_ROOT).as_posix()
-        assets.append({"name": Path(vfs).name, "path": vfs, "size": src.stat().st_size,
-                       "url": "/simlab/bin/{}/{}".format(name, gitrel)})
-    if assets:
-        groups.append({"icon": "📦", "title": "共用資源 (assets/)", "items": assets})
-    return groups
 
 
 def _html_previews(proj: dict) -> list[dict]:
-    """項目 HTML 設計稿清單:[{name, url}](跨倉,走 /simlab/bin/)。"""
-    entry = proj.get("entry", {})
-    hdir = entry.get("html_dir")
-    if not hdir:
-        return []
-    base = (GIT_ROOT / hdir).resolve()
-    if not base.is_dir() or not str(base).startswith(str(GIT_ROOT.resolve())):
-        return []
+    """HTML 設計稿清單:[{name, url}](本地 html/)。"""
+    hbase = _proj_html(proj)
     out: list[dict] = []
-    for p in sorted(base.rglob("*.html")):
+    if not hbase.is_dir():
+        return out
+    for p in sorted(hbase.rglob("*.html")):
         if p.name.startswith("_"):
             continue
-        rel = p.relative_to(GIT_ROOT).as_posix()
-        out.append({"name": p.relative_to(base).as_posix(), "url": "/simlab/bin/{}/{}".format(proj["name"], rel)})
+        out.append({"name": p.relative_to(hbase).as_posix(),
+                    "url": "/simlab/proj/{}/html/{}".format(proj["name"], p.relative_to(hbase).as_posix())})
     return out
 
 
 def _code_pairs(proj: dict) -> list[dict]:
-    """HTML 稿 ↔ LVGL .py 頁面對照:[{id, html_name, py_name, html_url, py_url}]。
+    """HTML 稿 ↔ LVGL .py 頁面對照(本地複製件)。
     framework:優先 design.json 的 pages(web_file/lvgl_file);否則慣例。
-    mp_lvgl:html page/{stem}.html ↔ lvgl_page_{stem}.py。"""
-    entry = proj.get("entry", {})
-    kind = entry.get("kind", "framework")
+    mp_lvgl:html {stem}.html ↔ lvgl_page_{stem}.py。"""
     name = proj["name"]
-    hdir = entry.get("html_dir")
-    base = _proj_base(proj)
+    hbase = _proj_html(proj)
+    lvbase = _proj_base(proj)
     pairs: list[dict] = []
 
     def _url(p: Path) -> str:
-        return "/simlab/bin/{}/{}".format(name, p.relative_to(GIT_ROOT).as_posix())
+        rel = p.relative_to(_proj_dir(proj)).as_posix()
+        return "/simlab/proj/{}/{}".format(name, rel)
 
-    if kind == "framework":
+    if _kind(proj) == "framework":
         mapping: list[tuple[str, str, str]] = []  # (id, html_rel, py_rel)
         dj = None
-        if hdir:
-            cand = (GIT_ROOT / hdir).parent / "design.json"
-            if cand.exists():
-                try:
-                    dj = json.loads(cand.read_text(encoding="utf-8"))
-                except (OSError, ValueError):
-                    dj = None
+        djf = _proj_dir(proj) / "design.json"
+        if djf.exists():
+            try:
+                dj = json.loads(djf.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                dj = None
         if dj and dj.get("pages"):
             for pg in dj["pages"]:
                 wf = pg.get("web_file") or ""
@@ -240,68 +198,78 @@ def _code_pairs(proj: dict) -> list[dict]:
                 html_rel = wf[len("html/"):] if wf.startswith("html/") else wf
                 py_rel = lf[len("lvgl/ui/"):] if lf.startswith("lvgl/ui/") else lf
                 mapping.append((pg.get("id", Path(html_rel).stem), html_rel, py_rel))
-        if not mapping and hdir:
-            # 慣例:launcher.html ↔ launcher.py;page/X.html ↔ page/X.py
-            hbase = (GIT_ROOT / hdir).resolve()
-            if hbase.is_dir():
-                for hf in sorted(hbase.rglob("*.html")):
-                    if hf.name.startswith("_"):
-                        continue
-                    html_rel = hf.relative_to(hbase).as_posix()
-                    stem = hf.stem
-                    py_rel = (stem + ".py") if "/" not in html_rel else (html_rel[:-5] + ".py")
-                    mapping.append((stem, html_rel, py_rel))
+        if not mapping and hbase.is_dir():
+            for hf in sorted(hbase.rglob("*.html")):
+                if hf.name.startswith("_"):
+                    continue
+                html_rel = hf.relative_to(hbase).as_posix()
+                stem = hf.stem
+                py_rel = (stem + ".py") if "/" not in html_rel else (html_rel[:-5] + ".py")
+                mapping.append((stem, html_rel, py_rel))
         for pid, html_rel, py_rel in mapping:
-            hf = (GIT_ROOT / hdir / html_rel).resolve() if hdir else None
-            pf = (base / py_rel).resolve()
-            if hf is not None and hf.is_file() and pf.is_file():
+            hf = (hbase / html_rel).resolve()
+            pf = (lvbase / py_rel).resolve()
+            if hf.is_file() and pf.is_file():
                 pairs.append({"id": pid, "html_name": html_rel, "py_name": py_rel,
-                              "html_url": _url(hf), "py_url": "/simlab/proj/{}/{}".format(name, py_rel)})
+                              "html_url": _url(hf), "py_url": _url(pf)})
     else:
-        # mp_lvgl:html {stem}.html ↔ lvgl_page_{stem}.py
-        if hdir:
-            hbase = (GIT_ROOT / hdir).resolve()
-            if hbase.is_dir():
-                for hf in sorted(hbase.rglob("*.html")):
-                    if hf.name.startswith("_"):
-                        continue
-                    stem = hf.stem
-                    py_rel = "lvgl_page_{}.py".format(stem)
-                    pf = (base / py_rel).resolve()
-                    if not pf.is_file():
-                        continue
-                    html_rel = hf.relative_to(hbase).as_posix()
-                    pairs.append({"id": stem, "html_name": html_rel, "py_name": py_rel,
-                                  "html_url": _url(hf),
-                                  "py_url": "/simlab/proj/{}/{}".format(name, py_rel)})
+        if hbase.is_dir():
+            for hf in sorted(hbase.rglob("*.html")):
+                if hf.name.startswith("_"):
+                    continue
+                stem = hf.stem
+                py_rel = "lvgl_page_{}.py".format(stem)
+                pf = (lvbase / py_rel).resolve()
+                if not pf.is_file():
+                    continue
+                html_rel = hf.relative_to(hbase).as_posix()
+                pairs.append({"id": stem, "html_name": html_rel, "py_name": py_rel,
+                              "html_url": _url(hf), "py_url": _url(pf)})
     return pairs
 
 
-_BRIDGE = """
-<script>
-// SimLab HTML 稿橋接:點 [data-dom-id] → 父頁跳轉對應 LVGL 頁面
-document.addEventListener("click", function (e) {
-  var el = e.target && e.target.closest ? e.target.closest("[data-dom-id]") : null;
-  if (!el) return;
-  var id = el.getAttribute("data-dom-id") || "";
-  try { window.parent.postMessage({ type: "simlab-nav", page: id }, "*"); } catch (err) {}
-  e.preventDefault();
-  e.stopPropagation();
-}, true);
-</script>
-"""
+def _project_tree(proj: dict) -> list[dict]:
+    """代碼區摺疊樹:🐍 lvgl / 🖼 html / 📦 assets(本地複製件)。"""
+    name = proj["name"]
+    lvbase = _proj_base(proj)
+    groups: list[dict] = []
+    lv: list[dict] = []
+    if lvbase.is_dir():
+        for p in sorted(lvbase.rglob("*.py")):
+            rel = p.relative_to(lvbase).as_posix()
+            lv.append({"name": p.name, "path": rel, "size": p.stat().st_size,
+                       "url": "/simlab/proj/{}/lvgl/{}".format(name, rel)})
+    if lv:
+        groups.append({"icon": "🐍", "title": "LVGL 程式碼 (lvgl/)", "items": lv})
+    hbase = _proj_html(proj)
+    html_items: list[dict] = []
+    if hbase.is_dir():
+        for p in sorted(hbase.rglob("*")):
+            if not p.is_file() or p.suffix.lower() not in (".html", ".css", ".js"):
+                continue
+            rel = p.relative_to(hbase).as_posix()
+            html_items.append({"name": p.name, "path": rel, "size": p.stat().st_size,
+                               "url": "/simlab/proj/{}/html/{}".format(name, rel)})
+    if html_items:
+        groups.append({"icon": "🖼", "title": "網頁設計稿 (html/)", "items": html_items})
+    assets = _proj_assets(proj)
+    aitems: list[dict] = []
+    if assets.is_dir():
+        for p in sorted(assets.rglob("*")):
+            if not p.is_file():
+                continue
+            aitems.append({"name": p.name, "path": "assets/" + p.name,
+                           "size": p.stat().st_size,
+                           "url": "/simlab/proj/{}/assets/{}".format(name, p.name)})
+    if aitems:
+        groups.append({"icon": "📦", "title": "共用資源 (assets/)", "items": aitems})
+    return groups
 
 
-def _inject_html_bridge(html: str) -> str:
-    if "simlab-nav" in html:
-        return html
-    if "</body>" in html:
-        return html.replace("</body>", _BRIDGE + "</body>", 1)
-    return html + _BRIDGE
+# ============ 匯入 / 匯出 ============
 
-
-def scan_project_path(path: str) -> dict:
-    """從真機路徑掃描,建議 entry(供「從路徑掃描建項目」)。"""
+def _scan_source(path: str) -> dict:
+    """從真機路徑掃描,建議 entry + 檔案清單(供匯入)。"""
     base = (GIT_ROOT / path).resolve()
     if not str(base).startswith(str(GIT_ROOT.resolve())):
         raise ValueError("path outside git root")
@@ -313,8 +281,8 @@ def scan_project_path(path: str) -> dict:
     has_app = (base / "app.py").exists()
     page_dir = base / "page"
     src_dir = base / "src"
+    files: list[str] = []
     if has_app and page_dir.is_dir():
-        # framework 型(slave 系)
         pages = sorted(p.stem for p in page_dir.glob("*.py")
                        if p.name != "__init__.py" and not p.name.startswith("_"))
         modules = [m for m in ("registry", "ui_common", "nav", "launcher", "app")
@@ -322,16 +290,14 @@ def scan_project_path(path: str) -> dict:
         entry: dict = {"kind": "framework", "page_dir": "page", "modules": modules}
         if src_dir.is_dir():
             entry["src_dir"] = "src"
-            bins = {}
-            for b in ("zh_hant_16.bin", "icons_16.bin"):
-                if (src_dir / b).exists():
-                    bins["ui/lvgl/src/" + b] = "src/" + b
-            if bins:
-                entry["bins"] = bins
         suggest["entry"] = entry
         suggest["pages"] = pages
+        for p in sorted(base.rglob("*.py")):
+            rel = p.relative_to(base).as_posix()
+            head = rel.split("/", 1)[0]
+            if "/" not in rel or head == "page" or head == "src":
+                files.append(rel)
     else:
-        # mp_lvgl 型(平級頁面模組)
         lvpages = sorted(p.stem for p in base.glob("lvgl_page_*.py"))
         if lvpages:
             suggest["entry"] = {
@@ -341,21 +307,185 @@ def scan_project_path(path: str) -> dict:
                             "test_*.py", "lvgl_demo*.py"],
             }
             suggest["pages"] = lvpages
+            files = [p.name for p in sorted(base.glob("*.py"))
+                     if not any(fnmatch.fnmatch(p.name, x)
+                                for x in suggest["entry"]["exclude"])]
         else:
             raise ValueError("看不出 UI 結構:需要 app.py+page/ 或 lvgl_page_*.py")
-    # html 稿同倉偵測
+    # 同倉 html 稿偵測
+    html_dir = ""
     for cand in ("html", "design/html", "web"):
         d = base / cand
         if d.is_dir() and any(d.rglob("*.html")):
-            suggest["entry"]["html_dir"] = (GIT_ROOT / path / cand).as_posix()
+            html_dir = (GIT_ROOT / path / cand).as_posix()
             break
+    # bins
+    bins: list[str] = []
+    for b in ("zh_hant_16.bin", "icons_16.bin"):
+        if (src_dir / b).exists() if src_dir.exists() else False:
+            bins.append("src/" + b)
+    suggest["files"] = files
+    suggest["html_dir"] = html_dir
+    suggest["bin_files"] = bins
     return suggest
+
+
+def import_project(name: str, title: str, group: str, path: str,
+                   html_dir: str, entry: dict, w: int, h: int,
+                   bins_src: str = "") -> dict:
+    """把真機項目複製成本地複製件(projects/{name}/{lvgl,html,assets})。
+    bins_src:跨倉字體借用來源目錄(相對 git root,如 mp_Net-Core/.../src)。"""
+    if not name or not path:
+        raise ValueError("name 與 path 必填")
+    src = (GIT_ROOT / path).resolve()
+    if not src.is_dir() or not str(src).startswith(str(GIT_ROOT.resolve())):
+        raise ValueError("來源不存在: {}".format(src))
+    d = _proj_dir({"name": name})
+    lvgl_dir = d / "lvgl"
+    html_dir_local = d / "html"
+    assets_dir = d / "assets"
+    # 清掉舊的(重新匯入 = 全新複製)
+    if d.exists():
+        shutil.rmtree(d)
+    lvgl_dir.mkdir(parents=True)
+    html_dir_local.mkdir(parents=True)
+    assets_dir.mkdir(parents=True)
+
+    kind = entry.get("kind", "framework")
+    src_dir = None
+    if kind == "framework":
+        page_dir = entry.get("page_dir", "page")
+        src_dir = entry.get("src_dir", "src")
+        for p in sorted(src.rglob("*.py")):
+            rel = p.relative_to(src).as_posix()
+            head = rel.split("/", 1)[0]
+            if "/" not in rel or head == page_dir or head == src_dir:
+                dst = lvgl_dir / rel
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(p, dst)
+    else:
+        for p in sorted(src.glob("*.py")):
+            if any(fnmatch.fnmatch(p.name, x) for x in entry.get("exclude", [])):
+                continue
+            shutil.copy2(p, lvgl_dir / p.name)
+    # html 稿
+    if html_dir:
+        hsrc = (GIT_ROOT / html_dir).resolve()
+        if hsrc.is_dir():
+            for p in sorted(hsrc.rglob("*")):
+                if not p.is_file() or p.suffix.lower() not in (".html", ".css", ".js"):
+                    continue
+                rel = p.relative_to(hsrc).as_posix()
+                dst = html_dir_local / rel
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(p, dst)
+            # design.json 一併複製(頁面對照用)
+            dj = hsrc.parent / "design.json"
+            if dj.is_file():
+                shutil.copy2(dj, d / "design.json")
+    # bins:framework 自動抓 src/*.bin;再加顯式借用(bins_src / entry.bins)
+    bins_map: dict[str, str] = {}
+    if kind == "framework" and src_dir and (src / src_dir).is_dir():
+        for b in sorted((src / src_dir).glob("*.bin")):
+            shutil.copy2(b, assets_dir / b.name)
+            bins_map.setdefault("ui/lvgl/src/" + b.name, "assets/" + b.name)
+    if bins_src:
+        bdir = (GIT_ROOT / bins_src).resolve()
+        if bdir.is_dir() and str(bdir).startswith(str(GIT_ROOT.resolve())):
+            for b in ("zh_hant_16.bin", "icons_16.bin"):
+                if (bdir / b).is_file():
+                    vfs = ("ui/lvgl/src/" if kind == "framework" else "") + b
+                    shutil.copy2(bdir / b, assets_dir / b)
+                    bins_map[vfs] = "assets/" + b
+    for vfs, rel in (entry.get("bins") or {}).items():
+        bsrc = (GIT_ROOT / rel).resolve()
+        if bsrc.is_file() and str(bsrc).startswith(str(GIT_ROOT.resolve())):
+            fname = Path(vfs).name
+            shutil.copy2(bsrc, assets_dir / fname)
+            bins_map[vfs] = "assets/" + fname
+    entry["bins"] = bins_map
+
+    meta = {
+        "name": name,
+        "title": title or name,
+        "group": group or "",
+        "source": path,
+        "source_html": html_dir or "",
+        "w": w or 320,
+        "h": h or 240,
+        "entry": entry,
+    }
+    return meta
+
+
+def export_project(proj: dict) -> dict:
+    """把本地複製件寫回來源(source / source_html / bins)。"""
+    name = proj["name"]
+    d = _proj_dir(proj)
+    src = (GIT_ROOT / proj.get("source", "")).resolve()
+    if not str(src).startswith(str(GIT_ROOT.resolve())):
+        raise ValueError("來源路徑不合法: {}".format(proj.get("source")))
+    written: list[str] = []
+    if not src.is_dir():
+        raise ValueError("來源不存在(先建目錄?): {}".format(src))
+    lvgl_dir = d / "lvgl"
+    if lvgl_dir.is_dir():
+        for p in sorted(lvgl_dir.rglob("*.py")):
+            rel = p.relative_to(lvgl_dir).as_posix()
+            dst = src / rel
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(p, dst)
+            written.append("lvgl/" + rel)
+    # html 寫回 source_html
+    sh = proj.get("source_html", "")
+    if sh:
+        hsrc = (GIT_ROOT / sh).resolve()
+        if str(hsrc).startswith(str(GIT_ROOT.resolve())):
+            hdir = d / "html"
+            if hdir.is_dir():
+                for p in sorted(hdir.rglob("*")):
+                    if not p.is_file():
+                        continue
+                    rel = p.relative_to(hdir).as_posix()
+                    dst = hsrc / rel
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(p, dst)
+                    written.append("html/" + rel)
+    # bins 寫回(entry.bins 的 vfs 目標;framework → src/,mp_lvgl → 根)
+    entry = _entry(proj)
+    for vfs, rel in (entry.get("bins") or {}).items():
+        if not rel.startswith("assets/"):
+            continue
+        bsrc = d / rel
+        if not bsrc.is_file():
+            continue
+        if _kind(proj) == "framework":
+            tgt_dir = src / entry.get("src_dir", "src")
+        else:
+            tgt_dir = src
+        tgt_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(bsrc, tgt_dir / Path(vfs).name)
+        written.append("assets/" + tgt_dir.name + "/" + Path(vfs).name)
+    return {"ok": True, "written": written}
+
+
+def _page_modules(proj: dict) -> list[str]:
+    entry = _entry(proj)
+    if _kind(proj) == "mp_lvgl":
+        return list(entry.get("modules", []))
+    base = _proj_base(proj)
+    page_dir = base / entry.get("page_dir", "page")
+    out: list[str] = []
+    if page_dir.is_dir():
+        out = sorted(p.stem for p in page_dir.glob("*.py")
+                     if p.name != "__init__.py" and not p.name.startswith("_"))
+    return out
 
 
 def _render_code(proj: dict) -> str:
     """渲染 shim 代碼:base.tpl(緩存模擬器+注入+perf 儀表)+ entry.tpl(framework/mp_lvgl)。"""
-    entry = proj.get("entry", {})
-    kind = entry.get("kind", "framework")
+    entry = _entry(proj)
+    kind = _kind(proj)
     base_tpl = (SHIM_DIR / "base.tpl").read_text(encoding="utf-8")
     kind_tpl = (SHIM_DIR / (kind + ".tpl")).read_text(encoding="utf-8")
     cfg = _load_config()
@@ -419,19 +549,21 @@ def handle_get(h, url) -> None:
             if not str(f).startswith(str(SIM_DIR.resolve())) or not f.is_file():
                 return h._err("not found", 404)
             return h._serve_file(f, _ctype(f))
-        if p.startswith("/simlab/bin/"):
-            # 跨倉 bin(字體/圖示/HTML 稿):以 git root 相對路徑解析,防穿越
-            rest = p[len("/simlab/bin/"):]
-            name, _, gitrel = rest.partition("/")
-            if _project(name) is None:
+        if p.startswith("/simlab/proj/"):
+            # 本地複製件:lvgl/ html/ assets/(+ design.json)
+            rest = p[len("/simlab/proj/"):]
+            name, _, rel = rest.partition("/")
+            proj = _project(name)
+            if proj is None:
                 return h._err("not found", 404)
-            bf = (GIT_ROOT / gitrel).resolve()
-            if not str(bf).startswith(str(GIT_ROOT.resolve())) or not bf.is_file():
+            base = _proj_dir(proj)
+            pf = (base / rel).resolve()
+            if not str(pf).startswith(str(base.resolve())) or not pf.is_file():
                 return h._err("not found", 404)
-            if bf.suffix.lower() == ".html":
+            if pf.suffix.lower() == ".html" and rel.startswith("html/"):
                 # 設計稿 HTML:注入 [data-dom-id] 橋接(點按鈕 → simlab-nav 跳轉)
                 html = _inject_html_bridge(
-                    bf.read_text(encoding="utf-8", errors="replace"))
+                    pf.read_text(encoding="utf-8", errors="replace"))
                 body = html.encode("utf-8")
                 h.send_response(200)
                 h.send_header("Content-Type", "text/html; charset=utf-8")
@@ -440,43 +572,17 @@ def handle_get(h, url) -> None:
                 h.send_header("Access-Control-Allow-Origin", "*")
                 h.end_headers()
                 return h.wfile.write(body)
-            return h._serve_file(bf, _ctype(bf))
-        if p.startswith("/simlab/proj/"):
-            rest = p[len("/simlab/proj/"):]
-            name, _, rel = rest.partition("/")
-            proj = _project(name)
-            if proj is None:
-                return h._err("not found", 404)
-            base = _proj_base(proj)
-            pf = (base / rel).resolve()
-            if not str(pf).startswith(str(base.resolve())) or not pf.is_file():
-                return h._err("not found", 404)
             return h._serve_file(pf, _ctype(pf))
         if p == "/simlab/api/projects":
             return h._json({"ok": True, "projects": [
                 {"name": x["name"], "title": x.get("title", x["name"]),
                  "w": x.get("w", 320), "h": x.get("h", 240),
-                 "path": x.get("path", ""),
                  "group": x.get("group", ""),
-                 "kind": x.get("entry", {}).get("kind", "framework"),
-                 "entry": x.get("entry", {}),
+                 "source": x.get("source", ""),
+                 "kind": _kind(x),
+                 "entry": _entry(x),
                  "html": _html_previews(x)}
                 for x in _load_projects()]})
-        if p == "/simlab/api/html":
-            proj = _project((parse_qs(url.query).get("proj") or [""])[0])
-            if proj is None:
-                return h._err("project not found", 404)
-            return h._json({"ok": True, "html": _html_previews(proj)})
-        if p == "/simlab/api/code_pairs":
-            proj = _project((parse_qs(url.query).get("proj") or [""])[0])
-            if proj is None:
-                return h._err("project not found", 404)
-            return h._json({"ok": True, "pairs": _code_pairs(proj)})
-        if p == "/simlab/api/tree":
-            proj = _project((parse_qs(url.query).get("proj") or [""])[0])
-            if proj is None:
-                return h._err("project not found", 404)
-            return h._json({"ok": True, "tree": _project_tree(proj)})
         if p == "/simlab/api/code":
             proj = _project((parse_qs(url.query).get("proj") or [""])[0])
             if proj is None:
@@ -498,6 +604,16 @@ def handle_get(h, url) -> None:
             if proj is None:
                 return h._err("project not found", 404)
             return h._json({"ok": True, "bins": _bins_for(proj)})
+        if p == "/simlab/api/code_pairs":
+            proj = _project((parse_qs(url.query).get("proj") or [""])[0])
+            if proj is None:
+                return h._err("project not found", 404)
+            return h._json({"ok": True, "pairs": _code_pairs(proj)})
+        if p == "/simlab/api/tree":
+            proj = _project((parse_qs(url.query).get("proj") or [""])[0])
+            if proj is None:
+                return h._err("project not found", 404)
+            return h._json({"ok": True, "tree": _project_tree(proj)})
         if p == "/simlab/api/config":
             return h._json({"ok": True, "config": _load_config()})
         if p == "/simlab/api/runtime":
@@ -505,6 +621,29 @@ def handle_get(h, url) -> None:
     except Exception as e:  # noqa: BLE001
         return h._err(str(e))
     return h._err("not found", 404)
+
+
+_BRIDGE = """
+<script>
+// SimLab HTML 稿橋接:點 [data-dom-id] → 父頁跳轉對應 LVGL 頁面
+document.addEventListener("click", function (e) {
+  var el = e.target && e.target.closest ? e.target.closest("[data-dom-id]") : null;
+  if (!el) return;
+  var id = el.getAttribute("data-dom-id") || "";
+  try { window.parent.postMessage({ type: "simlab-nav", page: id }, "*"); } catch (err) {}
+  e.preventDefault();
+  e.stopPropagation();
+}, true);
+</script>
+"""
+
+
+def _inject_html_bridge(html: str) -> str:
+    if "simlab-nav" in html:
+        return html
+    if "</body>" in html:
+        return html.replace("</body>", _BRIDGE + "</body>", 1)
+    return html + _BRIDGE
 
 
 def handle_post(h, url) -> None:
@@ -518,13 +657,12 @@ def handle_post(h, url) -> None:
             projects = body.get("projects")
             if not isinstance(projects, list):
                 return h._err("projects 需為陣列", 400)
-            # 輕量驗證:name/path 必填且不重複
             names = [p.get("name") for p in projects if p.get("name")]
             if len(names) != len(set(names)):
                 return h._err("項目 name 重複", 400)
             for p in projects:
-                if not p.get("path"):
-                    return h._err("項目缺 path: {}".format(p.get("name", "?")), 400)
+                if not p.get("name"):
+                    return h._err("項目缺 name", 400)
             _save_projects(projects)
             return h._json({"ok": True, "projects": projects})
         if action == "scan":
@@ -532,10 +670,48 @@ def handle_post(h, url) -> None:
             if not path:
                 return h._err("缺 path", 400)
             try:
-                suggest = scan_project_path(path)
+                suggest = _scan_source(path)
             except ValueError as e:
                 return h._err(str(e), 400)
             return h._json({"ok": True, "suggest": suggest})
+        if action == "import":
+            # 匯入:掃描 + 複製成本地複製件 + 寫入 projects.json
+            path = (body.get("path") or "").strip()
+            try:
+                suggest = _scan_source(path)
+            except ValueError as e:
+                return h._err(str(e), 400)
+            entry = body.get("entry") or suggest.get("entry") or {}
+            try:
+                meta = import_project(
+                    name=(body.get("name") or "").strip() or suggest["name"],
+                    title=(body.get("title") or "").strip() or suggest["title"],
+                    group=(body.get("group") or "").strip() or "",
+                    path=path,
+                    html_dir=entry.pop("html_dir", None) or suggest.get("html_dir", ""),
+                    entry=entry,
+                    w=int(body.get("w") or suggest.get("w", 320)),
+                    h=int(body.get("h") or suggest.get("h", 240)),
+                    bins_src=(body.get("bins_src") or "").strip(),
+                )
+            except ValueError as e:
+                return h._err(str(e), 400)
+            projects = _load_projects()
+            projects = [p for p in projects if p.get("name") != meta["name"]]
+            projects.append(meta)
+            _save_projects(projects)
+            return h._json({"ok": True, "project": meta,
+                            "pages": suggest.get("pages", [])})
+        if action == "export":
+            name = (body.get("name") or "").strip()
+            proj = _project(name)
+            if proj is None:
+                return h._err("project not found", 404)
+            try:
+                r = export_project(proj)
+            except ValueError as e:
+                return h._err(str(e), 400)
+            return h._json(r)
         return h._err("未知 action: {}".format(action), 400)
     if url.path != "/simlab/api/config":
         return h._err("not found", 404)

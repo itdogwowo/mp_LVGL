@@ -1,0 +1,164 @@
+{
+  "name": "slave-ui",
+  "width": 320,
+  "height": 240,
+  "pages": [
+    {
+      "id": "launcher",
+      "title": "功能選擇",
+      "tag": "launcher",
+      "web_file": "html/launcher.html",
+      "lvgl_file": "lvgl/ui/launcher.py",
+      "source": "lvgl"
+    },
+    {
+      "id": "control_panel",
+      "title": "控制面板",
+      "tag": "feature",
+      "web_file": "html/page/control_panel.html",
+      "lvgl_file": "lvgl/ui/page/control_panel.py",
+      "icon": "sliders-horizontal",
+      "source": "lvgl"
+    },
+    {
+      "id": "pca9685",
+      "title": "PCA9685",
+      "tag": "feature",
+      "web_file": "html/page/pca9685.html",
+      "lvgl_file": "lvgl/ui/page/pca9685.py",
+      "icon": "sun",
+      "source": "lvgl"
+    },
+    {
+      "id": "settings",
+      "title": "系統設定",
+      "tag": "feature",
+      "web_file": "html/page/settings.html",
+      "lvgl_file": "lvgl/ui/page/settings.py",
+      "icon": "settings",
+      "source": "lvgl"
+    }
+  ],
+  "interactions": [
+    {
+      "id": "control_panel",
+      "type": "button",
+      "label": "control_panel",
+      "file": "html/launcher.html"
+    },
+    {
+      "id": "pca9685",
+      "type": "button",
+      "label": "pca9685",
+      "file": "html/launcher.html"
+    },
+    {
+      "id": "settings",
+      "type": "button",
+      "label": "settings",
+      "file": "html/launcher.html"
+    },
+    {
+      "id": "btn-back",
+      "type": "button",
+      "label": "btn-back",
+      "file": "html/page/control_panel.html"
+    },
+    {
+      "id": "act-pause",
+      "type": "button",
+      "label": "act-pause",
+      "file": "html/page/control_panel.html"
+    },
+    {
+      "id": "act-start",
+      "type": "button",
+      "label": "act-start",
+      "file": "html/page/control_panel.html"
+    },
+    {
+      "id": "act-reset",
+      "type": "button",
+      "label": "act-reset",
+      "file": "html/page/settings.html"
+    },
+    {
+      "id": "act-save",
+      "type": "button",
+      "label": "act-save",
+      "file": "html/page/settings.html"
+    }
+  ],
+  "nav": [
+    {
+      "from": "launcher",
+      "dom_id": "control_panel",
+      "to": "control_panel",
+      "label": "control_panel"
+    },
+    {
+      "from": "launcher",
+      "dom_id": "pca9685",
+      "to": "pca9685",
+      "label": "pca9685"
+    },
+    {
+      "from": "launcher",
+      "dom_id": "settings",
+      "to": "settings",
+      "label": "settings"
+    },
+    {
+      "from": "control_panel",
+      "dom_id": "btn-back",
+      "to": "launcher",
+      "label": "返回"
+    },
+    {
+      "from": "pca9685",
+      "dom_id": "btn-back",
+      "to": "launcher",
+      "label": "返回"
+    },
+    {
+      "from": "settings",
+      "dom_id": "btn-back",
+      "to": "launcher",
+      "label": "返回"
+    }
+  ],
+  "layout": {
+    "html": [
+      "html/colors_and_type.css",
+      "html/components.css",
+      "html/launcher.html",
+      "html/page/control_panel.html",
+      "html/page/pca9685.html",
+      "html/page/settings.html"
+    ],
+    "lvgl": [
+      "lvgl/ui/__init__.py",
+      "lvgl/ui/app.py",
+      "lvgl/ui/board.py",
+      "lvgl/ui/launcher.py",
+      "lvgl/ui/lvgl_init.py",
+      "lvgl/ui/nav.py",
+      "lvgl/ui/page/__init__.py",
+      "lvgl/ui/page/control_panel.py",
+      "lvgl/ui/page/pca9685.py",
+      "lvgl/ui/page/settings.py",
+      "lvgl/ui/registry.py",
+      "lvgl/ui/src/design-tokens.py",
+      "lvgl/ui/src/icons_16.bin",
+      "lvgl/ui/src/lv_icons.py",
+      "lvgl/ui/src/lv_ui_fx.py",
+      "lvgl/ui/src/zh_hant_16.bin",
+      "lvgl/ui/ui_common.py"
+    ],
+    "assets": [
+      "assets/tokens/design-tokens.css",
+      "assets/tokens/design-tokens.py",
+      "assets/tokens/tokens.json"
+    ]
+  }
+}

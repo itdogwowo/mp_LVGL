@@ -214,10 +214,11 @@
   <div class="modal">
     <h3>項目管理 <span class="note">(projects.json · 每個項目 = 真機代碼 + HTML 稿 + LVGL 預覽)</span></h3>
     <div id="pm-list"></div>
-    <h3 style="margin-top:14px">從真機路徑掃描建項目</h3>
+    <h3 style="margin-top:14px">從真機路徑匯入(複製成本地複製件)</h3>
     <div class="row" style="margin-top:4px">
       <input id="scan-path" placeholder="真機路徑(相對 git root),如 mp_Net-Core/slave/ui/lvgl" style="flex:1">
       <button id="btn-scan" class="acc">🔍 掃描</button>
+      <button id="btn-import" title="複製進 projects/{name}/,模擬器改跑本地複製件">📥 匯入</button>
       <span id="scan-info" class="note"></span>
     </div>
     <h3 style="margin-top:14px">編輯項目</h3>
@@ -847,6 +848,7 @@ function bindPM() {
   $("btn-pm-close").onclick = () => $("pm-back").classList.remove("open");
   $("pm-back").onclick = (e) => { if (e.target === $("pm-back")) $("pm-back").classList.remove("open"); };
   $("btn-scan").onclick = scanPath;
+  $("btn-import").onclick = importPath;
   $("btn-save-proj").onclick = saveProjectForm;
   $("btn-del-proj").onclick = deleteProject;
 }
@@ -859,12 +861,25 @@ function renderPM() {
     row.className = "row";
     row.innerHTML =
       '<b>' + (p.group ? "[" + p.group + "] " : "") + p.title + '</b>' +
-      '<span class="note">' + p.name + " · " + p.path + " · " + p.w + "×" + p.h +
+      '<span class="note">' + p.name + " · 本地複製件 · " + p.w + "×" + p.h +
       " · " + p.kind + "</span>" +
-      '<button data-load="' + p.name + '">✎ 載入編輯</button>';
+      '<button data-load="' + p.name + '">✎ 載入編輯</button>' +
+      '<button data-export="' + p.name + '" title="寫回真機來源">📤 匯出</button>';
     row.querySelector("[data-load]").onclick = () => loadProjectForm(p);
+    row.querySelector("[data-export]").onclick = () => exportProjectPM(p.name);
     box.appendChild(row);
   });
+}
+
+async function exportProjectPM(name) {
+  $("pm-info").textContent = "匯出中…";
+  try {
+    const r = await api("/simlab/api/projects", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "export", name }),
+    });
+    $("pm-info").textContent = "📤 已匯出 " + name + " → " + (r.written || []).length + " 檔(寫回真機來源)";
+  } catch (e) { $("pm-info").textContent = "✗ 匯出失敗: " + e.message; }
 }
 
 function loadProjectForm(p) {
@@ -965,8 +980,34 @@ async function scanPath() {
     });
     const s = r.suggest;
     loadProjectForm(s);
-    $("scan-info").textContent = "✓ 掃描完成,頁面: " + (s.pages || []).join(", ");
+    $("scan-info").textContent = "✓ 掃描完成,頁面: " + (s.pages || []).join(", ") + " → 按 📥 匯入";
   } catch (e) { $("scan-info").textContent = "✗ " + e.message; }
+}
+
+async function importPath() {
+  const path = $("scan-path").value.trim();
+  if (!path) { $("scan-info").textContent = "✗ 輸入路徑"; return; }
+  $("scan-info").textContent = "匯入中(複製 lvgl/html/assets)…";
+  try {
+    const r = await api("/simlab/api/projects", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "import", path,
+        name: $("f-name").value.trim() || undefined,
+        title: $("f-title").value.trim() || undefined,
+        group: $("f-group").value.trim() || undefined,
+        w: parseInt($("f-w").value, 10) || undefined,
+        h: parseInt($("f-h").value, 10) || undefined,
+      }),
+    });
+    state.projects = (await api("/simlab/api/projects")).projects || [];
+    fillProjSel();
+    state.cur = state.projects.find((x) => x.name === r.project.name);
+    if (state.cur) { $("proj-sel").value = state.cur.name; reloadSim(); }
+    renderPM();
+    $("scan-info").textContent = "✓ 已匯入 " + r.project.name +
+      " (頁面: " + (r.pages || []).join(", ") + ") — 模擬器改跑本地複製件";
+  } catch (e) { $("scan-info").textContent = "✗ 匯入失敗: " + e.message; }
 }
 
 init();

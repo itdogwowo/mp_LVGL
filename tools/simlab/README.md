@@ -14,6 +14,36 @@ design 庫/designlib/scanner 零共享邏輯。
 | 項目 | 固定 design 庫副本 | `projects.json` 註冊表,下拉快速切換(slave / mp_LVGL) |
 | runtime | vendor 官方 v9.0 | `build_runtime.py` 一鍵換成**與固件同源**的自建 wasm |
 
+## 項目儲存:本地複製件(自包含 + 匯入/匯出)
+
+SimLab 的每個項目是**完全在本地的複製件**,不依賴真機路徑(可攜帶整個 tools/simlab):
+
+```
+tools/simlab/projects/{name}/
+├── lvgl/     ← 真機 LVGL 代碼複製(page/ src/ + 根模組)
+├── html/     ← HTML 設計稿複製
+├── assets/   ← 字體/圖示 bin
+└── design.json ← (framework 型才會有,頁面對照用)
+```
+
+- 模擬器一律跑**本地複製件**;改本地檔案真機不變、改真機檔案本地不變(完全隔離)
+- `projects.json` = 索引:name/title/group/w/h/**source(來源路徑)**/entry 配置
+
+### CLI(`tools/simlab/project_io.py`,對齊 Asset Studio 慣例)
+```bash
+python tools/simlab/project_io.py list
+python tools/simlab/project_io.py import mp_Net-Core/slave/ui/lvgl --name slave \
+    --title "mp_Net-Core slave (真機 UI)" --html mp_LVGL/tools/design/slave-ui/html
+python tools/simlab/project_io.py import mp_LVGL --name mp_lvgl --title "mp_LVGL 參考 UI" \
+    --html mp_LVGL/lvgl-console-ui/pages --bins-dir mp_Net-Core/slave/ui/lvgl/src
+python tools/simlab/project_io.py export slave    # 本地複製件寫回真機來源
+```
+
+### GUI(🗂 項目管理)
+- **🔍 掃描** → 顯示偵測到的頁面/結構(預覽)
+- **📥 匯入** → 複製進 `projects/{name}/` + 加入清單 + 模擬器切換
+- 每項目 **📤 匯出** → 寫回真機來源(source / source_html / bins 到 src/)
+
 ## 啟動
 
 ```bash

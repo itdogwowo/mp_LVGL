@@ -3,41 +3,55 @@
     {
       "name": "slave",
       "title": "mp_Net-Core slave (真機 UI)",
-      "path": "mp_Net-Core/slave/ui/lvgl",
+      "group": "",
+      "source": "mp_Net-Core/slave/ui/lvgl",
+      "source_html": "mp_LVGL/tools/design/slave-ui/html",
       "w": 320,
       "h": 240,
       "entry": {
         "kind": "framework",
         "page_dir": "page",
+        "modules": [
+          "registry",
+          "ui_common",
+          "nav",
+          "launcher",
+          "app"
+        ],
         "src_dir": "src",
-        "modules": ["registry", "ui_common", "nav", "launcher", "app"],
-        "html_dir": "mp_LVGL/tools/design/slave-ui/html",
         "bins": {
-          "ui/lvgl/src/zh_hant_16.bin": "src/zh_hant_16.bin",
-          "ui/lvgl/src/icons_16.bin": "src/icons_16.bin"
+          "ui/lvgl/src/icons_16.bin": "assets/icons_16.bin",
+          "ui/lvgl/src/zh_hant_16.bin": "assets/zh_hant_16.bin"
         }
       }
     },
     {
       "name": "mp_lvgl",
       "title": "mp_LVGL 參考 UI",
-      "path": "mp_LVGL",
+      "group": "",
+      "source": "mp_LVGL",
+      "source_html": "mp_LVGL/lvgl-console-ui/pages",
       "w": 320,
       "h": 240,
       "entry": {
         "kind": "mp_lvgl",
         "modules": [
-          "lvgl_page_launcher", "lvgl_page_overview", "lvgl_page_monitor",
-          "lvgl_page_control", "lvgl_page_settings"
+          "lvgl_page_control",
+          "lvgl_page_launcher",
+          "lvgl_page_monitor",
+          "lvgl_page_overview",
+          "lvgl_page_settings"
         ],
-        "html_dir": "mp_LVGL/lvgl-console-ui/pages",
         "exclude": [
-          "lvgl_ui_app.py", "lvgl_shared.py", "gen_font.py",
-          "test_*.py", "lvgl_demo*.py"
+          "lvgl_ui_app.py",
+          "lvgl_shared.py",
+          "gen_font.py",
+          "test_*.py",
+          "lvgl_demo*.py"
         ],
         "bins": {
-          "zh_hant_16.bin": "../mp_Net-Core/slave/ui/lvgl/src/zh_hant_16.bin",
-          "icons_16.bin": "../mp_Net-Core/slave/ui/lvgl/src/icons_16.bin"
+          "zh_hant_16.bin": "assets/zh_hant_16.bin",
+          "icons_16.bin": "assets/icons_16.bin"
         }
       }
     }
