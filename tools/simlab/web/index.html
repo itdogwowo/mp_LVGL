@@ -1,0 +1,963 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>SimLab — LVGL 設備模擬器</title>
+<style>
+  :root {
+    --bg: #101418; --panel: #1a2026; --panel2: #212830; --line: #2d3742;
+    --text: #d8dee6; --dim: #8a94a0; --acc: #4da3ff; --ok: #3fb950;
+    --warn: #f9ab00; --danger: #d93025;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 13px/1.5 "Segoe UI", "Microsoft JhengHei", sans-serif; }
+  a { color: var(--acc); text-decoration: none; }
+  header { display: flex; align-items: center; gap: 14px; padding: 8px 14px;
+           background: var(--panel); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+  header .sub { color: var(--dim); font-size: 11px; }
+  header .spacer { flex: 1; }
+  select, input, button, textarea { background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 5px; padding: 4px 8px; font-size: 12px; }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--acc); }
+  button.acc { background: #12365c; border-color: #1e5f9e; }
+  button.paused { border-color: var(--warn); color: var(--warn); }
+  #main { display: grid; grid-template-columns: 690px 1fr; gap: 10px; padding: 10px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+  .card h2 { margin: 0 0 8px; font-size: 12px; color: var(--dim); font-weight: 600;
+             letter-spacing: .5px; }
+  .duo { display: flex; gap: 10px; }
+  .duo > div { flex: 1; min-width: 0; }
+  #canvas-wrap { background: #000; border-radius: 6px; padding: 4px; text-align: center; }
+  #canvas { image-rendering: pixelated; width: 320px; height: 240px; }
+  #html-frame { width: 320px; height: 240px; border: 1px solid var(--line);
+                border-radius: 6px; background: #fff; display: block; margin: 0 auto; }
+  .row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+  .btn-op { min-width: 52px; padding: 7px 10px; font-weight: 600; }
+  #repl { height: 320px; overflow-y: auto; background: #0c0f12; border: 1px solid var(--line);
+          border-radius: 6px; padding: 8px; font: 11px/1.45 Consolas, monospace;
+          white-space: pre-wrap; word-break: break-all; }
+  #repl .perf { color: #6a7580; }
+  #perf-grid { display: grid; grid-template-columns: 150px 1fr; gap: 6px 12px; }
+  #perf-grid .k { color: var(--dim); }
+  .bars { display: flex; align-items: center; gap: 2px; height: 14px; }
+  .bars .seg { height: 100%; min-width: 1px; }
+  #fps-big { font-size: 26px; font-weight: 700; color: var(--ok); }
+  #fps-big.slow { color: var(--warn); }
+  #fps-big.vslow { color: var(--danger); }
+  .note { color: var(--dim); font-size: 11px; }
+  .bar-legend span { display: inline-block; margin-right: 10px; font-size: 11px; color: var(--dim); }
+  .bar-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 3px;
+                  border-radius: 2px; vertical-align: -1px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+  .tabs button { padding: 5px 14px; border-color: var(--line); }
+  .tabs button.on { background: #12365c; border-color: #1e5f9e; font-weight: 600; }
+  #ed-code { width: 100%; font-family: ui-monospace, monospace; font-size: 12px;
+             background: #0f1720; color: #d0d8e0; border: 1px solid var(--line);
+             border-radius: 6px; padding: 8px; resize: vertical; }
+  #ed-files { width: 280px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 8px;
+              padding: 8px; max-height: 420px; overflow: auto; }
+  #ed-files summary { cursor: pointer; margin: 4px 0 2px; font-weight: 600; color: var(--dim);
+                      font-size: 11px; }
+  #ed-files summary .hint { font-weight: 400; }
+  #ed-files .tree-nest { margin-left: 12px; border-left: 1px solid var(--line); padding-left: 6px; }
+  .ed-file { cursor: pointer; padding: 3px 6px; border-radius: 4px; font-size: 12px;
+             font-family: ui-monospace, monospace; white-space: nowrap; overflow: hidden;
+             text-overflow: ellipsis; }
+  .ed-file:hover { background: var(--panel2); }
+  .ed-file.on { background: #12365c; color: var(--acc); }
+  .modal-back { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none;
+                align-items: center; justify-content: center; z-index: 50; }
+  .modal-back.open { display: flex; }
+  .modal { width: 720px; max-height: 86vh; overflow-y: auto; background: var(--panel);
+           border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .modal h3 { margin: 0 0 10px; font-size: 14px; }
+  #pm-list { margin-bottom: 12px; }
+  #pm-list .row { padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px;
+                  margin-top: 6px; }
+  .fld { display: grid; grid-template-columns: 110px 1fr; gap: 6px; margin-top: 6px;
+         align-items: center; }
+  .fld label { color: var(--dim); font-size: 11px; }
+  .fld input, .fld select { width: 100%; }
+  .danger { color: var(--danger); }
+</style>
+</head>
+<body>
+<header>
+  <h1>SimLab <span class="sub">LVGL 設備模擬器 · 中間緩存模擬 · 性能預估</span></h1>
+  <div class="spacer"></div>
+  <span id="rt-status" class="sub">runtime 檢查中…</span>
+  <select id="proj-sel" title="切換項目"></select>
+  <button id="btn-pm" title="項目管理(新增/編輯/掃描)">🗂 項目管理</button>
+  <a href="/" title="回到 Asset Studio">Asset Studio ↗</a>
+</header>
+
+<div id="main">
+  <div>
+    <div class="card">
+      <h2>顯示對比(左:HTML 稿 · 右:LVGL 模擬,HTML 內按鈕可跳轉)</h2>
+      <div class="duo">
+        <div>
+          <iframe id="html-frame" src="about:blank"></iframe>
+          <div class="row" style="justify-content:center; margin-top:6px">
+            <select id="html-sel" style="min-width:190px"></select>
+          </div>
+        </div>
+        <div>
+          <div id="canvas-wrap"><canvas id="canvas" width="320" height="240"></canvas></div>
+          <div class="row" style="justify-content:center; margin-top:6px">
+            <button class="btn-op acc" id="btn-l" title="◀ 編碼器逆時針">◀</button>
+            <button class="btn-op acc" id="btn-r" title="▶ 編碼器順時針">▶</button>
+            <button class="btn-op acc" id="btn-c" title="Enter 確認(編碼器 C)">OK</button>
+            <button class="btn-op" id="btn-e" title="Esc 返回(外接 BTN)">Esc</button>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <span class="note">鍵盤 ◀ ▶ Enter Esc · 按住不重複</span>
+      </div>
+      <div class="row">
+        <button id="btn-rec" title="錄製操作腳本">● 錄製</button>
+        <button id="btn-play" title="重播腳本(比對性能)">▶ 播放</button>
+        <button id="btn-clr" title="清除腳本與統計">清除</button>
+        <button id="btn-reset" title="只重設性能統計(錄好的腳本保留)">重設統計</button>
+        <span id="rec-info" class="note"></span>
+      </div>
+      <div class="row">
+        <button id="btn-reload" title="重啟模擬器">↻ 重啟</button>
+        <span id="op-fb" class="note"></span>
+      </div>
+      <div class="row">
+        <input id="cmd-in" placeholder="指令:enc 1 / enc -1 / pin encC / pin btn (Enter 執行)"
+               style="flex:1" spellcheck="false">
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+      <h2>性能面板(真機預估)</h2>
+      <div id="perf-grid">
+        <span class="k">預估真機 FPS</span><span id="fps-big">--</span>
+        <span class="k">渲染(sim)</span><span id="pv-render">--</span>
+        <span class="k">每幀分解</span>
+        <div>
+          <div class="bars" id="bars"></div>
+          <div class="bar-legend" id="bar-legend" style="margin-top:3px">
+            <span><i style="background:#4da3ff"></i>渲染</span>
+            <span><i style="background:#8a94a0"></i>拷貝</span>
+            <span><i style="background:#3fb950"></i>SPI</span>
+            <span><i style="background:#f9ab00"></i>gap</span>
+          </div>
+        </div>
+        <span class="k">髒區像素/幀</span><span id="pv-px">--</span>
+        <span class="k">平均幀成本</span><span id="pv-avg">--</span>
+        <span class="k">統計幀數</span><span id="pv-n">0</span>
+        <span class="k">CPU_SCALE</span>
+        <div class="row" style="margin-top:0">
+          <input id="in-scale" type="number" step="0.1" min="0.1" style="width:80px">
+          <button id="btn-savecfg">存配置</button>
+          <input id="in-targetfps" type="number" step="0.5" min="1" style="width:70px" placeholder="真機FPS">
+          <button id="btn-calc">反推 scale</button>
+        </div>
+      </div>
+      <p class="note" style="margin:8px 0 0">
+        模型: t_frame = 渲染(sim×scale) + 拷貝 + SPI(頻寬/塊開銷) + gap。
+        校準:真機跑同場景量 FPS → 填入「真機FPS」→ 反推 CPU_SCALE → 存配置(每項目獨立)。
+      </p>
+    </div>
+  </div>
+
+  <div>
+    <div class="tabs">
+      <button id="tab-repl" class="on">REPL / 輸出</button>
+      <button id="tab-code">代碼(HTML ↔ LVGL)</button>
+    </div>
+
+    <div id="pane-repl">
+      <div class="card">
+        <div class="row" style="margin-top:0">
+          <button id="btn-pause" title="暫停:操作只注入不步進,REPL 直接輸指令(像真機 Ctrl-C)">⏸ 暫停</button>
+          <button id="btn-step" title="單步:執行一幀 __step()">單步</button>
+          <input id="repl-in" placeholder="REPL:直接執行 Python 進模擬器,如 bus.shared.get('_display_mode') / inject_enc(3) / __step()"
+                 style="flex:1" spellcheck="false">
+        </div>
+        <div id="repl"></div>
+      </div>
+    </div>
+
+    <div id="pane-code" style="display:none">
+      <div class="card">
+        <div class="row" style="margin-top:0">
+          <button id="btn-tree-toggle" title="顯示/隱藏檔案樹">📁 隱藏檔案樹</button>
+          <button id="btn-code-refresh" title="重新整理檔案清單">↻ 刷新</button>
+          <code id="ed-path" style="flex:1; color:var(--dim); font-size:12px; white-space:nowrap;
+               overflow:hidden; text-overflow:ellipsis">（未選擇檔案）</code>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:8px">
+          <div id="ed-files"></div>
+          <textarea id="ed-code" rows="18" spellcheck="false" readonly></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 跨源模擬器 iframe(localhost ↔ 127.0.0.1,卡死不凍結主頁面) -->
+<iframe id="sim-iframe" src="about:blank" style="display:none"
+        aria-hidden="true" tabindex="-1"></iframe>
+
+<!-- 項目管理 modal -->
+<div class="modal-back" id="pm-back">
+  <div class="modal">
+    <h3>項目管理 <span class="note">(projects.json · 每個項目 = 真機代碼 + HTML 稿 + LVGL 預覽)</span></h3>
+    <div id="pm-list"></div>
+    <h3 style="margin-top:14px">從真機路徑掃描建項目</h3>
+    <div class="row" style="margin-top:4px">
+      <input id="scan-path" placeholder="真機路徑(相對 git root),如 mp_Net-Core/slave/ui/lvgl" style="flex:1">
+      <button id="btn-scan" class="acc">🔍 掃描</button>
+      <span id="scan-info" class="note"></span>
+    </div>
+    <h3 style="margin-top:14px">編輯項目</h3>
+    <div class="fld"><label>name(id)</label><input id="f-name" placeholder="如 my-ui"></div>
+    <div class="fld"><label>title</label><input id="f-title" placeholder="顯示名稱"></div>
+    <div class="fld"><label>group(分類)</label><input id="f-group" placeholder="如 device / design"></div>
+    <div class="fld"><label>path(相對 git root)</label><input id="f-path" placeholder="mp_Net-Core/slave/ui/lvgl"></div>
+    <div class="fld"><label>尺寸 W×H</label>
+      <div class="row" style="margin-top:0"><input id="f-w" type="number" style="width:80px" value="320">
+        <input id="f-h" type="number" style="width:80px" value="240"></div>
+    </div>
+    <div class="fld"><label>入口 kind</label>
+      <select id="f-kind"><option value="framework">framework(slave 系)</option>
+        <option value="mp_lvgl">mp_lvgl(平級頁面)</option></select>
+    </div>
+    <div class="fld"><label>modules(逗號分)</label><input id="f-modules" placeholder="registry,ui_common,nav,launcher,app"></div>
+    <div class="fld"><label>page_dir</label><input id="f-page-dir" value="page"></div>
+    <div class="fld"><label>src_dir</label><input id="f-src-dir" value="src"></div>
+    <div class="fld"><label>exclude(逗號分)</label><input id="f-exclude" placeholder="test_*.py,lvgl_demo*.py"></div>
+    <div class="fld"><label>html_dir(相對 git root)</label><input id="f-html-dir" placeholder="設計稿 HTML 目錄(可留空)"></div>
+    <div class="row" style="margin-top:12px">
+      <button id="btn-save-proj" class="acc">💾 新增/更新</button>
+      <button id="btn-del-proj" class="danger">🗑 刪除目前</button>
+      <button id="btn-pm-close">關閉</button>
+      <span id="pm-info" class="note"></span>
+    </div>
+  </div>
+</div>
+
+<script src="/simlab/sim/ajax/libs/lz-string/1.4.4/lz-string.js"></script>
+<script>
+"use strict";
+// ================= SimLab 前端 =================
+const $ = (id) => document.getElementById(id);
+const SIM_ORIGIN = (() => {
+  const host = location.hostname === "localhost" ? "127.0.0.1" : "localhost";
+  return location.protocol + "//" + host + ":" + (location.port || 80);
+})();
+
+const state = {
+  projects: [], cur: null, config: null,
+  iframe: null, repl: null, ack: 0, started: false, booted: false,
+  paused: false,
+  renderUs: 0, px: 0, renderFresh: 0, pxFresh: 0,
+  stats: { frames: [], total: 0 },
+  script: [], recording: false, playing: false, playTimer: null,
+  warmup: 2, _mirrorShown: false,
+  pairs: [], codeFiles: [],
+};
+
+function api(url, opts) {
+  return fetch(url, opts).then((r) => {
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  });
+}
+
+// ---------- REPL 轉錄(像真機 >>> 提示字元) ----------
+let replBuf = "";
+let curPrompt = null;
+
+function appendLine(s, cls) {
+  const div = document.createElement("div");
+  if (cls) div.className = cls;
+  div.textContent = s;
+  state.repl.insertBefore(div, curPrompt);
+  state.repl.scrollTop = state.repl.scrollHeight;
+}
+
+function setPrompt(s) {
+  if (!curPrompt) {
+    curPrompt = document.createElement("div");
+    state.repl.appendChild(curPrompt);
+  }
+  curPrompt.textContent = s;
+  state.repl.scrollTop = state.repl.scrollHeight;
+}
+
+function out(text) {
+  replBuf += String(text || "");
+  const lines = replBuf.split(/\r?\n/);
+  replBuf = lines.pop() || "";
+  for (const ln of lines) appendLine(ln);
+}
+
+function log(text, cls) {
+  appendLine(String(text), cls);
+}
+
+// ---------- 載入 projects / config / runtime ----------
+async function init() {
+  state.iframe = $("sim-iframe");
+  state.repl = $("repl");
+  setPrompt(">>> ");
+  try {
+    const [pj, cfg] = await Promise.all([api("/simlab/api/projects"), api("/simlab/api/config")]);
+    state.projects = pj.projects || [];
+    state.config = cfg.config || {};
+    fillProjSel();
+    const last = (state.config.last_project || "").trim();
+    const saved = state.projects.find((p) => p.name === last) ||
+                  state.projects.find((p) => p.name === state.projects[0].name);
+    if (saved) {
+      $("proj-sel").value = saved.name;
+      state.cur = saved;
+    }
+    applyConfig();
+    wireIframe();
+    bindOps();
+    bindPM();
+    loadPairs();
+    if (state.projects.length) log("▶ 就緒,項目: " + state.projects.map((p) => p.name).join(", "));
+    api("/simlab/api/runtime").then((r) => {
+      const rt = r.runtime || {};
+      const f = rt.files || {};
+      const ok = f.firmware_wasm !== false && f.micropython_js !== false && f.lvgl_html !== false;
+      $("rt-status").textContent = (ok ? "● " : "✗ ") + (rt.banner || "runtime 不完整") +
+        (rt.built_from ? " · 自建 " + rt.built_from : " · 官方 v9.0");
+      $("rt-status").style.color = ok ? "var(--ok)" : "var(--danger)";
+    }).catch(() => {});
+  } catch (e) {
+    log("✗ 初始化失敗: " + e.message);
+  }
+}
+
+function fillProjSel() {
+  const sel = $("proj-sel");
+  sel.innerHTML = "";
+  state.projects.forEach((p) => {
+    const o = document.createElement("option");
+    o.value = p.name;
+    o.textContent = (p.group ? "[" + p.group + "] " : "") + p.title + (p.kind === "mp_lvgl" ? " (mp_lvgl)" : "");
+    sel.appendChild(o);
+  });
+}
+
+function applyConfig() {
+  const pp = (state.config.projects || {})[state.cur ? state.cur.name : ""];
+  const perf = (pp && pp.perf) || state.config.perf || {};
+  $("in-scale").value = perf.cpu_scale ?? 3.0;
+  $("in-targetfps").value = "";
+}
+
+function curPerf() {
+  const pp = (state.config.projects || {})[state.cur ? state.cur.name : ""];
+  const p = Object.assign({}, (pp && pp.perf) || state.config.perf || {});
+  p.cpu_scale = parseFloat($("in-scale").value) || p.cpu_scale;
+  return p;
+}
+
+// ---------- iframe 通訊 ----------
+function wireIframe() {
+  state.iframe.addEventListener("load", () => {
+    state.started = false;
+    state.ack = Date.now();
+  });
+  window.addEventListener("message", (e) => {
+    const d = e.data;
+    if (!d || typeof d !== "object") return;
+    if (d.type === "sim-ready") {
+      state.ack = Date.now();
+      sendConfig();
+    } else if (d.type === "sim-ack") {
+      state.ack = Date.now();
+      if (state.started) state.booted = true;
+    } else if (d.type === "micropython-print") {
+      out(d.text || "");
+      parsePerfLine(d.text || "");
+    } else if (d.type === "sim-perf") {
+      state.px = d.px || 0;
+      state.pxFresh = Date.now();
+      if (d.px) log("[sim-perf] px=" + d.px, "perf");
+      commitFrame();
+    } else if (d.type === "sim-frame") {
+      const dst = $("canvas");
+      if (dst && d.data && d.data.length) {
+        try {
+          dst.width = d.w;
+          dst.height = d.h;
+          const ctx = dst.getContext("2d");
+          ctx.putImageData(new ImageData(new Uint8ClampedArray(d.data), d.w, d.h), 0, 0);
+          if (!state._mirrorShown) {
+            const arr = new Uint8ClampedArray(d.data);
+            let nb = 0;
+            for (let i = 0; i < arr.length; i += 4) {
+              if (arr[i] || arr[i + 1] || arr[i + 2]) nb++;
+            }
+            if (nb > 1000) {
+              state._mirrorShown = true;
+              log("[frame] 畫面出現 " + d.w + "x" + d.h + " 非黑 " + nb + " px");
+            }
+          }
+        } catch (e) {}
+      }
+    } else if (d.type === "simlab-nav") {
+      // HTML 稿橋接:點 [data-dom-id] → 跳轉對應 LVGL 頁面
+      let page = String(d.page || "").replace(/^card-/, "");
+      if (!page) return;
+      // 檢查此項目有沒有對應 LVGL 頁面(HTML 稿可能含板端未實作的頁)
+      const known = new Set(["launcher"]);
+      (state.pairs || []).forEach((p) => known.add(p.id));
+      if (known.has(page)) {
+        log("↪ HTML 按鈕跳轉 → " + page);
+        simPost("sim-input", { do: "__go(" + JSON.stringify(page) + ")" });
+      } else {
+        log("✗ HTML 按鈕「" + page + "」:此項目沒有對應 LVGL 頁面(僅 HTML 稿)");
+      }
+    }
+  });
+  // 看門狗:8 秒無回應重啟(開機完成後才啟用)
+  setInterval(() => {
+    if (!state.started || !state.booted) return;
+    if (Date.now() - state.ack > 8000) {
+      log("⚠ 模擬器無回應,自動重啟");
+      reloadSim();
+    }
+  }, 2000);
+  // 心跳:每 3 秒 ping,避免「閒置」被誤判成當機
+  setInterval(() => {
+    if (!state.started || !state.booted) return;
+    simPost("sim-do-str", { code: "" });
+  }, 3000);
+  reloadSim();
+}
+
+function simPost(type, payload) {
+  const w = state.iframe.contentWindow;
+  if (!w) return false;
+  try { w.postMessage(Object.assign({ type }, payload), "*"); return true; }
+  catch (e) { return false; }
+}
+
+async function sendConfig() {
+  if (!state.cur) return;
+  try {
+    const r = await fetch("/simlab/api/code?proj=" + encodeURIComponent(state.cur.name));
+    if (!r.ok) throw new Error("code " + r.status);
+    const code = await r.text();
+    const cscript = LZString.compressToEncodedURIComponent(code);
+    simPost("sim-config", { project: state.cur.name, cscript });
+    state.started = true;
+    state.booted = false;
+    resetStats();
+    log("▶ 啟動 " + state.cur.name + " (" + state.cur.w + "×" + state.cur.h + ")");
+  } catch (e) {
+    log("✗ 載入代碼失敗: " + e.message);
+  }
+}
+
+function reloadSim() {
+  state.started = false;
+  resetStats();
+  state._mirrorShown = false;
+  state.iframe.src = SIM_ORIGIN + "/simlab/sim/lvgl.html?t=" + Date.now();
+}
+
+// ---------- 操作注入(中間緩存) ----------
+function op(kind, val) {
+  if (state.recording) {
+    state.script.push({ t: Date.now(), kind, val });
+    $("rec-info").textContent = "已錄 " + state.script.length + " 步";
+  }
+  const payload = kind === "enc" ? { enc: val, step: !state.paused }
+                                 : { pin: val, step: !state.paused };
+  if (!simPost("sim-input", payload)) {
+    log("(iframe 未就緒)");
+    return;
+  }
+  $("op-fb").textContent = (kind === "enc" ? "編碼器 " + (val > 0 ? "+" : "") + val
+                                          : "按下 " + val) +
+    (state.paused ? " · 暫停(只注入)" : "") + " · " + new Date().toLocaleTimeString();
+}
+
+function stepOnce() {
+  simPost("sim-input", { do: "__step()" });
+  $("op-fb").textContent = "單步 __step() · " + new Date().toLocaleTimeString();
+}
+
+function replSend(line) {
+  simPost("sim-repl", { line });
+  appendLine(">>> " + line);
+}
+
+function bindOps() {
+  $("btn-l").onclick = () => op("enc", -1);
+  $("btn-r").onclick = () => op("enc", 1);
+  $("btn-c").onclick = () => op("pin", "encC");
+  $("btn-e").onclick = () => op("pin", "btn");
+  $("btn-reload").onclick = () => reloadSim();
+  $("proj-sel").onchange = (e) => {
+    state.cur = state.projects.find((p) => p.name === e.target.value);
+    api("/simlab/api/config", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ last_project: state.cur.name }),
+    }).then((r) => { state.config = r.config; }).catch(() => {});
+    applyConfig();
+    loadPairs();
+    reloadSim();
+  };
+  $("btn-savecfg").onclick = saveConfig;
+  $("btn-calc").onclick = calcScale;
+  $("btn-rec").onclick = () => {
+    state.recording = !state.recording;
+    if (state.recording) { state.script = []; $("btn-rec").style.borderColor = "var(--danger)"; }
+    else { $("btn-rec").style.borderColor = ""; $("rec-info").textContent = "已錄 " + state.script.length + " 步"; }
+  };
+  $("btn-play").onclick = playScript;
+  $("btn-clr").onclick = () => { state.script = []; resetStats(); $("rec-info").textContent = ""; };
+  $("btn-reset").onclick = () => resetStats();
+  $("btn-pause").onclick = () => {
+    state.paused = !state.paused;
+    $("btn-pause").textContent = state.paused ? "▶ 繼續" : "⏸ 暫停";
+    $("btn-pause").classList.toggle("paused", state.paused);
+    log(state.paused ? "⏸ 已暫停:操作只注入緩存不步進;REPL 可直接下指令,「單步」執行一幀" : "▶ 已繼續");
+  };
+  $("btn-step").onclick = () => stepOnce();
+  $("btn-code-refresh").onclick = () => loadCodeTree();
+  // 檔案樹顯示/隱藏(完全隱藏,textarea 佔滿;狀態記住)
+  const treeHidden = () => localStorage.getItem("simlab.treeHidden") === "1";
+  const applyTreeHidden = () => {
+    const h = treeHidden();
+    $("ed-files").style.display = h ? "none" : "";
+    $("btn-tree-toggle").textContent = h ? "📁 顯示檔案樹" : "📁 隱藏檔案樹";
+  };
+  applyTreeHidden();
+  $("btn-tree-toggle").onclick = () => {
+    localStorage.setItem("simlab.treeHidden", treeHidden() ? "0" : "1");
+    applyTreeHidden();
+  };
+  $("cmd-in").addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || e.repeat) return;
+    const t = e.target.value.trim();
+    e.target.value = "";
+    const m = t.match(/^(enc)\s+([+-]?\d+)$/) || t.match(/^(pin)\s+(\w+)$/);
+    if (!m) { log("✗ 指令格式:enc ±N / pin label"); return; }
+    op(m[1], m[1] === "enc" ? parseInt(m[2], 10) : m[2]);
+  });
+  $("repl-in").addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || e.repeat) return;
+    const t = e.target.value.trim();
+    e.target.value = "";
+    if (!t) return;
+    replSend(t);
+  });
+  const tabs = [["tab-repl", "pane-repl"], ["tab-code", "pane-code"]];
+  tabs.forEach(([tb, pane]) => {
+    $(tb).onclick = () => {
+      tabs.forEach(([t2, p2]) => {
+        $(t2).classList.toggle("on", t2 === tb);
+        $(p2).style.display = t2 === tb ? "" : "none";
+      });
+      if (tb === "tab-code") loadPairs();
+    };
+  });
+  document.addEventListener("keydown", (e) => {
+    const tag = (e.target && e.target.tagName || "").toUpperCase();
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    let done = false;
+    if (e.key === "ArrowLeft") { e.preventDefault(); op("enc", -1); done = true; }
+    else if (e.key === "ArrowRight") { e.preventDefault(); op("enc", 1); done = true; }
+    else if (e.key === "Escape") { e.preventDefault(); op("pin", "btn"); done = true; }
+    else if (e.key === "Enter") {
+      if (tag === "BODY" || tag === "DIV" || tag === "SPAN" || tag === "CANVAS") {
+        e.preventDefault(); op("pin", "encC"); done = true;
+      }
+    }
+    if (done && document.activeElement && document.activeElement !== document.body) {
+      document.activeElement.blur();
+    }
+  });
+}
+
+// ---------- 性能儀表 ----------
+function parsePerfLine(text) {
+  const m = /\[perf\] r=(\d+)/.exec(text);
+  if (!m) return;
+  state.renderUs = parseInt(m[1], 10);
+  state.renderFresh = Date.now();
+  $("pv-render").textContent = (state.renderUs / 1000).toFixed(2) + " ms (sim)";  // 與分解同單位
+  commitFrame();
+}
+
+function commitFrame() {
+  const now = Date.now();
+  if (now - state.renderFresh > 1000 || now - state.pxFresh > 1000) return;
+  state.renderFresh = state.pxFresh = 0;
+  if (state.stats.total < state.warmup) {
+    state.stats.total++;
+    $("pv-n").textContent = state.stats.total;
+    $("fps-big").textContent = "暖機…";
+    return;
+  }
+  const p = curPerf();
+  const bytes = state.px * 2;
+  const render = state.renderUs * p.cpu_scale / 1000;
+  const copy = bytes / 1024 * (p.copy_us_per_kb || 0) / 1000;
+  const spi = bytes / ((p.spi_bw_mbps || 8) * 1000) +
+              Math.ceil(bytes / (p.spi_chunk || 32768)) * (p.spi_cmd_us || 0) / 1000;
+  const gap = p.gap_ms || 0;
+  const frame = { render, copy, spi, gap, px: state.px,
+                  t: Math.max(gap, render + copy + spi) };
+  state.stats.frames.push(frame);
+  if (state.stats.frames.length > 120) state.stats.frames.shift();
+  state.stats.total++;
+  renderPanel();
+}
+
+function renderPanel() {
+  const fr = state.stats.frames;
+  const avg = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
+  const avgT = avg(fr.map((f) => f.t));
+  const avgPx = avg(fr.map((f) => f.px));
+  const fps = avgT > 0 ? 1000 / avgT : 0;
+  const fEl = $("fps-big");
+  fEl.textContent = fps ? fps.toFixed(1) : "--";
+  fEl.className = fps < 8 ? "vslow" : fps < 15 ? "slow" : "";
+  $("pv-px").textContent = avgPx ? Math.round(avgPx) + " px" : "--";
+  $("pv-avg").textContent = avgT ? avgT.toFixed(2) + " ms / 幀" : "--";
+  $("pv-n").textContent = state.stats.total;
+  const last = fr[fr.length - 1];
+  if (last) {
+    const segs = [
+      ["#4da3ff", last.render], ["#8a94a0", last.copy],
+      ["#3fb950", last.spi], ["#f9ab00", last.gap],
+    ];
+    const total = Math.max(0.001, segs.reduce((a, s) => a + s[1], 0));
+    $("bars").innerHTML = segs.map((s) =>
+      '<div class="seg" style="background:' + s[0] + ";width:" + (s[1] / total * 100) + '%"></div>'
+    ).join("");
+    // 圖例帶具體時間(上一幀)
+    $("bar-legend").innerHTML =
+      '<span><i style="background:#4da3ff"></i>渲染 ' + last.render.toFixed(1) + ' ms</span>' +
+      '<span><i style="background:#8a94a0"></i>拷貝 ' + last.copy.toFixed(1) + ' ms</span>' +
+      '<span><i style="background:#3fb950"></i>SPI ' + last.spi.toFixed(1) + ' ms</span>' +
+      '<span><i style="background:#f9ab00"></i>gap ' + last.gap.toFixed(1) + ' ms</span>';
+  }
+}
+
+function resetStats() {
+  state.stats = { frames: [], total: 0 };
+  state.renderUs = state.px = 0;
+  state.renderFresh = state.pxFresh = 0;
+  $("fps-big").textContent = "--";
+  $("bars").innerHTML = "";
+}
+
+// ---------- 校準 ----------
+async function saveConfig() {
+  const p = curPerf();
+  try {
+    const r = await api("/simlab/api/config", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ perf: p, project: state.cur ? state.cur.name : null }),
+    });
+    state.config = r.config;
+    log("✓ 配置已存(項目 " + (state.cur ? state.cur.name : "全域") + ",離線保留)");
+  } catch (e) { log("✗ 存配置失敗: " + e.message); }
+}
+
+function calcScale() {
+  const target = parseFloat($("in-targetfps").value);
+  const p = curPerf();
+  if (!target || target <= 0 || !state.renderUs) { log("✗ 需要真機 FPS 且已跑過一幀"); return; }
+  const bytes = Math.max(state.px, 1) * 2;
+  const overhead = bytes / 1024 * (p.copy_us_per_kb || 0) / 1000 +
+                   bytes / ((p.spi_bw_mbps || 8) * 1000) +
+                   Math.ceil(bytes / (p.spi_chunk || 32768)) * (p.spi_cmd_us || 0) / 1000 +
+                   (p.gap_ms || 0);
+  const renderHw = 1000 / target - overhead;
+  if (renderHw <= 0) { log("✗ 目標 FPS 太高(非渲染成本已超標)"); return; }
+  const scale = renderHw / (state.renderUs / 1000);
+  $("in-scale").value = scale.toFixed(2);
+  log("✓ 建議 CPU_SCALE = " + scale.toFixed(2) + "(以目前髒區 " + state.px + " px 估算)");
+}
+
+// ---------- 腳本錄放 ----------
+function playScript() {
+  if (state.playing) return;
+  if (!state.script.length) { log("✗ 沒有錄製內容"); return; }
+  state.playing = true;
+  $("btn-play").style.borderColor = "var(--ok)";
+  resetStats();
+  const t0 = Date.now();
+  const items = state.script.slice();
+  (function next() {
+    if (!items.length) {
+      state.playing = false;
+      $("btn-play").style.borderColor = "";
+      log("✓ 腳本播放完畢(" + state.script.length + " 步)");
+      return;
+    }
+    const it = items.shift();
+    const delay = Math.max(0, t0 + (it.t - state.script[0].t) - Date.now());
+    state.playTimer = setTimeout(() => {
+      op(it.kind, it.val);
+      next();
+    }, delay);
+  })();
+}
+
+// ---------- HTML 稿(並排對比)+ 代碼檢視(樸素 textarea) ----------
+async function loadPairs() {
+  if (!state.cur) return;
+  try {
+    const r = await api("/simlab/api/code_pairs?proj=" + encodeURIComponent(state.cur.name));
+    state.pairs = r.pairs || [];
+  } catch (e) { state.pairs = []; }
+  const hsel = $("html-sel");
+  hsel.innerHTML = "";
+  if (!state.pairs.length) {
+    const o = document.createElement("option");
+    o.textContent = "(此項目無 HTML 稿)";
+    hsel.appendChild(o);
+    $("html-frame").src = "about:blank";
+    loadCodeSel();
+    return;
+  }
+  state.pairs.forEach((p, i) => {
+    const o = document.createElement("option");
+    o.value = String(i);
+    o.textContent = p.id + " (" + p.html_name + ")";
+    hsel.appendChild(o);
+  });
+  hsel.onchange = () => {
+    const p = state.pairs[parseInt(hsel.value, 10)];
+    if (!p) return;
+    $("html-frame").src = SIM_ORIGIN + p.html_url;
+    if (p.py_url) simPost("sim-input", { do: "__go(" + JSON.stringify(p.id) + ")" });
+  };
+  hsel.onchange();
+  loadCodeTree();
+}
+
+// ---------- 代碼區:摺疊式檔案樹 + 樸素 textarea(對齊舊項目) ----------
+async function loadCodeTree() {
+  if (!state.cur) return;
+  const box = $("ed-files");
+  box.innerHTML = "";
+  // shim 固定在最上面
+  addTreeFile(box, { name: "__shim__.py (目前載入)", path: "__shim__.py",
+    url: "/simlab/api/code?proj=" + encodeURIComponent(state.cur.name) });
+  let tree = [];
+  try {
+    const r = await api("/simlab/api/tree?proj=" + encodeURIComponent(state.cur.name));
+    tree = r.tree || [];
+  } catch (e) {}
+  tree.forEach((g) => {
+    const det = document.createElement("details");
+    det.open = true;
+    const sum = document.createElement("summary");
+    sum.textContent = g.icon + " " + g.title;
+    const hint = document.createElement("span");
+    hint.className = "hint";
+    hint.textContent = " " + g.items.length;
+    sum.appendChild(hint);
+    det.appendChild(sum);
+    // 頂層檔 + 子目錄分組
+    const top = [];
+    const dirs = {};
+    g.items.forEach((it) => {
+      const i = it.path.indexOf("/");
+      if (i < 0) top.push(it);
+      else (dirs[it.path.slice(0, i)] = dirs[it.path.slice(0, i)] || []).push(it);
+    });
+    const nest = document.createElement("div");
+    nest.className = "tree-nest";
+    top.forEach((it) => addTreeFile(nest, it));
+    Object.keys(dirs).sort().forEach((d) => {
+      const dd = document.createElement("details");
+      dd.open = true;
+      const ds = document.createElement("summary");
+      ds.textContent = "📁 " + d + "/";
+      const dh = document.createElement("span");
+      dh.className = "hint";
+      dh.textContent = " " + dirs[d].length;
+      ds.appendChild(dh);
+      dd.appendChild(ds);
+      const dn = document.createElement("div");
+      dn.className = "tree-nest";
+      dirs[d].forEach((it) => addTreeFile(dn, it));
+      dd.appendChild(dn);
+      nest.appendChild(dd);
+    });
+    det.appendChild(nest);
+    box.appendChild(det);
+  });
+}
+
+function addTreeFile(parent, it) {
+  const div = document.createElement("div");
+  div.className = "ed-file";
+  div.textContent = it.name;
+  div.title = it.path;
+  div.onclick = () => viewCode(it);
+  parent.appendChild(div);
+}
+
+async function viewCode(it) {
+  // 高亮目前
+  Array.from($("ed-files").querySelectorAll(".ed-file")).forEach((d) => {
+    d.classList.toggle("on", d.title === it.path);
+  });
+  $("ed-path").textContent = it.path;
+  try {
+    const r = await fetch(it.url);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    $("ed-code").value = await r.text();
+  } catch (e) {
+    $("ed-code").value = "✗ 讀取失敗: " + e.message;
+  }
+}
+
+// ---------- 項目管理 ----------
+function bindPM() {
+  $("btn-pm").onclick = () => { $("pm-back").classList.add("open"); renderPM(); };
+  $("btn-pm-close").onclick = () => $("pm-back").classList.remove("open");
+  $("pm-back").onclick = (e) => { if (e.target === $("pm-back")) $("pm-back").classList.remove("open"); };
+  $("btn-scan").onclick = scanPath;
+  $("btn-save-proj").onclick = saveProjectForm;
+  $("btn-del-proj").onclick = deleteProject;
+}
+
+function renderPM() {
+  const box = $("pm-list");
+  box.innerHTML = "";
+  state.projects.forEach((p) => {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML =
+      '<b>' + (p.group ? "[" + p.group + "] " : "") + p.title + '</b>' +
+      '<span class="note">' + p.name + " · " + p.path + " · " + p.w + "×" + p.h +
+      " · " + p.kind + "</span>" +
+      '<button data-load="' + p.name + '">✎ 載入編輯</button>';
+    row.querySelector("[data-load]").onclick = () => loadProjectForm(p);
+    box.appendChild(row);
+  });
+}
+
+function loadProjectForm(p) {
+  const e = p.entry || {};
+  $("f-name").value = p.name || "";
+  $("f-title").value = p.title || "";
+  $("f-group").value = p.group || "";
+  $("f-path").value = p.path || "";
+  $("f-w").value = p.w || 320;
+  $("f-h").value = p.h || 240;
+  $("f-kind").value = e.kind || "framework";
+  $("f-modules").value = (e.modules || []).join(",");
+  $("f-page-dir").value = e.page_dir || "page";
+  $("f-src-dir").value = e.src_dir || "src";
+  $("f-exclude").value = (e.exclude || []).join(",");
+  $("f-html-dir").value = e.html_dir || "";
+  $("pm-info").textContent = "編輯中: " + p.name;
+}
+
+function formToProject() {
+  const name = $("f-name").value.trim();
+  const kind = $("f-kind").value;
+  const entry = {
+    kind,
+    modules: $("f-modules").value.split(",").map((s) => s.trim()).filter(Boolean),
+  };
+  if (kind === "framework") {
+    entry.page_dir = $("f-page-dir").value.trim() || "page";
+    entry.src_dir = $("f-src-dir").value.trim() || "src";
+  } else {
+    const ex = $("f-exclude").value.split(",").map((s) => s.trim()).filter(Boolean);
+    if (ex.length) entry.exclude = ex;
+  }
+  const hd = $("f-html-dir").value.trim();
+  if (hd) entry.html_dir = hd;
+  return {
+    name,
+    title: $("f-title").value.trim() || name,
+    group: $("f-group").value.trim(),
+    path: $("f-path").value.trim(),
+    w: parseInt($("f-w").value, 10) || 320,
+    h: parseInt($("f-h").value, 10) || 240,
+    entry,
+  };
+}
+
+async function saveProjectForm() {
+  const p = formToProject();
+  if (!p.name || !p.path) { $("pm-info").textContent = "✗ name 與 path 必填"; return; }
+  const idx = state.projects.findIndex((x) => x.name === p.name);
+  if (idx >= 0) state.projects[idx] = p; else state.projects.push(p);
+  try {
+    const r = await api("/simlab/api/projects", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "save", projects: state.projects }),
+    });
+    state.projects = r.projects || state.projects;
+    fillProjSel();
+    if (!state.cur || state.cur.name === p.name) {
+      state.cur = state.projects.find((x) => x.name === p.name);
+      $("proj-sel").value = p.name;
+      reloadSim();
+    }
+    renderPM();
+    $("pm-info").textContent = "✓ 已存 " + p.name;
+  } catch (e) { $("pm-info").textContent = "✗ 儲存失敗: " + e.message; }
+}
+
+async function deleteProject() {
+  const name = $("f-name").value.trim();
+  if (!name) { $("pm-info").textContent = "✗ 先載入要刪的項目"; return; }
+  state.projects = state.projects.filter((x) => x.name !== name);
+  try {
+    const r = await api("/simlab/api/projects", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "save", projects: state.projects }),
+    });
+    state.projects = r.projects || state.projects;
+    fillProjSel();
+    if (state.cur && state.cur.name === name) {
+      state.cur = state.projects[0] || null;
+      if (state.cur) { $("proj-sel").value = state.cur.name; reloadSim(); }
+    }
+    renderPM();
+    $("pm-info").textContent = "🗑 已刪 " + name;
+    $("f-name").value = "";
+  } catch (e) { $("pm-info").textContent = "✗ 刪除失敗: " + e.message; }
+}
+
+async function scanPath() {
+  const path = $("scan-path").value.trim();
+  if (!path) { $("scan-info").textContent = "✗ 輸入路徑"; return; }
+  $("scan-info").textContent = "掃描中…";
+  try {
+    const r = await api("/simlab/api/projects", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "scan", path }),
+    });
+    const s = r.suggest;
+    loadProjectForm(s);
+    $("scan-info").textContent = "✓ 掃描完成,頁面: " + (s.pages || []).join(", ");
+  } catch (e) { $("scan-info").textContent = "✗ " + e.message; }
+}
+
+init();
+</script>
+</body>
+</html>

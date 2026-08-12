@@ -1,0 +1,31 @@
+{
+  "perf": {
+    "cpu_scale": 2.38,
+    "spi_bw_mbps": 8,
+    "spi_chunk": 32768,
+    "spi_cmd_us": 150,
+    "copy_us_per_kb": 60,
+    "gap_ms": 5,
+    "echo_step_interval": 40
+  },
+  "runtime": {
+    "built_from": null,
+    "banner": null,
+    "swapped_at": null,
+    "local": true
+  },
+  "projects": {
+    "slave": {
+      "perf": {
+        "cpu_scale": 2.38,
+        "spi_bw_mbps": 8,
+        "spi_chunk": 32768,
+        "spi_cmd_us": 150,
+        "copy_us_per_kb": 60,
+        "gap_ms": 5,
+        "echo_step_interval": 40
+      }
+    }
+  },
+  "last_project": "slave"
+}

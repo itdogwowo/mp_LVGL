@@ -260,6 +260,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._serve_vendor(url.path)
         if url.path == "/sim" or url.path.startswith("/sim/"):
             return self._serve_sim(url.path)
+        if url.path == "/simlab" or url.path.startswith("/simlab/"):
+            from simlab import handle_get
+            return handle_get(self, url)
         if url.path.startswith("/cache/"):
             return self._serve_cache(url.path)
         self._err("not found", 404)
@@ -1046,6 +1049,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self._design_savecode()
             if url.path == "/api/design/file":
                 return self._design_file_save()
+            if url.path == "/simlab" or url.path.startswith("/simlab/"):
+                from simlab import handle_post
+                return handle_post(self, url)
             self._err("not found", 404)
         except Exception as e:
             self._err(str(e))
@@ -1124,6 +1130,13 @@ def make_handler(studio: Studio) -> type[Handler]:
     return H
 
 
+class _Httpd(ThreadingHTTPServer):
+    # 不允許多個 instance 共享 8600:SO_REUSEADDR 會令兩個 server 同時 bind 同一個
+    # port,瀏覽器請求隨機派到舊 process → 「改 code 冇生效 / 時好時壞」。
+    # 重複啟動會 bind 失敗 → 自動跳到下一個 port,8600 保持單一 instance。
+    allow_reuse_address = False
+
+
 # ============ main ============
 
 def main() -> None:
@@ -1146,7 +1159,7 @@ def main() -> None:
     httpd = None
     for _ in range(20):
         try:
-            httpd = ThreadingHTTPServer(("127.0.0.1", port), make_handler(studio))
+            httpd = _Httpd(("127.0.0.1", port), make_handler(studio))
             break
         except OSError:
             port += 1

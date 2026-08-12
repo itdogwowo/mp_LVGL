@@ -1,0 +1,11 @@
+{
+  "emsdk": {
+    "version": "3.1.64",
+    "url": "https://github.com/emscripten-core/emsdk.git",
+    "dir": ".cache/emsdk"
+  },
+  "sources": {
+    "micropython": { "dir": "micropython", "ref": null },
+    "lv_binding": { "dir": "lv_binding_micropython", "ref": null }
+  }
+}
