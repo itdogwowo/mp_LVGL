@@ -1182,36 +1182,34 @@ pre {
 
     /* ── Fixed shell ── */
     html, body { width: 320px; height: 240px; overflow: hidden; }
-    body { display: flex; flex-direction: column; background: var(--bg-base-secondary); }
-    main { display: flex; flex-direction: column; height: 100%; }
+    body { display: flex; flex-direction: column; background: linear-gradient(180deg, #ffffff 0%, var(--bg-base-secondary) 100%); }
+    main { display: flex; flex-direction: column; height: 100%; position: relative; background: linear-gradient(180deg, color-mix(in srgb, var(--bg-brand) 6%, white) 0%, var(--bg-base-secondary) 54%, #eef1f6 100%); }
 
-    .appbar { height: 44px; flex: 0 0 44px; display: flex; align-items: center; gap: var(--spacer-4); padding: 0 var(--spacer-8); background: var(--bg-base-default); border-bottom: 1px solid var(--border-neutral-l1); }
-    .appbar__back { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: none; background: none; border-radius: var(--radius-8); color: var(--text-secondary); cursor: pointer; transition: background .15s, color .15s; }
+    .appbar { position: absolute; top: 8px; right: 8px; z-index: 3; height: auto; flex: 0 0 auto; display: flex; align-items: center; gap: 0; padding: 0; background: transparent; border: none; }
+    .appbar__back { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 1px solid color-mix(in srgb, var(--border-neutral-l1) 90%, white); background: rgba(255,255,255,0.78); backdrop-filter: blur(10px); border-radius: 999px; color: var(--text-secondary); cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
     .appbar__back .icon { width: 18px; height: 18px; }
-    .appbar__back:hover { background: var(--bg-overlay-l1); color: var(--text-default); }
-    .appbar__title { font-size: 15px; font-weight: var(--font-weight-strong); color: var(--text-default); flex: 1; }
-    .appbar__live { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-tertiary); }
-    .appbar__livedot { width: 6px; height: 6px; border-radius: 50%; background: var(--status-success-default); animation: pulse 2s ease-in-out infinite; }
-    .page-content { flex: 1; min-height: 0; overflow-y: auto; padding: var(--spacer-8) var(--spacer-12) var(--spacer-12); display: flex; flex-direction: column; gap: var(--spacer-8); }
+    .appbar__back:hover { background: rgba(255,255,255,0.92); color: var(--text-default); border-color: var(--border-neutral-l2); }
+    .appbar__title, .appbar__live { display: none; }
+    .page-content { flex: 1; min-height: 0; overflow: hidden; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
 
     /* ── Two-column layout ── */
-    .mon-cols { flex: 1; min-height: 0; display: flex; align-items: stretch; gap: var(--spacer-8); }
-    .mon-col--main { flex: 1.2 1 0; min-width: 0; display: flex; flex-direction: column; gap: var(--spacer-8); }
+    .mon-cols { flex: 1; min-height: 0; display: flex; align-items: stretch; gap: 8px; }
+    .mon-col--main { flex: 1.15 1 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding-right: 32px; }
 
     /* ── Reading block ── */
     .mon-read { display: flex; flex-direction: column; gap: var(--spacer-2); min-width: 0; }
     .mon-read__label { font-size: 9px; line-height: 12px; color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .mon-read__row { display: flex; align-items: flex-end; gap: var(--spacer-6); }
-    .mon-read__value { font-family: var(--font-family-mono); font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; font-size: 24px; line-height: 26px; font-weight: var(--font-weight-strong); color: var(--text-default); }
+    .mon-read__value { font-family: var(--font-family-mono); font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; font-size: 22px; line-height: 24px; font-weight: var(--font-weight-strong); color: var(--text-default); }
     .mon-delta { display: inline-flex; align-items: center; gap: 3px; height: 16px; padding: 0 var(--spacer-6); margin-bottom: 3px; border-radius: var(--radius-full); background: color-mix(in srgb, var(--status-warning-default) 10%, transparent); color: var(--status-warning-default); font-family: var(--font-family-mono); font-variant-numeric: tabular-nums; font-size: 9px; line-height: 12px; font-weight: var(--font-weight-medium); white-space: nowrap; }
     .mon-delta .icon { width: 10px; height: 10px; }
 
     /* ── Range pills ── */
-    .mon-range { display: flex; align-items: center; gap: var(--spacer-4); }
+    .mon-range { display: flex; align-items: center; gap: 4px; }
     .mon-pill { height: 26px; padding: 0 var(--spacer-10); border: none; border-radius: var(--radius-full); background: transparent; color: var(--text-tertiary); font-family: inherit; font-size: 10px; line-height: 14px; font-weight: var(--font-weight-default); cursor: pointer; transition: background .15s, color .15s; }
     .mon-pill:hover { color: var(--text-secondary); background: var(--bg-overlay-l1); }
-    .mon-pill.is-active { background: var(--bg-overlay-l2); color: var(--text-default); font-weight: var(--font-weight-medium); }
+    .mon-pill.is-active { background: color-mix(in srgb, var(--bg-brand) 12%, white); color: var(--text-brand); font-weight: var(--font-weight-medium); }
     .mon-pill:focus-visible,
     .mon-refresh:focus-visible,
     .appbar__back:focus-visible { outline: 2px solid var(--border-brand); outline-offset: 1px; }
@@ -1220,10 +1218,10 @@ pre {
     .mon-refresh:hover .icon { transform: rotate(90deg); }
 
     /* ── Cards ── */
-    .mon-card { background: var(--bg-base-default); border: 1px solid var(--border-neutral-l1); border-radius: var(--radius-8); }
+    .mon-card { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, #f8f8fb 100%); border: 1px solid color-mix(in srgb, var(--border-neutral-l1) 90%, white); border-radius: 14px; box-shadow: 0 8px 20px -18px rgba(0,0,0,0.22), 0 1px 2px rgba(0,0,0,0.04); }
 
     /* ── Sparkline card ── */
-    .mon-spark { padding: var(--spacer-8); margin-top: auto; }
+    .mon-spark { padding: 8px; margin-top: auto; background: linear-gradient(180deg, color-mix(in srgb, var(--bg-brand) 7%, white) 0%, #f7fbff 100%); }
     .mon-spark__svg { display: block; width: 100%; height: 52px; overflow: visible; }
     .mon-grid { stroke: var(--border-neutral-l1); stroke-width: 1; }
     .mon-area { animation: mon-fade .8s ease-out both; }
@@ -1236,14 +1234,14 @@ pre {
     .mon-spark__x { display: flex; justify-content: space-between; margin-top: var(--spacer-4); font-family: var(--font-family-mono); font-variant-numeric: tabular-nums; font-size: 8px; line-height: 10px; color: var(--text-tertiary); }
 
     /* ── Channel status card (right column) ── */
-    .mon-ch { flex: 0.8 1 0; min-width: 0; display: flex; flex-direction: column; padding: var(--spacer-8); }
+    .mon-ch { flex: 0.85 1 0; min-width: 0; display: flex; flex-direction: column; padding: 8px; background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, #fafbfd 100%); }
     .mon-ch__head { display: flex; align-items: baseline; gap: var(--spacer-6); padding: 0 var(--spacer-4) var(--spacer-6); }
     .mon-ch__title { font-size: 11px; line-height: 14px; font-weight: var(--font-weight-strong); color: var(--text-default); }
     .mon-ch__count { font-family: var(--font-family-mono); font-variant-numeric: tabular-nums; font-size: 9px; line-height: 12px; color: var(--text-tertiary); }
     .mon-ch__row { display: flex; align-items: center; gap: var(--spacer-6); min-height: 28px; padding: var(--spacer-2) var(--spacer-4); border-bottom: 1px solid var(--border-neutral-l1); transition: background .15s; }
     .mon-ch__row:hover { background: var(--bg-overlay-l1); }
     .mon-ch__list .mon-ch__row:last-child { border-bottom: none; }
-    .mon-ch__ico { width: 20px; height: 20px; flex: 0 0 20px; display: inline-flex; align-items: center; justify-content: center; background: var(--bg-overlay-l1); border-radius: var(--radius-6); color: var(--icon-secondary); }
+    .mon-ch__ico { width: 20px; height: 20px; flex: 0 0 20px; display: inline-flex; align-items: center; justify-content: center; background: var(--bg-overlay-l1); border-radius: 999px; color: var(--icon-secondary); }
     .mon-ch__ico .icon { width: 11px; height: 11px; }
     .mon-ch__meta { display: flex; flex-direction: column; flex: 1; min-width: 0; }
     .mon-ch__name { font-size: 10px; line-height: 12px; color: var(--text-default); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

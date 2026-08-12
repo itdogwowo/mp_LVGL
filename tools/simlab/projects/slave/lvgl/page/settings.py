@@ -22,14 +22,16 @@ scr = None
 _wifi_sw = None
 _str_lbs = []
 _last_txt = {}
+_cards = []   # 進頁階梯淡入用
 
 
 @register(id="settings", title="系統設定", icon="settings",
           desc="網路·裝置資訊", order=3, accent=0x7F8C8D)
 def build():
-    global scr, _wifi_sw, _str_lbs, _last_txt
+    global scr, _wifi_sw, _str_lbs, _last_txt, _cards
     _str_lbs = []
     _last_txt = {}
+    _cards = []
     nav.reset()
 
     scr = lv.obj(None)
@@ -37,6 +39,7 @@ def build():
 
     # Wi-Fi 開關(左上)
     c1 = u.mk_card(scr, 12, 6, 148, 48)
+    _cards.append(c1)
     u.mk_icon(c1, "wifi", 10, 12, u.TEXT2)
     u.mk_label(c1, "Wi-Fi 啟用", 32, 14, u.TEXT, u.ZH)
     _wifi_sw = u.mk_switch(c1, 100, 12, on=False)
@@ -47,6 +50,7 @@ def build():
         col_x = 12 if i < 3 else 166
         col_y = 62 + (i % 3) * 42 if i < 3 else 6 + (i - 3) * 42
         c = u.mk_card(scr, col_x, col_y, 148 if i < 3 else u.W - 24 - 154, 38)
+        _cards.append(c)
         u.mk_label(c, label, 8, 10, u.TEXT2, u.ZH)
         lb = lv.label(c)
         lb.set_pos(8, 22)
@@ -89,7 +93,18 @@ def _toggle_wifi():
     print("[settings] wifi_enable -> {}".format("ON" if new else "OFF"))
 
 
-def on_enter(): pass
+def on_enter():
+    """進頁:卡片輕位移級聯,保留節奏感但不走整卡透明度。"""
+    for i, c in enumerate(_cards):
+        try:
+            x, y = c.get_x(), c.get_y()
+            u.cancel(c)
+            c.set_style_opa(255, 0)
+            c.set_pos(x, y + 4)
+            u.anim_pos(c, x, y, 220, i * 50)
+        except Exception:
+            pass
+
 def on_leave():
     if nav.is_editing():
         nav.exit()

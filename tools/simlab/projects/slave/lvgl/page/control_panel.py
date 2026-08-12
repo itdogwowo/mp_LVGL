@@ -41,6 +41,8 @@ _mode_list = None
 _mode_btns = []
 _bright_sl = _bright_lb = _time_lb = _time_arc = _run_lb = None
 _bit7_led = _bit6_led = None
+_p_bright = None   # 右欄上(亮度)分區,進頁淡入用
+_p_main = None     # 右欄下(計時)分區
 _last_txt = {}
 # 本機值(操作即時回饋,不依賴 echo)+ pending 標記
 _local_mode = 0        # 本機最後送出/採納的 mode byte
@@ -54,7 +56,7 @@ _pend_bright = False   # brightness 已送出、等 echo 定案
 def build():
     global scr, _mode_list, _mode_btns
     global _bright_sl, _bright_lb, _time_lb, _time_arc, _run_lb
-    global _bit7_led, _bit6_led, _last_txt
+    global _bit7_led, _bit6_led, _last_txt, _p_bright, _p_main
     global _local_mode, _local_bright, _pend_mode, _pend_bright
     _last_txt = {}
     nav.reset()
@@ -72,7 +74,8 @@ def build():
     nav.add(_mode_list, ITEM_LIST, on_change=_sel_mode_delta)
 
     # 右欄上:亮度(無邊框卡片,省空間)
-    c2 = _panel(scr, rx, 4, rw, 50)
+    _p_bright = _panel(scr, rx, 4, rw, 50)
+    c2 = _p_bright
     u.mk_label(c2, "亮度", 6, 4, u.TEXT2, u.ZH)
     _bright_lb = lv.label(c2)
     _bright_lb.align(lv.ALIGN.TOP_RIGHT, -6, 4)
@@ -85,7 +88,8 @@ def build():
     # 右欄下:倒數時間 + 模式旗標 + 快捷(合併一區)
     #   上半:大 arc 置中 + 中央時間(F_NUM_XL)
     #   下排:狀態 / LED+切換 / 上一個下一個模式
-    c3 = _panel(scr, rx, 58, rw, u.H - 4 - 58)
+    _p_main = _panel(scr, rx, 58, rw, u.H - 4 - 58)
+    c3 = _p_main
     # arc 置中上方
     arc_sz = 110
     arc_x = rw // 2 - arc_sz // 2
@@ -119,10 +123,6 @@ def build():
     nav.add(btn_up, ITEM_BUTTON, on_change=lambda: _sel_mode_delta(-1))
     btn_dn = u.mk_btn(c3, "▼", rw - 40, row_y + 26, 34, 22, "primary")
     nav.add(btn_dn, ITEM_BUTTON, on_change=lambda: _sel_mode_delta(1))
-
-    u.fade_in(_mode_list, dy=5, time_ms=280, delay_ms=40)
-    u.fade_in(c2, dy=5, time_ms=280, delay_ms=120)
-    u.fade_in(c3, dy=5, time_ms=280, delay_ms=200)
 
     _sync_list()
     nav.paint()
@@ -263,7 +263,18 @@ def _adj_bright(dd):
 
 # ====== 頁面接口(轉發給 nav) ======
 
-def on_enter(): pass
+def on_enter():
+    """進頁:改用安全的輕位移入場,避免整區透明度動畫導致白屏。"""
+    for w, d in ((_mode_list, 40), (_p_bright, 100), (_p_main, 160)):
+        if w is not None:
+            try:
+                x, y = w.get_x(), w.get_y()
+                u.cancel(w)
+                w.set_style_opa(255, 0)
+                w.set_pos(x, y + 4)
+                u.anim_pos(w, x, y, 220, d)
+            except Exception:
+                pass
 
 def on_leave():
     if nav.is_editing():

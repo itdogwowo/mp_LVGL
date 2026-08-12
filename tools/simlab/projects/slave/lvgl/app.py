@@ -43,6 +43,39 @@ def _page():
     return launcher
 
 
+def _load_screen(scr, back=False):
+    """頁面切換:screen_load_anim 平滑滑入(ease-out 300ms)。
+    binding 缺 API / 參數不符時自動降級為直接 screen_load。"""
+    fn = getattr(lv, "screen_load_anim", None)
+    if fn is None:
+        try:
+            lv.screen_load(scr)
+        except Exception:
+            pass
+        return
+    t = getattr(getattr(lv, "SCR_LOAD_ANIM", None),
+                "MOVE_RIGHT" if back else "MOVE_LEFT", None)
+    if t is None:
+        t = getattr(lv, "SCR_LOAD_ANIM_MOVE_RIGHT" if back else "SCR_LOAD_ANIM_MOVE_LEFT",
+                    None)
+    if t is None:
+        try:
+            lv.screen_load(scr)
+        except Exception:
+            pass
+        return
+    try:
+        fn(scr, t, 300, 0, False, None)
+    except Exception:
+        try:
+            fn(scr, t, 300, 0)
+        except Exception:
+            try:
+                lv.screen_load(scr)
+            except Exception:
+                pass
+
+
 def go(name, back=False):
     """切換頁面(沿用預建 screen,不 rebuild)。"""
     global cur, _last_scr
@@ -58,10 +91,7 @@ def go(name, back=False):
         old.on_leave()
 
     scr = _screens[name]
-    try:
-        lv.screen_load(scr)
-    except Exception:
-        pass
+    _load_screen(scr, back)
     _last_scr = scr
 
     cur = name

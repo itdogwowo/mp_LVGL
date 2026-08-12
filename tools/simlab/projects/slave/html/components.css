@@ -4,6 +4,11 @@
    Stable atoms live here so downstream pages do not depend on preview shell CSS.
    ═══════════════════════════════════════════════════════════════ */
 
+/* ── Motion (對齊 LVGL lv_anim 預設:quadratic ease-out) ────── */
+:root {
+  --ease-lv-out: cubic-bezier(.25, .46, .45, .94);
+}
+
 /* ── Shared Atoms ───────────────────────────────────────────── */
 .icon,
 .icon-img {
@@ -221,16 +226,16 @@ pre {
     .ds-btn {
       display: inline-flex; align-items: center; justify-content: center;
       gap: var(--spacer-6);
-      height: 28px; padding: 0 var(--spacer-12);
-      border-radius: var(--radius-8);
+      height: 30px; padding: 0 var(--spacer-14, 14px);
+      border-radius: var(--radius-full);
       border: 1px solid transparent;
       cursor: pointer; user-select: none; white-space: nowrap;
       font-family: var(--body-base-strong-font-family);
-      font-size: var(--body-base-strong-font-size);
-      line-height: var(--body-base-strong-line-height);
-      font-weight: var(--body-base-strong-font-weight);
-      letter-spacing: var(--body-base-strong-letter-spacing);
-      transition: background .12s ease, color .12s ease, border-color .12s ease, opacity .12s ease;
+      font-size: 13px;
+      line-height: 1;
+      font-weight: var(--font-weight-medium);
+      letter-spacing: 0;
+      transition: background .16s var(--ease-lv-out), color .16s var(--ease-lv-out), border-color .16s var(--ease-lv-out), opacity .16s var(--ease-lv-out), transform .16s var(--ease-lv-out);
     }
     .ds-btn .icon {
       display: inline-block;
@@ -244,16 +249,16 @@ pre {
     .ds-btn .icon--20 { width: var(--icon-size-20); height: var(--icon-size-20); }
     .ds-btn .icon--24 { width: var(--icon-size-24); height: var(--icon-size-24); }
     /* Button heights are fixed to 24 / 28 / 32px. */
-    .ds-btn--sm { height: 24px; padding: 0 var(--spacer-8); border-radius: var(--radius-8); font-size: var(--body-sm-font-size); }
-    .ds-btn--md { height: 28px; padding: 0 var(--spacer-12); border-radius: var(--radius-8); }
-    .ds-btn--lg { height: 32px; padding: 0 var(--spacer-16); border-radius: var(--radius-8); font-size: var(--body-base-font-size); }
-    .ds-btn--primary { background: var(--bg-invert); color: var(--text-white); border-color: var(--bg-invert); }
-    .ds-btn--primary:hover { background: var(--bg-invert-hover); border-color: var(--bg-invert-hover); }
-    .ds-btn--primary:active { background: var(--bg-invert-active); border-color: var(--bg-invert-active); }
+    .ds-btn--sm { height: 26px; padding: 0 var(--spacer-10); border-radius: var(--radius-full); font-size: 12px; }
+    .ds-btn--md { height: 30px; padding: 0 var(--spacer-14, 14px); border-radius: var(--radius-full); }
+    .ds-btn--lg { height: 36px; padding: 0 var(--spacer-16); border-radius: var(--radius-full); font-size: 13px; }
+    .ds-btn--primary { background: var(--bg-brand); color: var(--text-onbrand); border-color: var(--bg-brand); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); }
+    .ds-btn--primary:hover { background: var(--bg-brand-hover); border-color: var(--bg-brand-hover); }
+    .ds-btn--primary:active { background: var(--bg-brand-active); border-color: var(--bg-brand-active); transform: translateY(1px); }
     .ds-btn--primary[disabled] { background: var(--bg-invert-disabled); color: var(--text-disabled); border-color: transparent; cursor: not-allowed; }
-    .ds-btn--secondary { background: var(--bg-overlay-l1); color: var(--text-default); border-color: var(--border-neutral-l1); }
-    .ds-btn--secondary:hover { background: var(--bg-overlay-l2); border-color: var(--border-neutral-l2); }
-    .ds-btn--secondary:active { background: var(--bg-overlay-l3); border-color: var(--border-neutral-l3); }
+    .ds-btn--secondary { background: var(--bg-base-default); color: var(--text-default); border-color: var(--border-neutral-l1); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02); }
+    .ds-btn--secondary:hover { background: var(--bg-base-secondary); border-color: var(--border-neutral-l2); }
+    .ds-btn--secondary:active { background: var(--bg-overlay-l2); border-color: var(--border-neutral-l2); transform: translateY(1px); }
     .ds-btn--secondary[disabled] { color: var(--text-disabled); cursor: not-allowed; opacity: .7; }
     .ds-btn--tertiary,
     .ds-btn--ghost { background: transparent; color: var(--text-default); border-color: transparent; }
@@ -275,7 +280,7 @@ pre {
     .ds-btn--warning { background: var(--status-warning-default); color: var(--text-onaccent); border-color: var(--status-warning-default); }
     .ds-btn--warning:hover { background: var(--status-warning-hover); border-color: var(--status-warning-hover); }
     .ds-btn--warning:active { background: var(--status-warning-active); border-color: var(--status-warning-active); }
-    .ds-btn--brand { background: var(--bg-brand); color: var(--text-onbrand); border-color: var(--bg-brand); }
+    .ds-btn--brand { background: var(--bg-brand); color: var(--text-onbrand); border-color: var(--bg-brand); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); }
     .ds-btn--brand:hover { background: var(--bg-brand-hover); border-color: var(--bg-brand-hover); }
     .ds-btn--brand:active { background: var(--bg-brand-active); border-color: var(--bg-brand-active); }
     .ds-btn--brand[disabled] { background: var(--bg-brand-disabled); border-color: transparent; color: var(--text-onbrand); cursor: not-allowed; }
@@ -293,11 +298,12 @@ pre {
 /* ── Cards ─────────────────────────────────────────────────── */
 /* ===== Card ===== */
     .ds-card {
-      background: var(--bg-base-secondary);
+      background: var(--bg-base-default);
       border: 1px solid var(--border-neutral-l1);
       border-radius: var(--radius-12);
       padding: var(--spacer-20);
       color: var(--text-default);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
     }
     .ds-card__title { font-size: var(--heading-sm-font-size); line-height: var(--heading-sm-line-height); font-weight: var(--heading-sm-font-weight); margin-bottom: var(--spacer-8); }
     .ds-card__desc { font-size: var(--body-base-font-size); line-height: var(--body-base-line-height); color: var(--text-secondary); }
@@ -334,7 +340,7 @@ pre {
 /* ── Forms ─────────────────────────────────────────────────── */
 /* ===== Input / Search ===== */
     .ds-input { display: flex; align-items: center; gap: var(--spacer-8); min-height: 32px; padding: 0 var(--spacer-12); background: var(--bg-base-default); border: 1px solid var(--border-neutral-l1); border-radius: var(--radius-8); color: var(--text-default); width: 100%; font-family: var(--body-base-font-family); font-size: var(--body-base-font-size); line-height: var(--body-base-line-height); }
-    .ds-input:focus-within { border-color: var(--border-contrast); background: var(--bg-base-default); }
+    .ds-input:focus-within { border-color: var(--border-brand); background: var(--bg-base-default); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bg-brand) 14%, transparent); }
     .ds-input input { flex: 1; background: transparent; border: none; outline: none; color: var(--text-default); font: inherit; min-width: 0; }
     .ds-input input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
     .ds-input input[type="number"]::-webkit-outer-spin-button,
@@ -346,7 +352,7 @@ pre {
     .ds-input__icon { color: var(--icon-secondary); display: inline-flex; align-items: center; }
     .ds-search { position: relative; }
     .ds-select { width: 100%; height: 32px; padding: 0 var(--spacer-32) 0 var(--spacer-12); background-color: var(--bg-base-default); color: var(--text-default); border: 1px solid var(--border-neutral-l1); border-radius: var(--radius-8); appearance: none; -webkit-appearance: none; font: inherit; font-size: var(--body-base-font-size); }
-    .ds-select:focus { border-color: var(--border-contrast); background-color: var(--bg-base-default); outline: none; }
+    .ds-select:focus { border-color: var(--border-brand); background-color: var(--bg-base-default); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--bg-brand) 14%, transparent); }
     .ds-select:disabled { background-color: var(--bg-base-secondary); color: var(--text-disabled); cursor: not-allowed; opacity: 1; }
     .ds-select-wrap { position: relative; width: 100%; }
     .ds-select-wrap .ds-select { padding-right: var(--spacer-32); }
@@ -356,7 +362,7 @@ pre {
     .icon-img--12 { width: 12px; height: 12px; flex-basis: 12px; }
     .icon-img--14 { width: 14px; height: 14px; flex-basis: 14px; }
     .ds-textarea { width: 100%; min-height: 96px; padding: var(--spacer-8) var(--spacer-12); background: var(--bg-base-default); border: 1px solid var(--border-neutral-l1); border-radius: var(--radius-8); color: var(--text-default); font-family: var(--body-base-font-family); font-size: var(--body-base-font-size); line-height: var(--body-base-line-height); resize: none; }
-    .ds-textarea:focus { outline: none; border-color: var(--border-contrast); background: var(--bg-base-default); }
+    .ds-textarea:focus { outline: none; border-color: var(--border-brand); background: var(--bg-base-default); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bg-brand) 14%, transparent); }
     .ds-textarea.is-error { border-color: var(--status-error-default); }
     .ds-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; background: var(--bg-overlay-l3); border-radius: var(--radius-full); outline: none; }
     .ds-slider--progress { background: var(--bg-overlay-l3); }
@@ -365,7 +371,7 @@ pre {
     .ds-slider--progress::-moz-range-progress { height: 4px; background: var(--bg-brand); border-radius: var(--radius-full); }
     .ds-slider::-moz-range-thumb { width: 14px; height: 14px; border-radius: var(--radius-full); background: var(--bg-base-default); border: 1px solid var(--border-neutral-l3); box-shadow: none; cursor: pointer; }
     .ds-check, .ds-radio { display: inline-flex; align-items: center; gap: var(--spacer-8); min-height: 40px; font-size: var(--body-base-font-size); color: var(--text-default); cursor: pointer; user-select: none; }
-    .ds-check__box { width: 16px; height: 16px; border: 1px solid var(--border-neutral-l2); background: var(--bg-base-default); border-radius: var(--radius-4); display: inline-flex; align-items: center; justify-content: center; color: var(--text-onbrand); transition: background .12s, border-color .12s; }
+    .ds-check__box { width: 16px; height: 16px; border: 1px solid var(--border-neutral-l2); background: var(--bg-base-default); border-radius: var(--radius-4); display: inline-flex; align-items: center; justify-content: center; color: var(--text-onbrand); transition: background .15s var(--ease-lv-out), border-color .15s var(--ease-lv-out); }
     .ds-check input { display: none; }
     .ds-check input:checked + .ds-check__box { background: var(--bg-brand); border-color: var(--bg-brand); }
     .ds-check input:checked + .ds-check__box::after { content: ''; width: 8px; height: 4px; border-left: 2px solid var(--text-onbrand); border-bottom: 2px solid var(--text-onbrand); transform: rotate(-45deg) translate(1px, -1px); }
@@ -374,9 +380,9 @@ pre {
     .ds-radio input { display: none; }
     .ds-radio input:checked + .ds-radio__dot { border-color: var(--bg-brand); }
     .ds-radio input:checked + .ds-radio__dot::after { content: ''; width: 10px; height: 10px; border-radius: var(--radius-full); background: var(--bg-brand); }
-    .ds-switch { position: relative; display: inline-flex; width: 32px; height: 18px; background: var(--bg-overlay-l3); border: 1px solid var(--border-neutral-l1); border-radius: var(--radius-full); cursor: pointer; transition: background .15s, border-color .15s; }
+    .ds-switch { position: relative; display: inline-flex; width: 32px; height: 18px; background: var(--bg-overlay-l3); border: 1px solid var(--border-neutral-l1); border-radius: var(--radius-full); cursor: pointer; transition: background .18s var(--ease-lv-out), border-color .18s var(--ease-lv-out); }
     .ds-switch input { display: none; }
-    .ds-switch__thumb { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; background: var(--bg-base-default); border-radius: var(--radius-full); transition: left .15s, background .15s; }
+    .ds-switch__thumb { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; background: var(--bg-base-default); border-radius: var(--radius-full); transition: left .18s var(--ease-lv-out), background .18s var(--ease-lv-out); }
     .ds-switch input:checked ~ .ds-switch__thumb { left: 16px; background: var(--icon-onbrand); }
     .ds-switch:has(input:checked) { background: var(--bg-brand); border-color: var(--bg-brand); }
     .input-affix { color: var(--text-tertiary); font-family: var(--body-base-font-family); font-size: var(--body-base-font-size); line-height: var(--body-base-line-height); white-space: nowrap; }
@@ -469,9 +475,9 @@ pre {
 
 /* ── Tag ───────────────────────────────────────────────────── */
 /* ===== Tag / Badge ===== */
-    .ds-tag { display: inline-flex; align-items: center; gap: var(--spacer-4); height: 22px; padding: 0 var(--spacer-8); border-radius: var(--radius-8); font-size: var(--body-sm-font-size); line-height: var(--body-sm-line-height); background: var(--bg-overlay-l2); color: var(--text-secondary); border: 1px solid var(--border-neutral-l1); }
+    .ds-tag { display: inline-flex; align-items: center; gap: var(--spacer-4); height: 22px; padding: 0 var(--spacer-8); border-radius: var(--radius-full); font-size: var(--body-sm-font-size); line-height: var(--body-sm-line-height); background: var(--bg-base-secondary); color: var(--text-secondary); border: 1px solid var(--border-neutral-l1); }
     .ds-tag .icon { width: 12px; height: 12px; }
-    .ds-tag--brand { background: var(--bg-brand-popup); color: var(--text-brand); }
+    .ds-tag--brand { background: var(--bg-brand-popup); color: var(--text-brand); border-color: color-mix(in srgb, var(--bg-brand) 18%, transparent); }
     .ds-tag--success { background: var(--status-success-surface-l1); color: var(--status-success-default); }
     .ds-tag--warning { background: var(--status-warning-surface-l1); color: var(--status-warning-default); }
     .ds-tag--danger { background: var(--status-error-surface-l1); color: var(--status-error-default); }

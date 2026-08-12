@@ -303,11 +303,33 @@ function out(text) {
   replBuf += String(text || "");
   const lines = replBuf.split(/\r?\n/);
   replBuf = lines.pop() || "";
-  for (const ln of lines) appendLine(ln, DBG_RE.test(ln) ? "dbg" : undefined);
+  for (const ln of lines) {
+    appendLine(ln, DBG_RE.test(ln) ? "dbg" : undefined);
+    const m = /\[nav\]\s*->\s*([A-Za-z0-9_-]+)/.exec(ln);
+    if (m) syncHtmlPreview(m[1]);
+  }
 }
 
 function log(text, cls) {
   appendLine(String(text), cls === "perf" ? "dbg" : cls);
+}
+
+function syncHtmlPreview(page) {
+  page = String(page || "").trim();
+  if (!page) return;
+  if (page === "launcher") {
+    const idx0 = (state.pairs || []).findIndex((p) => p.id === "launcher");
+    if (idx0 >= 0) {
+      $("html-sel").value = String(idx0);
+      $("html-frame").src = SIM_ORIGIN + state.pairs[idx0].html_url;
+    }
+    return;
+  }
+  const idx = (state.pairs || []).findIndex((p) => p.id === page);
+  if (idx >= 0) {
+    $("html-sel").value = String(idx);
+    $("html-frame").src = SIM_ORIGIN + state.pairs[idx].html_url;
+  }
 }
 
 // ---------- 載入 projects / config / runtime ----------
@@ -337,8 +359,13 @@ async function init() {
       const rt = r.runtime || {};
       const f = rt.files || {};
       const ok = f.firmware_wasm !== false && f.micropython_js !== false && f.lvgl_html !== false;
-      $("rt-status").textContent = (ok ? "● " : "✗ ") + (rt.banner || "runtime 不完整") +
-        (rt.built_from ? " · 自建 " + rt.built_from : " · 官方 v9.0");
+      // built_from = {micropython, lv_binding} → 顯示 MP 短 SHA + LVGL 9.3
+      let bfTxt = " · 官方 v9.0";
+      if (rt.built_from) {
+        const bf = rt.built_from;
+        bfTxt = " · 自建 MP " + String(bf.micropython || "?").slice(0, 8) + " · LVGL 9.3";
+      }
+      $("rt-status").textContent = (ok ? "● " : "✗ ") + (rt.banner || "runtime 不完整") + bfTxt;
       $("rt-status").style.color = ok ? "var(--ok)" : "var(--danger)";
     }).catch(() => {});
   } catch (e) {

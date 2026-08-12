@@ -9,9 +9,12 @@
     "echo_step_interval": 40
   },
   "runtime": {
-    "built_from": null,
-    "banner": null,
-    "swapped_at": null,
+    "built_from": {
+      "micropython": "c4fa8cb3091e0a7699a5ec196227324c47402701",
+      "lv_binding": "ac5d06c7d76b0f9e3ee76585bad1ba81c6744a72"
+    },
+    "banner": "MicroPython c4fa8cb309-dirty",
+    "swapped_at": "2026-08-12T16:50:39",
     "local": true
   },
   "projects": {

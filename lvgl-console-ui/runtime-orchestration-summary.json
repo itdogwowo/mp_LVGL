@@ -699,7 +699,15 @@
     ],
     "validationRunDiscipline": "main-agent-owns-validation; sub-agents perform local HTML self-check only",
     "validationHistory": [],
-    "mainAgentPostDispatchMutations": [],
+    "mainAgentPostDispatchMutations": [
+      {
+        "path": "lvgl-console-ui.design",
+        "reason": "refresh canvas registration after project-wide visual restyle",
+        "owner": "main-agent",
+        "recordedAt": "2026-08-12T06:22:18.831Z",
+        "source": "record-dispatch-completion.mjs"
+      }
+    ],
     "validationRepairLedger": [],
     "validationSnapshot": {},
     "artifactReadinessEvidence": {},
@@ -777,13 +785,13 @@
         ],
         "toolCallLedger": {
           "source": "main-agent-runtime-trace",
-          "traceDigest": "launcher-landscape-20260731",
+          "traceDigest": "launcher-restyle-20260812",
           "todoWriteCalls": 0,
           "previewCalls": 0,
           "validationScriptCalls": 0,
           "helperScriptWrites": 0
         },
-        "recordedAt": "2026-07-31T09:19:34.645Z",
+        "recordedAt": "2026-08-12T06:22:18.831Z",
         "source": "record-dispatch-completion.mjs"
       },
       {
@@ -798,13 +806,13 @@
         ],
         "toolCallLedger": {
           "source": "main-agent-runtime-trace",
-          "traceDigest": "overview-landscape-20260731",
+          "traceDigest": "overview-restyle-20260812",
           "todoWriteCalls": 0,
           "previewCalls": 0,
           "validationScriptCalls": 0,
           "helperScriptWrites": 0
         },
-        "recordedAt": "2026-07-31T09:19:34.720Z",
+        "recordedAt": "2026-08-12T06:22:18.903Z",
         "source": "record-dispatch-completion.mjs"
       },
       {
@@ -819,13 +827,13 @@
         ],
         "toolCallLedger": {
           "source": "main-agent-runtime-trace",
-          "traceDigest": "monitor-landscape-20260731",
+          "traceDigest": "monitor-restyle-20260812",
           "todoWriteCalls": 0,
           "previewCalls": 0,
           "validationScriptCalls": 0,
           "helperScriptWrites": 0
         },
-        "recordedAt": "2026-07-31T09:19:34.793Z",
+        "recordedAt": "2026-08-12T06:22:18.977Z",
         "source": "record-dispatch-completion.mjs"
       },
       {
@@ -840,13 +848,13 @@
         ],
         "toolCallLedger": {
           "source": "main-agent-runtime-trace",
-          "traceDigest": "control-landscape-20260731",
+          "traceDigest": "control-restyle-20260812",
           "todoWriteCalls": 0,
           "previewCalls": 0,
           "validationScriptCalls": 0,
           "helperScriptWrites": 0
         },
-        "recordedAt": "2026-07-31T09:19:34.863Z",
+        "recordedAt": "2026-08-12T06:22:19.046Z",
         "source": "record-dispatch-completion.mjs"
       },
       {
@@ -861,13 +869,13 @@
         ],
         "toolCallLedger": {
           "source": "main-agent-runtime-trace",
-          "traceDigest": "settings-landscape-20260731",
+          "traceDigest": "settings-restyle-20260812",
           "todoWriteCalls": 0,
           "previewCalls": 0,
           "validationScriptCalls": 0,
           "helperScriptWrites": 0
         },
-        "recordedAt": "2026-07-31T09:19:34.932Z",
+        "recordedAt": "2026-08-12T06:22:19.116Z",
         "source": "record-dispatch-completion.mjs"
       }
     ]

@@ -20,11 +20,11 @@
   "renderBlockingErrors": [],
   "errorSignatures": [],
   "softWarnings": [
-    "[library-bound-css] control.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__title, .appbar__live, .appbar__livedot, .page-content, .col). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
+    "[library-bound-css] control.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__live, .page-content, .col, .col--relays, .col--params). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
     "[library-bound-css] launcher.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.statusbar, .statusbar__left, .statusbar__dot, .statusbar__device, .statusbar__right, .sb-icon, .statusbar__time, .launcher). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
-    "[library-bound-css] monitor.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__title, .appbar__live, .appbar__livedot, .page-content, .mon-cols). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
-    "[library-bound-css] overview.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.min-h-screen, .appbar, .appbar__back, .icon, .appbar__title, .appbar__live, .appbar__livedot, .page-content). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
-    "[library-bound-css] settings.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__title, .appbar__live, .appbar__livedot, .page-content, .settings-col). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead."
+    "[library-bound-css] monitor.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__live, .page-content, .mon-cols, .mon-col--main, .mon-read). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
+    "[library-bound-css] overview.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.min-h-screen, .appbar, .appbar__back, .icon, .appbar__live, .page-content, .unit-head, .unit-id). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
+    "[library-bound-css] settings.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__live, .page-content, .settings-col, .settings-foot, .save-btn). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead."
   ],
   "repairPlanHints": [],
   "repairActionTable": [],
@@ -32,11 +32,11 @@
   "warningCount": 5,
   "errors": [],
   "warnings": [
-    "[library-bound-css] control.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__title, .appbar__live, .appbar__livedot, .page-content, .col). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
+    "[library-bound-css] control.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__live, .page-content, .col, .col--relays, .col--params). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
     "[library-bound-css] launcher.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.statusbar, .statusbar__left, .statusbar__dot, .statusbar__device, .statusbar__right, .sb-icon, .statusbar__time, .launcher). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
-    "[library-bound-css] monitor.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__title, .appbar__live, .appbar__livedot, .page-content, .mon-cols). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
-    "[library-bound-css] overview.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.min-h-screen, .appbar, .appbar__back, .icon, .appbar__title, .appbar__live, .appbar__livedot, .page-content). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
-    "[library-bound-css] settings.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__title, .appbar__live, .appbar__livedot, .page-content, .settings-col). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead."
+    "[library-bound-css] monitor.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__live, .page-content, .mon-cols, .mon-col--main, .mon-read). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
+    "[library-bound-css] overview.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.min-h-screen, .appbar, .appbar__back, .icon, .appbar__live, .page-content, .unit-head, .unit-id). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
+    "[library-bound-css] settings.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__live, .page-content, .settings-col, .settings-foot, .save-btn). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead."
   ],
   "validationRunDisciplineStatus": {
     "declared": true,
@@ -91,17 +91,17 @@
     ]
   },
   "projectFileHashes": {
-    "lvgl-console-ui.design": "a90db732d5f595925e116693e9eb8a48226b614a994aac16a64cf9cf0fc86262",
-    "colors_and_type.css": "6810b6b13b1ed463ef7da943e0cc2054e3d92e62d4c3fc0847253e68518ee040",
-    "runtime-orchestration-summary.json": "3639f0462113b77c07ad6f069a26f9c252cc0d3ebd62da0db4c1e7a8752505bb",
-    "pages/control.html": "b4eafadb985f266f954ce4f3c4b17f413d9c033a566610f77dd2df107383bb93",
+    "lvgl-console-ui.design": "0893528e56f37e41b0c9c19e4fc2c1e8b4db1c679bc1b5bb1113e81a7135446b",
+    "colors_and_type.css": "38e9864995e5e13eb5374471803f039d723ff35e3fc68863d145e878e9fbd539",
+    "runtime-orchestration-summary.json": "f49a5370108de5e410c78bf840c4fe6da0cdaa8baef7a4ca28a7395ed71e3d84",
+    "pages/control.html": "07443a6a980ce5b6e8336966a7451e506d9efc201fa6783b6d08907955595725",
     "pages/launcher.html": "8603dbc97c0a0f51106396f823b9a9ede35e6ac33260478cf7ec5e03c9b5b76d",
-    "pages/monitor.html": "3bee875c85082dd286debaedd8fc10c2e4e22de2f9ac1c53007d22db09354a82",
-    "pages/overview.html": "e75048220b77e98d6183cdb298b4b7783b3f5c113240c9e4d04a853bd5b8208a",
-    "pages/settings.html": "244bc79ce390a07257725190aad391779c549cf0ac631f184815900c8d569282"
+    "pages/monitor.html": "5f7b32ff55a2aef4b6cb93ab84364c1db401c61580bfabc4efe40a398cd77ff1",
+    "pages/overview.html": "3f104d5537a8d5272a7f9e105d074dda9daacadf9c692a1ed9909f30725e2917",
+    "pages/settings.html": "22593883911b2eefc46744339c2b76ad412a22253d278baeca08efca55475c93"
   },
   "designDir": "c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui",
-  "expectedPages": 5,
+  "expectedPages": null,
   "requireInteractions": null,
-  "checkedAt": "2026-07-31T09:19:49.054Z"
+  "checkedAt": "2026-08-12T06:22:26.546Z"
 }

@@ -1189,47 +1189,47 @@ pre {
     <style>
         /* ── page-settings shell (ST7789 320×240 landscape panel) ── */
         html, body { width: 320px; height: 240px; overflow: hidden; }
-        body { display: flex; flex-direction: column; min-height: 0; background: var(--bg-base-secondary); }
-        main { display: flex; flex-direction: column; height: 100%; }
+        body { display: flex; flex-direction: column; min-height: 0; background: linear-gradient(180deg, #ffffff 0%, var(--bg-base-secondary) 100%); }
+        main { display: flex; flex-direction: column; height: 100%; position: relative; background: linear-gradient(180deg, color-mix(in srgb, var(--bg-brand) 6%, white) 0%, var(--bg-base-secondary) 54%, #eef1f6 100%); }
 
-        .appbar { height: 44px; flex: 0 0 44px; display: flex; align-items: center; gap: var(--spacer-4); padding: 0 var(--spacer-8); background: var(--bg-base-default); border-bottom: 1px solid var(--border-neutral-l1); }
-        .appbar__back { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: none; background: none; border-radius: var(--radius-8); color: var(--text-secondary); cursor: pointer; transition: background .15s, color .15s; }
+        .appbar { position: absolute; top: 8px; right: 8px; z-index: 3; height: auto; flex: 0 0 auto; display: flex; align-items: center; gap: 0; padding: 0; background: transparent; border: none; }
+        .appbar__back { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 1px solid color-mix(in srgb, var(--border-neutral-l1) 90%, white); background: rgba(255,255,255,0.78); backdrop-filter: blur(10px); border-radius: 999px; color: var(--text-secondary); cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
         .appbar__back .icon { width: 18px; height: 18px; }
-        .appbar__back:hover { background: var(--bg-overlay-l1); color: var(--text-default); }
+        .appbar__back:hover { background: rgba(255,255,255,0.92); color: var(--text-default); border-color: var(--border-neutral-l2); }
         .appbar__back:active { background: var(--bg-overlay-l2); }
-        .appbar__title { font-size: 15px; font-weight: var(--font-weight-strong); color: var(--text-default); flex: 1; }
-        .appbar__live { display: inline-flex; align-items: center; gap: var(--spacer-4); font-size: 10px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
-        .appbar__livedot { position: relative; width: 6px; height: 6px; border-radius: var(--radius-full); background: var(--status-success-default); }
-        .appbar__livedot::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius-full); background: var(--status-success-default); animation: live-ping 2.4s ease-out infinite; }
+        .appbar__title, .appbar__live { display: none; }
         @keyframes live-ping {
             0%        { transform: scale(1); opacity: .45; }
             70%, 100% { transform: scale(2.4); opacity: 0; }
         }
 
         /* ── two-column settings grid ── */
-        .page-content { flex: 1; min-height: 0; overflow-y: auto; padding: var(--spacer-8) var(--spacer-12); display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacer-8); align-items: start; scrollbar-width: thin; scrollbar-color: var(--border-neutral-l2) transparent; }
+        .page-content { flex: 1; min-height: 0; overflow: hidden; padding: 10px 10px 48px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: start; scrollbar-width: thin; scrollbar-color: var(--border-neutral-l2) transparent; }
         .page-content::-webkit-scrollbar { width: 3px; }
         .page-content::-webkit-scrollbar-track { background: transparent; }
         .page-content::-webkit-scrollbar-thumb { background: var(--border-neutral-l2); border-radius: var(--radius-full); }
         .page-content::-webkit-scrollbar-thumb:hover { background: var(--border-neutral-l3); }
-        .settings-col { display: flex; flex-direction: column; gap: var(--spacer-8); min-width: 0; }
+        .settings-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 
-        .settings-foot { flex: 0 0 auto; padding: var(--spacer-8) var(--spacer-12); background: var(--bg-base-default); border-top: 1px solid var(--border-neutral-l1); }
-        .save-btn { width: 100%; height: 36px; justify-content: center; }
+        .settings-foot { position: absolute; left: 10px; right: 10px; bottom: 10px; padding: 0; background: none; border-top: none; z-index: 2; }
+        .save-btn { width: 100%; height: 34px; justify-content: center; box-shadow: 0 10px 24px -18px color-mix(in srgb, var(--bg-brand) 60%, transparent); }
         .save-btn:active { transform: translateY(1px); }
 
         /* ── group cards ── */
-        .set-card { background: var(--bg-base-default); border: 1px solid var(--border-neutral-l1); border-radius: var(--radius-8); overflow: hidden; animation: set-in .3s ease both; }
+        .set-card { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, #f8f8fb 100%); border: 1px solid color-mix(in srgb, var(--border-neutral-l1) 90%, white); border-radius: 14px; overflow: hidden; box-shadow: 0 8px 20px -18px rgba(0,0,0,0.22), 0 1px 2px rgba(0,0,0,0.04); animation: set-in .3s ease both; }
         .settings-col:nth-child(1) .set-card:nth-child(1) { animation-delay: 0s; }
         .settings-col:nth-child(2) .set-card:nth-child(1) { animation-delay: .05s; }
         .settings-col:nth-child(1) .set-card:nth-child(2) { animation-delay: .1s; }
         .settings-col:nth-child(2) .set-card:nth-child(2) { animation-delay: .15s; }
         @keyframes set-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 
-        .set-card__head { display: flex; align-items: center; gap: var(--spacer-6); padding: var(--spacer-8) var(--spacer-10); }
-        .set-card__chip { width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; background: var(--bg-base-secondary); border: 1px solid var(--border-neutral-l1); border-radius: var(--radius-6); color: var(--text-secondary); }
+        .set-card__head { display: flex; align-items: center; gap: 6px; padding: 8px 10px; }
+        .set-card__chip { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--bg-brand) 10%, white); border: 1px solid color-mix(in srgb, var(--bg-brand) 16%, var(--border-neutral-l1)); border-radius: 999px; color: var(--text-brand); }
         .set-card__chip .icon { width: var(--icon-size-12); height: var(--icon-size-12); }
         .set-card__title { margin: 0; font-size: 11px; font-weight: var(--font-weight-strong); color: var(--text-default); letter-spacing: .02em; }
+        .settings-col:first-child .set-card:nth-child(2) .set-card__chip { background: color-mix(in srgb, var(--status-success-default) 12%, white); border-color: color-mix(in srgb, var(--status-success-default) 18%, var(--border-neutral-l1)); color: var(--status-success-default); }
+        .settings-col:last-child .set-card:first-child .set-card__chip { background: color-mix(in srgb, var(--status-warning-default) 14%, white); border-color: color-mix(in srgb, var(--status-warning-default) 20%, var(--border-neutral-l1)); color: var(--status-warning-default); }
+        .settings-col:last-child .set-card:last-child .set-card__chip { background: color-mix(in srgb, var(--status-primary-default) 12%, white); border-color: color-mix(in srgb, var(--status-primary-default) 18%, var(--border-neutral-l1)); color: var(--status-primary-default); }
 
         /* ── rows ── */
         .set-row { display: flex; align-items: center; gap: var(--spacer-8); min-height: 34px; padding: var(--spacer-6) var(--spacer-10); transition: background .15s ease; }

@@ -16,13 +16,15 @@ nav = Nav()
 scr = None
 _scan_btn = _mode_lb = _target_lb = None
 _dots = []
+_ctl_els = []   # 頂部控制列,進頁淡入用
 
 
 @register(id="pca9685", title="PCA9685", icon="sun",
           desc="I2C PWM 檢查器", order=2, accent=0x1A73E8)
 def build():
-    global scr, _scan_btn, _mode_lb, _target_lb, _dots
+    global scr, _scan_btn, _mode_lb, _target_lb, _dots, _ctl_els
     _dots = []
+    _ctl_els = []
     nav.reset()
 
     scr = lv.obj(None)
@@ -31,6 +33,7 @@ def build():
     # 掃描鈕 + mode + target(頂部)
     _scan_btn = u.mk_btn(scr, "掃描", 12, 6, 64, 28, "primary")
     nav.add(_scan_btn, ITEM_BUTTON, on_change=_do_scan)
+    _ctl_els.append(_scan_btn)
 
     u.mk_label(scr, "模式", 84, 10, u.TEXT2, u.ZH)
     mbox = lv.obj(scr)
@@ -39,6 +42,7 @@ def build():
     _box_style(mbox)
     _mode_lb = u.mk_label(mbox, MODE_LABELS[0], 8, 4, u.TEXT, u.ZH)
     nav.add(mbox, ITEM_ENUM, on_change=_cycle_mode)
+    _ctl_els.append(mbox)
 
     u.mk_label(scr, "目標", 196, 10, u.TEXT2, u.ZH)
     tbox = lv.obj(scr)
@@ -47,6 +51,7 @@ def build():
     _box_style(tbox)
     _target_lb = u.mk_label(tbox, "廣播", 6, 4, u.TEXT, u.ZH)
     nav.add(tbox, ITEM_ENUM, on_change=_cycle_target)
+    _ctl_els.append(tbox)
 
     # 16 通道方格(左右各 8:左 ch0-7,右 ch8-15)
     u.mk_label(scr, "通道亮度", 12, 42, u.TEXT2, u.ZH)
@@ -148,6 +153,20 @@ def _cycle_target():
 
 
 def on_enter():
+    """進頁:頂部控制列輕位移,點陣保留階梯亮起。"""
+    for i, w in enumerate(_ctl_els):
+        try:
+            x, y = w.get_x(), w.get_y()
+            u.cancel(w)
+            w.set_style_opa(255, 0)
+            w.set_pos(x, y + 3)
+            u.anim_pos(w, x, y, 220, i * 35)
+        except Exception:
+            pass
+    for i, d in enumerate(_dots):
+        u.cancel(d)
+        d.set_style_opa(180, 0)
+        u.opa_to(d, 255, 220, 60 + (i // 8) * 80 + (i % 8) * 16, from_opa=180)
     s = _state()
     _post({"action": "start", "mode": s.get("mode", 0),
            "target": s.get("target", -1)})

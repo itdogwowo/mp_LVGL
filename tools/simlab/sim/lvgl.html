@@ -20,10 +20,28 @@
   <body>
 	<!-- LVGL-UI-STUDIO:跨源模式自帶 canvas（SDL 畫這裡,主頁面鏡像顯示） -->
 	<canvas id="simcanvas" width="320" height="240" style="width:320px;height:240px"></canvas>
+	<pre id="__diag" style="position:fixed;left:0;bottom:0;background:#000;color:#0f0;font:10px monospace;z-index:99;max-height:200px;overflow:auto;text-align:left;margin:0;padding:2px"></pre>
 	<!-- scripts -->
 	<script src="wasm_file_api.js"></script>
-    <script src="micropython.js"></script>
-    <script>
+    <script type="module">
+		// SimLab 9.3:自建 runtime 產物 micropython.js = ESM(官方 v1.29 + lv_binding + LVGL 9.3)。
+		// 用官方 loadMicroPython 高層 API(runPythonAsync / replInit / replProcessCharWithAsyncify)。
+		import { loadMicroPython } from "./micropython.js?v=20260812";
+		// SDL2.js 初始化時找 document.getElementById("canvas") → 橋接到 simcanvas(取代舊 Module.canvas)。
+		var _simOrigGetEl = document.getElementById.bind(document);
+		document.getElementById = function (id) {
+			return (id === "canvas") ? _simOrigGetEl("simcanvas") : _simOrigGetEl(id);
+		};
+		var _mp = null;   // 高層 API(runPythonAsync / replInit / replProcessCharWithAsyncify)
+		var _runPyAsync = null;  // 修正版 async 執行(ccall 加 async 選項)
+		var _diagEl = null;
+		function _diagLog(s) {
+			try {
+				if (!_diagEl) _diagEl = document.getElementById("__diag");
+				if (_diagEl) _diagEl.textContent += "[" + Date.now().toString().slice(-6) + "] " + s + "\n";
+			} catch (e) {}
+		}
+		_diagLog("module script start");
 		// LVGL-UI-STUDIO:跨源 iframe → config(cscript/design)與 do-str 走 postMessage。
 		// 主頁面(localhost ↔ 127.0.0.1)與本 iframe 跨源,卡死只影響本 iframe。
 		var _simConfig = null;
@@ -40,11 +58,12 @@
 			if (!d || typeof d !== "object") return;
 			if (d.type === "sim-config") {
 				_simConfig = d;
+	
 				for (var i = 0; i < _simConfigWaiters.length; i++) _simConfigWaiters[i]();
 				_simConfigWaiters = [];
 			} else if (d.type === "sim-do-str") {
 				if (d.code) {
-					try { mp_js_do_str(d.code); } catch (e2) {}
+					try { _runPyAsync(d.code); } catch (e2) {}
 					_simPerfLater();
 				}
 				_simAck();
@@ -56,21 +75,21 @@
 				else if (d.pin) code = "inject_edge(" + JSON.stringify(d.pin) + ")" + (d.step ? "; __step()" : "");
 				else if (d.do) code = d.do;
 				if (code) {
-					try { mp_js_do_str(code); } catch (e2) {}
+					try { _runPyAsync(code); } catch (e2) {}
 					_simPerfLater();
 				}
 				_simAck();
 			} else if (d.type === "sim-repl") {
 				// REPL 輸入:直接執行任意 Python(像真機的 REPL)
 				if (d.line) {
-					try { mp_js_do_str(d.line); } catch (e2) {}
+					try { _runPyAsync(d.line); } catch (e2) {}
 					_simPerfLater();
 				}
 				_simAck();
 			}
 		});
-		// 握手:告知主頁面本 iframe 就緒,請送 config(避免 load 事件 race)
-		try { window.parent.postMessage({ type: "sim-ready" }, "*"); } catch (e) {}
+			// 握手:告知主頁面本 iframe 就緒,請送 config(避免 load 事件 race)
+			try { window.parent.postMessage({ type: "sim-ready" }, "*"); } catch (e) {}
 		// ── SimLab:幀鏡像 + 性能 diff(跨源 → iframe 內讀像素,postMessage 送出)──
 		// 100ms 輪詢:off-screen 拷貝畫布 → raw RGBA 送父頁(putImageData 鏡像)+ 與
 		// 上一幀 diff(髒像素)→ sim-perf。display:none 的 timer 節流問題由心跳活動
@@ -169,13 +188,16 @@
             var lvBindingsCommitHash = (_simConfig && _simConfig.commit) || "";
 			var script = LZString.decompressFromEncodedURIComponent(compressed);
             console.warn("running init script");
-            await mp_js_do_str(`
-import imp, usys as sys
+            await _runPyAsync(`
+import sys
 sys.path.append('/sim/driver/js')
 sys.path.append('/sim/lib')
+import time
+time.sleep_ms(5)
+print('init sleep ok')
             `);
             console.warn("running main script");
-			await mp_js_do_str(script);
+			await _runPyAsync(script);
 		}
 
 		function getSearchArg(argname) {
@@ -189,14 +211,12 @@ sys.path.append('/sim/lib')
 			return custom;
 		}
 
-		Module.canvas = (function() {
-			var canvas = document.getElementById('simcanvas');
-			return canvas;
-		})();
+		// SimLab 9.3:canvas 由上面的 getElementById shim 橋接(canvas → simcanvas),取代舊 Module.canvas。
 
         var inputChars = [];
 		/*Initialization function*/
 		window.startRunning = async function() {
+
 			// 跨源模式:等待主頁面送 config(cscript/design)
 			await _simWaitConfig();
 			/*Setup printing event handler*/
@@ -217,7 +237,81 @@ sys.path.append('/sim/lib')
 			}
 			/*Initialize MicroPython itself*/
 			console.log("Loading with " + requestedMemory + " bytes of heap");
-			mp_js_init(requestedMemory);
+			// SimLab 9.3:ESM runtime — 官方 loadMicroPython(內部 mp_js_init(pystack, heap) + proxy_c_init)
+			// url: build 產物預設找 micropython.wasm,sim 目錄慣用 firmware.wasm
+			try {
+			_mp = await loadMicroPython({
+				url: "./firmware.wasm?v=20260812",
+				heapsize: requestedMemory,
+				stdout: function (line) { sendText(line + "\n"); },
+				stderr: function (line) { sendText(line + "\n"); },
+			});
+			} catch (e) {
+				sendText("✗ loadMicroPython 失敗: " + (e && (e.message || String(e)) || e) + "\n");
+				throw e;
+			}
+			// SimLab 9.3:ESM runtime 無全域 FS(官方 v1.20 傳統 script 有)→ 接到 globalThis,供 MEMFS seed 使用
+			globalThis.FS = _mp.FS;
+			// SimLab 9.3:SDL2.js 用 Module['canvas'] 綁定畫布(官方 v1.20 靠 Module.canvas 全域)→ 補上
+			globalThis.Module.canvas = document.getElementById('simcanvas');
+			// SimLab 9.3:官方 api.js 的 runPythonAsync 沒加 ccall async 選項(emscripten 3.1.64
+			// 對 ASYNCIFY 函數有執行時檢查)→ 自訂版本(等同官方邏輯 + {async:true})。
+			// 不轉換回傳值(proxy_convert_* 是 ESM module 內部函數,lvgl.html 拿不到)。
+			_runPyAsync = function (code) {
+				var M = _mp._module;
+				var len = M.lengthBytesUTF8(code);
+				var buf = M._malloc(len + 1);
+				M.stringToUTF8(code, buf, len + 1);
+				var value = M._malloc(3 * 4);
+				var p = M.ccall("mp_js_do_exec_async", "number", ["pointer", "number", "pointer"], [buf, len, value], { async: true });
+				// async 函數異步執行(sleep 等 asyncify 掛起點)→ 指針必須在完成後才釋放
+				if (p && typeof p.then === "function") {
+					p.then(function () {
+						M._free(buf);
+						M._free(value);
+					}, function (e) {
+						M._free(buf);
+						M._free(value);
+						sendText("✗ exec 失敗: " + (e && (e.message || String(e)) || e) + "\n");
+					});
+				} else {
+					M._free(buf);
+					M._free(value);
+				}
+				return p || null;
+			};
+			// SimLab 9.3:SDL2.js WebGL 渲染在瀏覽器與 asyncify 衝突(卡死)→ 用 JS 橋渲染:
+			// Python flush_cb 把 RGB565 像素送到這裡 → 畫到 simcanvas(鏡像直播給主頁面)。
+			try {
+				_mp.registerJsModule("simlab_canvas", {
+					putPixels: function (x, y, w, h, data) {
+						try {
+							var arr = _mp.PyProxy.toJs(data);
+							var canvas = document.getElementById("simcanvas");
+							var ctx = canvas.getContext("2d");
+							var img = ctx.createImageData(w, h);
+							var d = img.data;
+							for (var i = 0, j = 0; i < arr.length; i += 2, j += 4) {
+								var v = arr[i] | (arr[i + 1] << 8);
+								d[j] = ((v >> 11) & 0x1F) << 3;
+								d[j + 1] = ((v >> 5) & 0x3F) << 2;
+								d[j + 2] = (v & 0x1F) << 3;
+								d[j + 3] = 255;
+							}
+							ctx.putImageData(img, x, y);
+							return 1;
+						} catch (e) {
+							sendText("✗ putPixels: " + e + "\n");
+							return 0;
+						}
+					}
+				});
+	
+			} catch (e) {
+				sendText("✗ registerJsModule: " + e + "\n");
+			}
+			sendText("[runtime] MicroPython booted\n");
+			console.log("[runtime] MicroPython booted (" + _mp._module.HEAPU8.length + "B wasm)");
 			// SimLab:開機 baseline — 在 cscript 渲染前捕捉(空白畫布),讓開機幀能被 diff 計入
 			_perfPrev = _perfSnap();
 
@@ -239,11 +333,15 @@ sys.path.append('/sim/lib')
                 return null;
               }
               function ensureDir(path) {
+                // SimLab 9.3:emscripten 3.1.64 的 FS.mkdir 對已存在目錄拋無 code 的錯誤
+                // (舊版 ErrnoError 有 .code='EEXIST')→ 改用 analyzePath 先檢查,不依賴錯誤格式
                 var parts = path.split('/').filter(Boolean);
-                var cur = '/';
+                var cur = '';
                 for (var i = 0; i < parts.length; i++) {
-                  cur = cur + parts[i] + '/';
-                  try { FS.mkdir(cur.replace(/\/$/, '')); } catch (e) { if (e && e.code !== 'EEXIST') { throw e; } }
+                  cur = cur + '/' + parts[i];
+                  try {
+                    if (!FS.analyzePath(cur).exists) FS.mkdir(cur);
+                  } catch (e) { /* 已存在或其它,繼續 */ }
                 }
               }
               function writePy(vfsPath, url) {
@@ -270,7 +368,8 @@ sys.path.append('/sim/lib')
               ];
               var ok = 0;
               for (var i = 0; i < files.length; i++) {
-                if (writePy(files[i][0], files[i][1])) ok++;
+                var r = writePy(files[i][0], files[i][1]);
+                if (r) ok++;
               }
               window.__lvgl_sim_seed_ok = ok;
               console.log("[MEMFS] seeded " + ok + "/" + files.length + " driver/lib .py (sim base=" + simBase + ")");
@@ -517,52 +616,40 @@ var compressedScript = (_simConfig && _simConfig.cscript) || null;
                     await decompressScript(compressedScript);
                 } catch(e) {
                     console.error(e);
-                    sendText("An error occured while loading: " + (e && (e.message || String(e)) || e));
+                    sendText("An error occured while loading: " + (e && (e.message || String(e)) || e) + "\n");
                     try { window.top.reenableButton(); } catch (e2) {}
                     return;
                 }
             }
 
-			/*Setup lv_task_handler loop*/
-            var the_mp_handle_pending = Module.cwrap('mp_handle_pending', null, [], { async: true });
-            var lastPromise = null;
+			/*Setup lv_task_handler loop(SimLab 9.3:REPL 由 replProcessCharWithAsyncify 泵,替代 v1.20 的 mp_handle_pending) */
 			async function handle_pending() {
-                var startTime = performance.now();
-                while(inputChars.length > 0) {
-                    c = inputChars.shift();
-                    if(c == 3 && currentSleepingResolve != null) {
-                        currentSleepingResolve();
-                        if(lastPromise != null) {
-                            await lastPromise;
-                            lastPromise = null;
-                        }
-                    } else {
-                        if(lastPromise != null) {
-                            await lastPromise;
-                            lastPromise = null;
-                        }
-                        lastPromise = mp_js_process_char(c);
-                    }
-                }
-
-                if(currentSleepingResolve == null) {
-                    if(lastPromise != null) {
-                        await lastPromise;
-                    }
-                    lastPromise = the_mp_handle_pending();
-                }
-                setTimeout(handle_pending, Math.max(0, 5-(performance.now()-startTime)));
+				while(inputChars.length > 0) {
+					var ch = inputChars.shift();
+					try { await _mp.replProcessCharWithAsyncify(ch); } catch (e) {}
+				}
+				setTimeout(handle_pending, 5);
 			}
 			/*Initialize the REPL.*/
-                        mp_js_init_repl();
-			/*Start the main loop, asynchronously.*/
-			handle_pending();
-			_simAck();
+			// SimLab 9.3:asyncify 執行後,用 setTimeout(0) 跳出當下微任務鏈再繼續(避免 rewind 死鎖)
+			setTimeout(function () {
+	
+				try { _mp.replInit(); } catch (e) { sendText("✗ replInit: " + e + "\n"); }
+	
+				/*Start the main loop, asynchronously.*/
+				handle_pending();
+	
+				_simAck();
+	
+			}, 0);
 			try { window.top.reenableButton(); } catch (e) {}
 		}
-                window.process_char = function(c) {
-                    inputChars.push(c);
-                }
+	                window.process_char = function(c) {
+	                    inputChars.push(c);
+	                }
+		// SimLab 9.3:ESM runtime 無自動啟動(官方 v1.20 micropython.js 尾端 setTimeout(startRunning,0))
+		// module script 在 DOM 解析後執行,這裡手動觸發(對齊原時序)。
+		setTimeout(function () { window.startRunning(); }, 0);
     </script>
   </body>
 </html>

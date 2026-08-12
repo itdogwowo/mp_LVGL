@@ -111,9 +111,17 @@ def mk_icon(parent, name, x, y, color=TEXT2):
 
 # ====== 動效 helper(src/lv_ui_fx.py) ======
 try:
-    from lv_ui_fx import pulse as _fx_pulse, fade_in as _fx_fade_in
+    from lv_ui_fx import (
+        pulse as _fx_pulse, fade_in as _fx_fade_in,
+        cancel as _fx_cancel, anim_pos as _fx_anim_pos,
+        opa_to as _fx_opa_to, scale_to as _fx_scale_to,
+        border_width_to as _fx_bw_to, color_anim as _fx_color_anim,
+        num_style_to as _fx_num_to,
+    )
 except Exception:
     _fx_pulse = _fx_fade_in = None
+    _fx_cancel = _fx_anim_pos = _fx_opa_to = _fx_scale_to = None
+    _fx_bw_to = _fx_color_anim = _fx_num_to = None
 
 def pulse(wid, period_ms=1500, min_opa=110, max_opa=255):
     if _fx_pulse:
@@ -123,6 +131,43 @@ def pulse(wid, period_ms=1500, min_opa=110, max_opa=255):
 def fade_in(wid, dy=6, time_ms=300, delay_ms=0):
     if _fx_fade_in:
         return _fx_fade_in(wid, dy, time_ms, delay_ms)
+    return None
+
+def cancel(wid=None):
+    """取消 widget(或全部)動畫,換目標時先呼叫避免殘影。"""
+    if _fx_cancel:
+        return _fx_cancel(wid)
+    return None
+
+def anim_pos(wid, x, y, time_ms=280, delay_ms=0):
+    if _fx_anim_pos:
+        return _fx_anim_pos(wid, x, y, time_ms, delay_ms)
+    return None
+
+def opa_to(wid, opa, time_ms=280, delay_ms=0, from_opa=None):
+    if _fx_opa_to:
+        return _fx_opa_to(wid, opa, time_ms, delay_ms, from_opa)
+    return None
+
+def scale_to(wid, pct, time_ms=280, delay_ms=0):
+    if _fx_scale_to:
+        return _fx_scale_to(wid, pct, time_ms, delay_ms)
+    return None
+
+def border_width_to(wid, width, time_ms=260, delay_ms=0):
+    if _fx_bw_to:
+        return _fx_bw_to(wid, width, time_ms, delay_ms)
+    return None
+
+def num_style_to(wid, setter, target, time_ms=180, delay_ms=0, cur=None):
+    if _fx_num_to:
+        return _fx_num_to(wid, setter, target, time_ms, delay_ms, cur)
+    setter(target)
+    return None
+
+def color_anim(wid, setter, from_hex, to_hex, time_ms=260, delay_ms=0):
+    if _fx_color_anim:
+        return _fx_color_anim(wid, setter, from_hex, to_hex, time_ms, delay_ms)
     return None
 
 def font(*names):
@@ -318,12 +363,25 @@ def sw_get(sw):
 
 # ====== 焦點視覺 ======
 def set_focus(wid, on, editing=False):
+    """焦點外框:外框寬度 180ms ease-out 過渡(on→3px / off→0),換色即時。"""
+    cancel(wid)
     if on:
         wid.set_style_outline_color(C(WARNING if editing else PRIMARY), 0)
-        wid.set_style_outline_width(3, 0)
         wid.set_style_outline_pad(3, 0)
+        _focus_outline(wid, 3)
     else:
-        wid.set_style_outline_width(0, 0)
+        _focus_outline(wid, 0)
+
+
+def _focus_outline(wid, width):
+    """外框寬度動畫(讀不到目前值時直接設定)。"""
+    cur = None
+    try:
+        cur = wid.get_style_outline_width(0)
+    except Exception:
+        pass
+    num_style_to(wid, lambda v: wid.set_style_outline_width(v, 0),
+                 width, 180, 0, cur=cur)
 
 
 # ====== list helper ======
@@ -369,18 +427,42 @@ def led_set(led, on, on_color=SUCCESS, off_color=BORDER):
         pass
 
 
+_list_prev = {}   # id(btns) → (idx, color),追蹤上次選中做漸變
+
 def list_select(btns, idx, color=PRIMARY):
     """標示 list 第 idx 項為選中(背景色);其他項清除。
+    換高亮時背景/文字色 200ms ease-out 漸變,快速切換先取消舊動畫。
     color: PRIMARY(選中) / WARNING(編輯中/已送出等回覆) / SUCCESS(已確認)。"""
     n = len(btns)
     if n == 0:
         return
     idx = max(0, min(idx, n - 1))
+    key = id(btns)
+    prev = _list_prev.get(key)
+    moved = prev is not None and prev[0] != idx
+    _list_prev[key] = (idx, color)
     for i, b in enumerate(btns):
         try:
             if i == idx:
-                b.set_style_bg_color(C(color), 0)
-                b.set_style_text_color(C(0xFFFFFF), 0)
+                if moved and _fx_color_anim is not None:
+                    cancel(b)
+                    _fx_color_anim(b, lambda c, _b=b: _b.set_style_bg_color(c, 0),
+                                   BG, color, 200, 0)
+                    _fx_color_anim(b, lambda c, _b=b: _b.set_style_text_color(c, 0),
+                                   TEXT, 0xFFFFFF, 200, 0)
+                else:
+                    b.set_style_bg_color(C(color), 0)
+                    b.set_style_text_color(C(0xFFFFFF), 0)
+            elif moved and prev is not None and i == prev[0]:
+                if _fx_color_anim is not None:
+                    cancel(b)
+                    _fx_color_anim(b, lambda c, _b=b: _b.set_style_bg_color(c, 0),
+                                   color, BG, 200, 0)
+                    _fx_color_anim(b, lambda c, _b=b: _b.set_style_text_color(c, 0),
+                                   0xFFFFFF, TEXT, 200, 0)
+                else:
+                    b.set_style_bg_color(C(BG), 0)
+                    b.set_style_text_color(C(TEXT), 0)
             else:
                 b.set_style_bg_color(C(BG), 0)
                 b.set_style_text_color(C(TEXT), 0)

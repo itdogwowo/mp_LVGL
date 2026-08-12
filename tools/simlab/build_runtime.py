@@ -96,7 +96,7 @@ def _sh(desc: str) -> bool:
 def _banner_of(p: Path) -> str | None:
     try:
         data = p.read_bytes()
-        m = re.search(rb"MicroPython v[^\x00\" ]+[^\x00\"]*", data)
+        m = re.search(rb"MicroPython (?:v)?[^\x00\" ]+", data)
         return m.group(0).decode("utf-8", errors="replace") if m else None
     except OSError:
         return None
@@ -322,7 +322,7 @@ def cmd_swap(args) -> None:
     refs = _resolve_refs()
     # 備份現有 runtime
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    bak = SIM_DIR / ".bak-" + ts
+    bak = SIM_DIR / (".bak-" + ts)
     bak.mkdir(exist_ok=True)
     for f in _DEPS:
         p = SIM_DIR / f

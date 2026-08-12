@@ -7,7 +7,7 @@
 #   inject_enc/inject_edge — 模擬 HwSampleTask 累加寫入(不覆寫未消費 delta)
 #   _echo_tick     — executor 0x1502 回音模擬(_display_cmd → _display_*)
 #   _tick          — LVGL 渲染 + [perf] 儀表(render_us 印到 REPL)
-import usys as _sys
+import sys as _sys
 
 _W = $W
 _H = $H
@@ -248,23 +248,36 @@ if not _lv.is_initialized():
     _lv.init()
 _disp = None
 try:
-    _disp = _lv.sdl_window_create(_W, _H)
-    print("[simlab] display: SDL window {}x{}".format(_W, _H))
-except Exception as _e:
-    print("[simlab] sdl_window_create fail:", _e)
-    try:
-        _disp = _lv.display_create(_W, _H)
-        _buf = bytearray(_W * 40 * 2)
-        _disp.set_buffers(_buf, None, len(_buf), 0)
+    _disp = _lv.display_create(_W, _H)
+    _buf = bytearray(_W * 40 * 2)
+    _disp.set_buffers(_buf, None, len(_buf), 0)
 
-        def _fb(drv, area, cp):
+    # SimLab 9.3:SDL2.js WebGL 渲染在瀏覽器與 asyncify 衝突 → JS 橋渲染:
+    # flush_cb 把 RGB565 像素送 simlab_canvas.putPixels → iframe canvas → 鏡像直播
+    try:
+        import simlab_canvas
+    except Exception:
+        simlab_canvas = None
+
+    def _fb(drv, area, cp):
+        try:
+            w = area.x2 - area.x1 + 1
+            h = area.y2 - area.y1 + 1
+            size = w * h * 2
+            data = cp.__dereference__(size)
+            if simlab_canvas is not None:
+                simlab_canvas.putPixels(area.x1, area.y1, w, h, data)
+            drv.flush_ready()
+        except Exception:
             try:
                 drv.flush_ready()
             except Exception:
                 pass
-        _disp.set_flush_cb(_fb)
-    except Exception:
-        pass
+
+    _disp.set_flush_cb(_fb)
+    print("[simlab] display: canvas {}x{} (js bridge)".format(_W, _H))
+except Exception as _e:
+    print("[simlab] canvas display fail:", _e)
 
 _tick_last = _time.ticks_ms()
 _perf_n = 0

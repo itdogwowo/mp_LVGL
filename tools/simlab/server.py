@@ -517,7 +517,7 @@ def _wasm_banner() -> str | None:
         return _banner_cache[1]
     try:
         data = f.read_bytes()
-        m = re.search(rb"MicroPython v[^\x00\" ]+[^\x00\"]*", data)
+        m = re.search(rb"MicroPython (?:v)?[^\x00\" ]+", data)
         banner = m.group(0).decode("utf-8", errors="replace") if m else None
     except OSError:
         banner = None
