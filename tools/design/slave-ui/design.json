@@ -21,20 +21,13 @@
       "source": "lvgl"
     },
     {
-      "id": "monitor",
-      "title": "數據監控",
+      "id": "pca9685",
+      "title": "PCA9685",
       "tag": "feature",
-      "web_file": "html/page/monitor.html",
-      "lvgl_file": "",
-      "source": "html"
-    },
-    {
-      "id": "overview",
-      "title": "儀表盤",
-      "tag": "feature",
-      "web_file": "html/page/overview.html",
-      "lvgl_file": "",
-      "source": "html"
+      "web_file": "html/page/pca9685.html",
+      "lvgl_file": "lvgl/ui/page/pca9685.py",
+      "icon": "sun",
+      "source": "lvgl"
     },
     {
       "id": "settings",
@@ -44,34 +37,19 @@
       "lvgl_file": "lvgl/ui/page/settings.py",
       "icon": "settings",
       "source": "lvgl"
-    },
-    {
-      "id": "pca9685",
-      "title": "PCA9685",
-      "tag": "feature",
-      "web_file": "",
-      "lvgl_file": "lvgl/ui/page/pca9685.py",
-      "icon": "sun",
-      "source": "lvgl"
     }
   ],
   "interactions": [
     {
-      "id": "overview",
-      "type": "button",
-      "label": "overview",
-      "file": "html/launcher.html"
-    },
-    {
-      "id": "monitor",
-      "type": "button",
-      "label": "monitor",
-      "file": "html/launcher.html"
-    },
-    {
       "id": "control_panel",
       "type": "button",
       "label": "control_panel",
+      "file": "html/launcher.html"
+    },
+    {
+      "id": "pca9685",
+      "type": "button",
+      "label": "pca9685",
       "file": "html/launcher.html"
     },
     {
@@ -114,21 +92,15 @@
   "nav": [
     {
       "from": "launcher",
-      "dom_id": "overview",
-      "to": "overview",
-      "label": "overview"
-    },
-    {
-      "from": "launcher",
-      "dom_id": "monitor",
-      "to": "monitor",
-      "label": "monitor"
-    },
-    {
-      "from": "launcher",
       "dom_id": "control_panel",
       "to": "control_panel",
       "label": "control_panel"
+    },
+    {
+      "from": "launcher",
+      "dom_id": "pca9685",
+      "to": "pca9685",
+      "label": "pca9685"
     },
     {
       "from": "launcher",
@@ -143,13 +115,7 @@
       "label": "返回"
     },
     {
-      "from": "monitor",
-      "dom_id": "btn-back",
-      "to": "launcher",
-      "label": "返回"
-    },
-    {
-      "from": "overview",
+      "from": "pca9685",
       "dom_id": "btn-back",
       "to": "launcher",
       "label": "返回"
@@ -167,8 +133,7 @@
       "html/components.css",
       "html/launcher.html",
       "html/page/control_panel.html",
-      "html/page/monitor.html",
-      "html/page/overview.html",
+      "html/page/pca9685.html",
       "html/page/settings.html"
     ],
     "lvgl": [

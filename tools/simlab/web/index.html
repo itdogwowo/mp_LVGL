@@ -39,7 +39,7 @@
   #repl { height: 320px; overflow-y: auto; background: #0c0f12; border: 1px solid var(--line);
           border-radius: 6px; padding: 8px; font: 11px/1.45 Consolas, monospace;
           white-space: pre-wrap; word-break: break-all; }
-  #repl .perf { color: #6a7580; }
+  #repl .dbg { color: #55606c; }
   #perf-grid { display: grid; grid-template-columns: 150px 1fr; gap: 6px 12px; }
   #perf-grid .k { color: var(--dim); }
   .bars { display: flex; align-items: center; gap: 2px; height: 14px; }
@@ -179,6 +179,8 @@
         <div class="row" style="margin-top:0">
           <button id="btn-pause" title="暫停:操作只注入不步進,REPL 直接輸指令(像真機 Ctrl-C)">⏸ 暫停</button>
           <button id="btn-step" title="單步:執行一幀 __step()">單步</button>
+          <button id="btn-dbg" title="顯示/隱藏 debug 行(perf/echo/frame)">🔊</button>
+          <button id="btn-repl-clr" title="清空 REPL 轉錄">🧹</button>
           <input id="repl-in" placeholder="REPL:直接執行 Python 進模擬器,如 bus.shared.get('_display_mode') / inject_enc(3) / __step()"
                  style="flex:1" spellcheck="false">
         </div>
@@ -276,11 +278,13 @@ function api(url, opts) {
 // ---------- REPL 轉錄(像真機 >>> 提示字元) ----------
 let replBuf = "";
 let curPrompt = null;
+const DBG_RE = /^\[(perf|sim-perf|echo|frame|diff|wsp|bin|MEMFS)\]/;
 
 function appendLine(s, cls) {
   const div = document.createElement("div");
   if (cls) div.className = cls;
   div.textContent = s;
+  if (cls === "dbg" && dbgHidden) div.style.display = "none";
   state.repl.insertBefore(div, curPrompt);
   state.repl.scrollTop = state.repl.scrollHeight;
 }
@@ -298,11 +302,11 @@ function out(text) {
   replBuf += String(text || "");
   const lines = replBuf.split(/\r?\n/);
   replBuf = lines.pop() || "";
-  for (const ln of lines) appendLine(ln);
+  for (const ln of lines) appendLine(ln, DBG_RE.test(ln) ? "dbg" : undefined);
 }
 
 function log(text, cls) {
-  appendLine(String(text), cls);
+  appendLine(String(text), cls === "perf" ? "dbg" : cls);
 }
 
 // ---------- 載入 projects / config / runtime ----------
@@ -414,12 +418,20 @@ function wireIframe() {
       // HTML 稿橋接:點 [data-dom-id] → 跳轉對應 LVGL 頁面
       let page = String(d.page || "").replace(/^card-/, "");
       if (!page) return;
+      if (page === "btn-back") page = "launcher";   // 返回鈕
+      if (/^act-/.test(page)) return;               // 動作按鈕(非頁面)忽略
       // 檢查此項目有沒有對應 LVGL 頁面(HTML 稿可能含板端未實作的頁)
       const known = new Set(["launcher"]);
       (state.pairs || []).forEach((p) => known.add(p.id));
       if (known.has(page)) {
         log("↪ HTML 按鈕跳轉 → " + page);
         simPost("sim-input", { do: "__go(" + JSON.stringify(page) + ")" });
+        // 同步 HTML 稿預覽到同一頁(點卡片 → 兩邊一起進)
+        const idx = (state.pairs || []).findIndex((p) => p.id === page);
+        if (idx >= 0) {
+          $("html-sel").value = String(idx);
+          $("html-frame").src = SIM_ORIGIN + state.pairs[idx].html_url;
+        }
       } else {
         log("✗ HTML 按鈕「" + page + "」:此項目沒有對應 LVGL 頁面(僅 HTML 稿)");
       }

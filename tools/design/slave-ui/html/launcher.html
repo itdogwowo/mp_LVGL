@@ -1074,36 +1074,26 @@ pre {
                 <button class="carousel__arrow carousel__arrow--prev" id="prevBtn" type="button" aria-label="上一個"><i data-lucide="chevron-left" class="icon"></i></button>
                 <div class="carousel__viewport" id="viewport">
                     <div class="carousel__track" id="track">
-                        <button class="app-card" data-dom-id="overview" type="button">
-                            <span class="app-card__top">
-                                <span class="app-card__icon app-card__icon--brand"><i data-lucide="layout-dashboard" class="icon"></i></span>
-                                <span class="app-card__title">儀表盤</span>
-                            </span>
-                            <span class="app-card__desc">整體狀態、警報與關鍵指標一覽</span>
-                            <span class="app-card__foot">
-                                <span class="app-card__stat">24 感測器在線</span>
-                                <span class="app-card__go">進入 <i data-lucide="chevron-right" class="icon"></i></span>
-                            </span>
-                        </button>
-                        <button class="app-card" data-dom-id="monitor" type="button">
-                            <span class="app-card__top">
-                                <span class="app-card__icon app-card__icon--success"><i data-lucide="activity" class="icon"></i></span>
-                                <span class="app-card__title">數據監控</span>
-                            </span>
-                            <span class="app-card__desc">各通道即時讀數與趨勢圖表</span>
-                            <span class="app-card__foot">
-                                <span class="app-card__stat">取樣 1 Hz</span>
-                                <span class="app-card__go">進入 <i data-lucide="chevron-right" class="icon"></i></span>
-                            </span>
-                        </button>
+                        
                         <button class="app-card" data-dom-id="control_panel" type="button">
                             <span class="app-card__top">
                                 <span class="app-card__icon app-card__icon--warning"><i data-lucide="sliders-horizontal" class="icon"></i></span>
-                                <span class="app-card__title">設備控制</span>
+                                <span class="app-card__title">控制面板</span>
                             </span>
-                            <span class="app-card__desc">繼電器開關、參數與運行模式</span>
+                            <span class="app-card__desc">模式 · 亮度 · 倒數計時</span>
                             <span class="app-card__foot">
-                                <span class="app-card__stat">4 繼電器</span>
+                                <span class="app-card__stat">5 種模式</span>
+                                <span class="app-card__go">進入 <i data-lucide="chevron-right" class="icon"></i></span>
+                            </span>
+                        </button>
+                        <button class="app-card" data-dom-id="pca9685" type="button">
+                            <span class="app-card__top">
+                                <span class="app-card__icon app-card__icon--brand"><i data-lucide="sun" class="icon"></i></span>
+                                <span class="app-card__title">PCA9685</span>
+                            </span>
+                            <span class="app-card__desc">I2C PWM 檢查器 · 16 通道</span>
+                            <span class="app-card__foot">
+                                <span class="app-card__stat">16 CH</span>
                                 <span class="app-card__go">進入 <i data-lucide="chevron-right" class="icon"></i></span>
                             </span>
                         </button>
@@ -1112,12 +1102,13 @@ pre {
                                 <span class="app-card__icon app-card__icon--neutral"><i data-lucide="settings" class="icon"></i></span>
                                 <span class="app-card__title">系統設定</span>
                             </span>
-                            <span class="app-card__desc">網路、顯示與系統偏好設定</span>
+                            <span class="app-card__desc">網路 · Wi-Fi · 裝置資訊</span>
                             <span class="app-card__foot">
                                 <span class="app-card__stat">v2.4.1</span>
                                 <span class="app-card__go">進入 <i data-lucide="chevron-right" class="icon"></i></span>
                             </span>
                         </button>
+
                     </div>
                 </div>
                 <button class="carousel__arrow carousel__arrow--next" id="nextBtn" type="button" aria-label="下一個"><i data-lucide="chevron-right" class="icon"></i></button>

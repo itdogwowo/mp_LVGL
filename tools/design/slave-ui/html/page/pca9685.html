@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>數據監控</title>
+    <title>PCA9685</title>
     <style id="theme-vars">
 /**
  * TraeWork design library tokens
@@ -1062,208 +1062,145 @@ pre {
     <main>
         <header class="appbar">
             <button class="appbar__back" data-dom-id="btn-back" aria-label="返回"><i data-lucide="chevron-left" class="icon"></i></button>
-            <span class="appbar__title">數據監控</span>
-            <span class="appbar__live"><span class="appbar__livedot"></span>即時</span>
+            <span class="appbar__title">PCA9685</span>
+            <span class="appbar__live"><span class="appbar__livedot"></span>就緒</span>
         </header>
 
+        
         <section class="page-content">
-            <div class="mon-cols">
-                <!-- Left column: reading + range + sparkline -->
-                <div class="mon-col mon-col--main">
-                    <div class="mon-read">
-                        <span class="mon-read__label">通道 T-01 · 溫度</span>
-                        <div class="mon-read__row">
-                            <span class="mon-read__value">62.4°C</span>
-                            <span class="mon-delta"><i data-lucide="trending-up" class="icon"></i>+1.2° / 5min</span>
-                        </div>
+            <!-- 頂部:掃描 + 模式 + 目標 -->
+            <div class="pca-ctl">
+                <button type="button" class="ds-btn ds-btn--brand"><i data-lucide="scan" class="icon"></i>掃描</button>
+                <span class="pca-ctl__lbl">模式</span>
+                <span class="pca-ctl__box">逐腳呼吸</span>
+                <span class="pca-ctl__lbl">目標</span>
+                <span class="pca-ctl__box">廣播</span>
+            </div>
+            <!-- 16 通道亮度 -->
+            <div class="pca-dots">
+                <span class="pca-dots__title">通道亮度</span>
+                <div class="pca-grid">
+                    <div class="pca-col">
+                        <div class="pca-cell-row"><span class="pca-cell on"></span><span class="pca-cell-no">ch0</span></div>
+                        <div class="pca-cell-row"><span class="pca-cell on"></span><span class="pca-cell-no">ch1</span></div>
+                        <div class="pca-cell-row"><span class="pca-cell on"></span><span class="pca-cell-no">ch2</span></div>
+                        <div class="pca-cell-row"><span class="pca-cell"></span><span class="pca-cell-no">ch3</span></div>
+                        <div class="pca-cell-row"><span class="pca-cell"></span><span class="pca-cell-no">ch4</span></div>
+                        <div class="pca-cell-row"><span class="pca-cell on"></span><span class="pca-cell-no">ch5</span></div>
+                        <div class="pca-cell-row"><span class="pca-cell"></span><span class="pca-cell-no">ch6</span></div>
+                        <div class="pca-cell-row"><span class="pca-cell"></span><span class="pca-cell-no">ch7</span></div>
                     </div>
-
-                    <div class="mon-range" role="group" aria-label="時間範圍">
-                        <button class="mon-pill" type="button">5分</button>
-                        <button class="mon-pill is-active" type="button" aria-pressed="true">30分</button>
-                        <button class="mon-pill" type="button">1時</button>
-                        <span class="mon-range__spacer"></span>
-                        <button class="ds-btn ds-btn--tertiary ds-btn--icon ds-btn--sm mon-refresh" type="button" aria-label="重新整理">
-                            <i data-lucide="refresh-cw" class="icon"></i>
-                        </button>
+                    <div class="pca-col">
+                        <div class="pca-cell-row"><span class="pca-cell"></span><span class="pca-cell-no">ch8</span></div>
+                        <div class="pca-cell-row"><span class="pca-cell on"></span><span class="pca-cell-no">ch9</span></div>
+                        <div class="pca-cell-row"><span class="pca-cell on"></span><span class="pca-cell-no">ch10</span></div>
+                        <div class="pca-cell-row"><span class="pca-cell"></span><span class="pca-cell-no">ch11</span></div>
+                        <div class="pca-cell-row"><span class="pca-cell"></span><span class="pca-cell-no">ch12</span></div>
+                        <div class="pca-cell-row"><span class="pca-cell"></span><span class="pca-cell-no">ch13</span></div>
+                        <div class="pca-cell-row"><span class="pca-cell on"></span><span class="pca-cell-no">ch14</span></div>
+                        <div class="pca-cell-row"><span class="pca-cell"></span><span class="pca-cell-no">ch15</span></div>
                     </div>
-
-                    <section class="mon-card mon-spark" aria-label="溫度趨勢">
-                        <svg class="mon-spark__svg" viewBox="0 0 158 52" preserveAspectRatio="none" aria-hidden="true">
-                            <defs>
-                                <linearGradient id="mfill" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" style="stop-color: var(--bg-brand);" stop-opacity="0.3"/>
-                                    <stop offset="100%" style="stop-color: var(--bg-brand);" stop-opacity="0"/>
-                                </linearGradient>
-                            </defs>
-                            <line class="mon-grid" x1="0" y1="13" x2="158" y2="13"/>
-                            <line class="mon-grid" x1="0" y1="26" x2="158" y2="26"/>
-                            <line class="mon-grid" x1="0" y1="39" x2="158" y2="39"/>
-                            <path class="mon-area" fill="url(#mfill)" d="M0,52 L0,46.8 L10.5,42.9 L21,44.8 L31.5,36.8 L42,31.4 L52.5,34.6 L63,28 L73.5,22.6 L84,25.8 L94.5,19.2 L105,15.5 L115.5,18.2 L126,11.8 L136.5,14.8 L147,10.1 L158,12.8 L158,52 Z"/>
-                            <polyline class="mon-line" fill="none" points="0,46.8 10.5,42.9 21,44.8 31.5,36.8 42,31.4 52.5,34.6 63,28 73.5,22.6 84,25.8 94.5,19.2 105,15.5 115.5,18.2 126,11.8 136.5,14.8 147,10.1 158,12.8"/>
-                            <circle class="mon-dot-ring" cx="158" cy="12.8" r="5"/>
-                            <circle class="mon-dot" cx="158" cy="12.8" r="2.5"/>
-                        </svg>
-                        <div class="mon-spark__x">
-                            <span>14:00</span>
-                            <span>14:15</span>
-                            <span>14:30</span>
-                        </div>
-                    </section>
                 </div>
-
-                <!-- Right column: channel status card -->
-                <section class="mon-card mon-ch" aria-label="通道狀態">
-                    <div class="mon-ch__head">
-                        <span class="mon-ch__title">通道狀態</span>
-                        <span class="mon-ch__count">4</span>
-                    </div>
-                    <div class="mon-ch__list">
-                        <div class="mon-ch__row">
-                            <span class="mon-ch__ico"><i data-lucide="thermometer" class="icon"></i></span>
-                            <span class="mon-ch__meta">
-                                <span class="mon-ch__name">溫度</span>
-                                <span class="mon-ch__id">T-01</span>
-                            </span>
-                            <span class="mon-ch__right">
-                                <span class="mon-ch__val">62.4<span class="mon-ch__unit">°C</span></span>
-                                <span class="ds-tag ds-tag--warning mon-ch__tag">偏高</span>
-                            </span>
-                        </div>
-                        <div class="mon-ch__row">
-                            <span class="mon-ch__ico"><i data-lucide="droplets" class="icon"></i></span>
-                            <span class="mon-ch__meta">
-                                <span class="mon-ch__name">濕度</span>
-                                <span class="mon-ch__id">H-02</span>
-                            </span>
-                            <span class="mon-ch__right">
-                                <span class="mon-ch__val">41.2<span class="mon-ch__unit">%</span></span>
-                                <span class="ds-tag ds-tag--success mon-ch__tag">正常</span>
-                            </span>
-                        </div>
-                        <div class="mon-ch__row">
-                            <span class="mon-ch__ico"><i data-lucide="wind" class="icon"></i></span>
-                            <span class="mon-ch__meta">
-                                <span class="mon-ch__name">風速</span>
-                                <span class="mon-ch__id">F-03</span>
-                            </span>
-                            <span class="mon-ch__right">
-                                <span class="mon-ch__val">3.6<span class="mon-ch__unit">m/s</span></span>
-                                <span class="ds-tag ds-tag--success mon-ch__tag">正常</span>
-                            </span>
-                        </div>
-                        <div class="mon-ch__row">
-                            <span class="mon-ch__ico"><i data-lucide="zap" class="icon"></i></span>
-                            <span class="mon-ch__meta">
-                                <span class="mon-ch__name">電壓</span>
-                                <span class="mon-ch__id">V-04</span>
-                            </span>
-                            <span class="mon-ch__right">
-                                <span class="mon-ch__val">23.9<span class="mon-ch__unit">V</span></span>
-                                <span class="ds-tag ds-tag--success mon-ch__tag">正常</span>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="mon-ch__foot">
-                        <span class="mon-ch__flabel">T-01 閾值 70°C</span>
-                        <div class="ds-progress ds-progress--brand mon-ch__bar">
-                            <div class="ds-progress__bar" style="width: 89%;"></div>
-                        </div>
-                        <span class="mon-ch__pct">89%</span>
-                    </div>
-                </section>
             </div>
         </section>
-    </main>
+
     <style>
-    /* ══════════════════════════════════════════════════════════
-       page-monitor — 數據監控 (ST7789 landscape · 320×240)
-       ══════════════════════════════════════════════════════════ */
+        /* ── Fixed 320×240 shell · ST7789 landscape ────────────────── */
+        html, body { width: 320px; height: 240px; overflow: hidden; }
+        body { display: flex; flex-direction: column; background: var(--bg-base-secondary); -webkit-user-select: none; user-select: none; }
+        main { display: flex; flex-direction: column; height: 100%; }
 
-    /* ── Fixed shell ── */
-    html, body { width: 320px; height: 240px; overflow: hidden; }
-    body { display: flex; flex-direction: column; background: var(--bg-base-secondary); }
-    main { display: flex; flex-direction: column; height: 100%; }
+        .appbar { height: 44px; flex: 0 0 44px; display: flex; align-items: center; gap: var(--spacer-4); padding: 0 var(--spacer-8); background: var(--bg-base-default); border-bottom: 1px solid var(--border-neutral-l1); }
+        .appbar__back { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: none; background: none; border-radius: var(--radius-8); color: var(--text-secondary); cursor: pointer; touch-action: manipulation; transition: background .15s, color .15s; }
+        .appbar__back .icon { width: 18px; height: 18px; }
+        .appbar__back:hover { background: var(--bg-overlay-l1); color: var(--text-default); }
+        .appbar__back:active { background: var(--bg-overlay-l2); }
+        .appbar__title { font-size: 15px; font-weight: var(--font-weight-strong); color: var(--text-default); flex: 1; }
+        .appbar__live { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-tertiary); }
+        .appbar__livedot { width: 6px; height: 6px; border-radius: 50%; background: var(--status-success-default); animation: pulse 2s ease-in-out infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
 
-    .appbar { height: 44px; flex: 0 0 44px; display: flex; align-items: center; gap: var(--spacer-4); padding: 0 var(--spacer-8); background: var(--bg-base-default); border-bottom: 1px solid var(--border-neutral-l1); }
-    .appbar__back { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: none; background: none; border-radius: var(--radius-8); color: var(--text-secondary); cursor: pointer; transition: background .15s, color .15s; }
-    .appbar__back .icon { width: 18px; height: 18px; }
-    .appbar__back:hover { background: var(--bg-overlay-l1); color: var(--text-default); }
-    .appbar__title { font-size: 15px; font-weight: var(--font-weight-strong); color: var(--text-default); flex: 1; }
-    .appbar__live { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-tertiary); }
-    .appbar__livedot { width: 6px; height: 6px; border-radius: 50%; background: var(--status-success-default); animation: pulse 2s ease-in-out infinite; }
-    .page-content { flex: 1; min-height: 0; overflow-y: auto; padding: var(--spacer-8) var(--spacer-12) var(--spacer-12); display: flex; flex-direction: column; gap: var(--spacer-8); }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+        .page-content { flex: 1; min-height: 0; overflow-y: auto; padding: var(--spacer-8) var(--spacer-12) var(--spacer-12); display: flex; flex-direction: row; gap: var(--spacer-8); scrollbar-width: thin; scrollbar-color: var(--border-neutral-l2) transparent; }
+        .page-content::-webkit-scrollbar { width: 3px; }
+        .page-content::-webkit-scrollbar-track { background: transparent; }
+        .page-content::-webkit-scrollbar-thumb { background: var(--border-neutral-l2); border-radius: var(--radius-full); }
 
-    /* ── Two-column layout ── */
-    .mon-cols { flex: 1; min-height: 0; display: flex; align-items: stretch; gap: var(--spacer-8); }
-    .mon-col--main { flex: 1.2 1 0; min-width: 0; display: flex; flex-direction: column; gap: var(--spacer-8); }
+        /* ── 左右雙欄 ───────────────────────────────────────── */
+        .col { min-width: 0; display: flex; }
+        .col--relays { flex: 1.15 1 0; flex-direction: column; gap: var(--spacer-4); }
+        .col--params { flex: 0.85 1 0; }
 
-    /* ── Reading block ── */
-    .mon-read { display: flex; flex-direction: column; gap: var(--spacer-2); min-width: 0; }
-    .mon-read__label { font-size: 9px; line-height: 12px; color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .mon-read__row { display: flex; align-items: flex-end; gap: var(--spacer-6); }
-    .mon-read__value { font-family: var(--font-family-mono); font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; font-size: 24px; line-height: 26px; font-weight: var(--font-weight-strong); color: var(--text-default); }
-    .mon-delta { display: inline-flex; align-items: center; gap: 3px; height: 16px; padding: 0 var(--spacer-6); margin-bottom: 3px; border-radius: var(--radius-full); background: color-mix(in srgb, var(--status-warning-default) 10%, transparent); color: var(--status-warning-default); font-family: var(--font-family-mono); font-variant-numeric: tabular-nums; font-size: 9px; line-height: 12px; font-weight: var(--font-weight-medium); white-space: nowrap; }
-    .mon-delta .icon { width: 10px; height: 10px; }
+        /* ── 繼電器 2×2 開關陣列 ─────────────────────────────── */
+        .relay-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacer-6); flex: 0 0 auto; }
+        .relay-tile { display: flex; flex-direction: column; gap: var(--spacer-2); min-height: 52px; padding: var(--spacer-8); background: var(--bg-base-default); border: 1px solid var(--border-neutral-l1); border-radius: var(--radius-8); transition: border-color .15s; animation: tile-in .28s ease both; }
+        .relay-tile:nth-child(2) { animation-delay: 40ms; }
+        .relay-tile:nth-child(3) { animation-delay: 80ms; }
+        .relay-tile:nth-child(4) { animation-delay: 120ms; }
+        @keyframes tile-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .relay-tile:hover { border-color: var(--border-neutral-l2); }
+        .relay-tile:has(input:checked) { border-color: color-mix(in srgb, var(--bg-brand) 45%, transparent); }
+        .relay-tile__top { display: flex; align-items: flex-start; justify-content: space-between; }
+        .relay-tile__icon { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-8); background: var(--bg-overlay-l2); color: var(--icon-tertiary); transition: background .15s, color .15s; }
+        .relay-tile__icon .icon { width: var(--icon-size-14); height: var(--icon-size-14); }
+        .relay-tile:has(input:checked) .relay-tile__icon { background: var(--bg-brand-popup); color: var(--icon-brand); }
+        .relay-tile__meta { display: flex; flex-direction: column; min-width: 0; }
+        .relay-tile__name { font-size: 10px; line-height: 12px; font-weight: var(--font-weight-medium); color: var(--text-default); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .relay-tile__state { font-size: 8px; line-height: 10px; }
+        .relay-tile__state::before { content: "已關閉"; color: var(--text-tertiary); transition: color .15s; }
+        .relay-tile:has(input:checked) .relay-tile__state::before { content: "開啟中"; color: var(--text-brand); }
+        .relay-tile .ds-switch { touch-action: manipulation; }
 
-    /* ── Range pills ── */
-    .mon-range { display: flex; align-items: center; gap: var(--spacer-4); }
-    .mon-pill { height: 26px; padding: 0 var(--spacer-10); border: none; border-radius: var(--radius-full); background: transparent; color: var(--text-tertiary); font-family: inherit; font-size: 10px; line-height: 14px; font-weight: var(--font-weight-default); cursor: pointer; transition: background .15s, color .15s; }
-    .mon-pill:hover { color: var(--text-secondary); background: var(--bg-overlay-l1); }
-    .mon-pill.is-active { background: var(--bg-overlay-l2); color: var(--text-default); font-weight: var(--font-weight-medium); }
-    .mon-pill:focus-visible,
-    .mon-refresh:focus-visible,
-    .appbar__back:focus-visible { outline: 2px solid var(--border-brand); outline-offset: 1px; }
-    .mon-range__spacer { flex: 1; }
-    .mon-refresh .icon { width: var(--icon-size-14); height: var(--icon-size-14); transition: transform .3s ease; }
-    .mon-refresh:hover .icon { transform: rotate(90deg); }
+        /* ── 運行模式 segmented ──────────────────────────────── */
+        .mode-row { margin-top: auto; display: flex; align-items: center; gap: var(--spacer-6); }
+        .mode-label { flex: 0 0 auto; font-size: 9px; line-height: 12px; color: var(--text-tertiary); }
+        .seg { flex: 1 1 0; display: flex; height: 32px; background: var(--bg-base-default); border: 1px solid var(--border-neutral-l1); border-radius: var(--radius-8); overflow: hidden; }
+        .seg__item { flex: 1 1 0; min-width: 32px; height: 100%; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; color: var(--text-tertiary); font-family: inherit; font-size: 11px; line-height: 14px; cursor: pointer; touch-action: manipulation; transition: background .15s, color .15s; }
+        .seg__item + .seg__item { border-left: 1px solid var(--border-neutral-l1); }
+        .seg__item:hover { background: var(--bg-overlay-l1); color: var(--text-secondary); }
+        .seg__item:active { background: var(--bg-overlay-l2); }
+        .seg__item.is-active { background: var(--bg-invert); color: var(--text-white); font-weight: var(--font-weight-medium); }
+        .seg__item.is-active:hover { background: var(--bg-invert-hover); }
+        .seg__item.is-active:active { background: var(--bg-invert-active); }
 
-    /* ── Cards ── */
-    .mon-card { background: var(--bg-base-default); border: 1px solid var(--border-neutral-l1); border-radius: var(--radius-8); }
+        /* ── 參數卡片 ────────────────────────────────────────── */
+        .params-card { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--spacer-10); background: var(--bg-base-default); border: 1px solid var(--border-neutral-l1); border-radius: var(--radius-8); }
+        .param { display: flex; flex-direction: column; gap: var(--spacer-2); }
+        .param + .param { margin-top: var(--spacer-2); }
+        .param__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--spacer-8); }
+        .param__label { font-size: 10px; line-height: 14px; color: var(--text-default); }
+        .param__value { font-family: var(--font-family-mono); font-size: 12px; line-height: 14px; font-weight: var(--font-weight-strong); color: var(--text-default); font-variant-numeric: tabular-nums; }
+        .param__track { height: 12px; display: flex; align-items: center; }
+        .param__track .ds-slider { height: 12px; padding: 4px 0; background-clip: content-box; cursor: pointer; touch-action: manipulation; }
+        .param__track .ds-slider::-webkit-slider-thumb { transition: transform .12s ease, border-color .12s ease; }
+        .param__track .ds-slider:hover::-webkit-slider-thumb { transform: scale(1.2); }
+        .param__track .ds-slider:active::-webkit-slider-thumb { transform: scale(1.3); border-color: var(--bg-brand); }
+        .params-card__divider { border-top: 1px solid var(--border-neutral-l1); margin: var(--spacer-8) 0; }
+        .params-card__actions { display: flex; flex-direction: column; gap: var(--spacer-6); margin-top: auto; }
+        .act { width: 100%; font-size: var(--body-md-font-size); touch-action: manipulation; }
+        .act--pause { height: 34px; }
+        .act--start { height: 38px; }
+        .act .icon { width: var(--icon-size-14); height: var(--icon-size-14); }
 
-    /* ── Sparkline card ── */
-    .mon-spark { padding: var(--spacer-8); margin-top: auto; }
-    .mon-spark__svg { display: block; width: 100%; height: 52px; overflow: visible; }
-    .mon-grid { stroke: var(--border-neutral-l1); stroke-width: 1; }
-    .mon-area { animation: mon-fade .8s ease-out both; }
-    .mon-line { stroke: var(--bg-brand); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 190; stroke-dashoffset: 190; animation: mon-draw .8s ease-out forwards; }
-    .mon-dot { fill: var(--bg-brand); }
-    .mon-dot-ring { fill: var(--bg-brand); opacity: .25; animation: mon-ping 2s ease-in-out infinite; }
-    @keyframes mon-draw { to { stroke-dashoffset: 0; } }
-    @keyframes mon-fade { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes mon-ping { 0%, 100% { opacity: .25; } 50% { opacity: .08; } }
-    .mon-spark__x { display: flex; justify-content: space-between; margin-top: var(--spacer-4); font-family: var(--font-family-mono); font-variant-numeric: tabular-nums; font-size: 8px; line-height: 10px; color: var(--text-tertiary); }
-
-    /* ── Channel status card (right column) ── */
-    .mon-ch { flex: 0.8 1 0; min-width: 0; display: flex; flex-direction: column; padding: var(--spacer-8); }
-    .mon-ch__head { display: flex; align-items: baseline; gap: var(--spacer-6); padding: 0 var(--spacer-4) var(--spacer-6); }
-    .mon-ch__title { font-size: 11px; line-height: 14px; font-weight: var(--font-weight-strong); color: var(--text-default); }
-    .mon-ch__count { font-family: var(--font-family-mono); font-variant-numeric: tabular-nums; font-size: 9px; line-height: 12px; color: var(--text-tertiary); }
-    .mon-ch__row { display: flex; align-items: center; gap: var(--spacer-6); min-height: 28px; padding: var(--spacer-2) var(--spacer-4); border-bottom: 1px solid var(--border-neutral-l1); transition: background .15s; }
-    .mon-ch__row:hover { background: var(--bg-overlay-l1); }
-    .mon-ch__list .mon-ch__row:last-child { border-bottom: none; }
-    .mon-ch__ico { width: 20px; height: 20px; flex: 0 0 20px; display: inline-flex; align-items: center; justify-content: center; background: var(--bg-overlay-l1); border-radius: var(--radius-6); color: var(--icon-secondary); }
-    .mon-ch__ico .icon { width: 11px; height: 11px; }
-    .mon-ch__meta { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-    .mon-ch__name { font-size: 10px; line-height: 12px; color: var(--text-default); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .mon-ch__id { font-family: var(--font-family-mono); font-variant-numeric: tabular-nums; font-size: 8px; line-height: 10px; color: var(--text-tertiary); }
-    .mon-ch__right { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
-    .mon-ch__val { display: inline-flex; align-items: baseline; font-family: var(--font-family-mono); font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; font-size: 11px; line-height: 12px; font-weight: var(--font-weight-strong); color: var(--text-default); white-space: nowrap; }
-    .mon-ch__unit { font-size: 8px; font-weight: var(--font-weight-default); color: var(--text-tertiary); margin-left: 1px; }
-    .mon-ch__tag { height: 13px; padding: 0 var(--spacer-4); font-size: 8px; line-height: 11px; border-radius: var(--radius-4); }
-
-    /* ── Threshold footer ── */
-    .mon-ch__foot { display: flex; align-items: center; gap: var(--spacer-6); margin-top: auto; padding: var(--spacer-6) var(--spacer-4) 0; }
-    .mon-ch__flabel { font-size: 8px; line-height: 10px; color: var(--text-tertiary); white-space: nowrap; }
-    .mon-ch__bar { flex: 1; }
-    .mon-ch__pct { font-family: var(--font-family-mono); font-variant-numeric: tabular-nums; font-size: 9px; line-height: 12px; font-weight: var(--font-weight-strong); color: var(--text-default); }
-
-    @media (prefers-reduced-motion: reduce) {
-        * { animation: none !important; transition: none !important; }
-        .mon-line { stroke-dasharray: none; stroke-dashoffset: 0; }
-    }
-    </style>
+        /* ── focus 與 reduced motion ─────────────────────────── */
+        .appbar__back:focus-visible, .seg__item:focus-visible, .act:focus-visible { outline: 2px solid var(--bg-brand); outline-offset: -2px; }
+        @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+    
+        /* ── PCA9685:頂部控制 ── */
+        .pca-ctl { display: flex; align-items: center; gap: var(--spacer-4); padding: var(--spacer-4) var(--spacer-8); }
+        .pca-ctl__lbl { font-size: 11px; color: var(--text-secondary); }
+        .pca-ctl__box { min-width: 60px; padding: 4px 8px; background: var(--bg-base-default);
+                        border: 1px solid var(--border-neutral-l1); border-radius: var(--radius-6);
+                        font-size: 12px; }
+        /* ── 16 通道方格 ── */
+        .pca-dots { padding: var(--spacer-2) var(--spacer-8); }
+        .pca-dots__title { font-size: 11px; color: var(--text-secondary); }
+        .pca-grid { display: flex; gap: 40px; margin-top: var(--spacer-4); }
+        .pca-cell-row { display: flex; align-items: center; margin-bottom: 5px; }
+        .pca-cell { width: 14px; height: 14px; border-radius: var(--radius-3, 3px);
+                    background: var(--bg-overlay-l3); border: 1px solid var(--border-neutral-l1); }
+        .pca-cell.on { background: var(--bg-brand); opacity: .85; border-color: var(--bg-brand); }
+        .pca-cell-no { font-size: 10px; color: var(--text-tertiary); margin-left: var(--spacer-2); }
+</style>
     <script>lucide.createIcons();</script>
 </body>
 </html>

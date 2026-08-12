@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>設備控制</title>
+    <title>控制面板</title>
     <style id="theme-vars">
 /**
  * TraeWork design library tokens
@@ -1062,96 +1062,56 @@ pre {
     <main>
         <header class="appbar">
             <button class="appbar__back" data-dom-id="btn-back" aria-label="返回"><i data-lucide="chevron-left" class="icon"></i></button>
-            <span class="appbar__title">設備控制</span>
+            <span class="appbar__title">控制面板</span>
             <span class="appbar__live"><span class="appbar__livedot"></span>就緒</span>
         </header>
 
+        
         <section class="page-content">
-            <!-- 左欄：繼電器 2×2 開關陣列 + 運行模式 -->
-            <div class="col col--relays">
-                <div class="relay-grid">
-                    <div class="relay-tile">
-                        <div class="relay-tile__top">
-                            <span class="relay-tile__icon"><i data-lucide="power" class="icon"></i></span>
-                            <label class="ds-switch"><input type="checkbox" checked><span class="ds-switch__thumb"></span></label>
-                        </div>
-                        <div class="relay-tile__meta">
-                            <span class="relay-tile__name">主電源</span>
-                            <span class="relay-tile__state"></span>
-                        </div>
-                    </div>
-                    <div class="relay-tile">
-                        <div class="relay-tile__top">
-                            <span class="relay-tile__icon"><i data-lucide="fan" class="icon"></i></span>
-                            <label class="ds-switch"><input type="checkbox" checked><span class="ds-switch__thumb"></span></label>
-                        </div>
-                        <div class="relay-tile__meta">
-                            <span class="relay-tile__name">冷卻風扇</span>
-                            <span class="relay-tile__state"></span>
-                        </div>
-                    </div>
-                    <div class="relay-tile">
-                        <div class="relay-tile__top">
-                            <span class="relay-tile__icon"><i data-lucide="flame" class="icon"></i></span>
-                            <label class="ds-switch"><input type="checkbox"><span class="ds-switch__thumb"></span></label>
-                        </div>
-                        <div class="relay-tile__meta">
-                            <span class="relay-tile__name">加熱器</span>
-                            <span class="relay-tile__state"></span>
-                        </div>
-                    </div>
-                    <div class="relay-tile">
-                        <div class="relay-tile__top">
-                            <span class="relay-tile__icon"><i data-lucide="lightbulb" class="icon"></i></span>
-                            <label class="ds-switch"><input type="checkbox"><span class="ds-switch__thumb"></span></label>
-                        </div>
-                        <div class="relay-tile__meta">
-                            <span class="relay-tile__name">輔助照明</span>
-                            <span class="relay-tile__state"></span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mode-row">
-                    <span class="mode-label">運行模式</span>
-                    <div class="seg" role="group" aria-label="運行模式">
-                        <button type="button" class="seg__item">自動</button>
-                        <button type="button" class="seg__item is-active" aria-pressed="true">手動</button>
-                        <button type="button" class="seg__item">節能</button>
-                    </div>
+            <!-- 左欄:模式清單(5 種模式) -->
+            <div class="col col--modes">
+                <div class="mode-list">
+                    <div class="mode-item is-active">模式 1</div>
+                    <div class="mode-item">模式 2</div>
+                    <div class="mode-item">模式 3</div>
+                    <div class="mode-item">模式 4</div>
+                    <div class="mode-item">模式 5</div>
                 </div>
             </div>
 
-            <!-- 右欄：參數卡片 -->
+            <!-- 右欄:亮度 + 倒數計時 + 旗標 -->
             <aside class="col col--params">
                 <div class="params-card">
                     <div class="param">
                         <div class="param__head">
-                            <span class="param__label">目標溫度</span>
-                            <span class="param__value">58°C</span>
+                            <span class="param__label">亮度</span>
+                            <span class="param__value">18</span>
                         </div>
                         <div class="param__track">
-                            <input type="range" class="ds-slider ds-slider--progress" min="20" max="90" value="58" aria-label="目標溫度" style="background-image: linear-gradient(to right, var(--bg-brand) 54.3%, var(--bg-overlay-l3) 54.3%);">
-                        </div>
-                    </div>
-                    <div class="param">
-                        <div class="param__head">
-                            <span class="param__label">風速</span>
-                            <span class="param__value">65%</span>
-                        </div>
-                        <div class="param__track">
-                            <input type="range" class="ds-slider ds-slider--progress" min="0" max="100" value="65" aria-label="風速" style="background-image: linear-gradient(to right, var(--bg-brand) 65%, var(--bg-overlay-l3) 65%);">
+                            <input type="range" class="ds-slider ds-slider--progress" min="0" max="36" value="18" aria-label="亮度" style="background-image: linear-gradient(to right, var(--bg-brand) 50%, var(--bg-overlay-l3) 50%);">
                         </div>
                     </div>
                     <div class="params-card__divider"></div>
-                    <div class="params-card__actions">
-                        <button type="button" class="ds-btn ds-btn--secondary act act--pause" data-dom-id="act-pause"><i data-lucide="square" class="icon"></i>暫停</button>
-                        <button type="button" class="ds-btn ds-btn--brand act act--start" data-dom-id="act-start"><i data-lucide="play" class="icon"></i>立即啟動</button>
+                    <div class="countdown">
+                        <span class="countdown__state">待機</span>
+                        <div class="countdown__arc">
+                            <svg viewBox="0 0 120 120" class="countdown__ring">
+                                <circle class="countdown__track" cx="60" cy="60" r="52"></circle>
+                                <circle class="countdown__bar" cx="60" cy="60" r="52" style="stroke-dasharray: 280 327;"></circle>
+                            </svg>
+                            <span class="countdown__time">02:30</span>
+                        </div>
+                    </div>
+                    <div class="params-card__actions params-card__actions--flags">
+                        <button type="button" class="ds-btn ds-btn--secondary"><i data-lucide="camera" class="icon"></i>拍攝</button>
+                        <button type="button" class="ds-btn ds-btn--secondary"><i data-lucide="activity" class="icon"></i>可動</button>
+                        <button type="button" class="ds-btn ds-btn--brand" aria-label="上一個模式"><i data-lucide="chevron-up" class="icon"></i></button>
+                        <button type="button" class="ds-btn ds-btn--brand" aria-label="下一個模式"><i data-lucide="chevron-down" class="icon"></i></button>
                     </div>
                 </div>
             </aside>
         </section>
-    </main>
+
     <style>
         /* ── Fixed 320×240 shell · ST7789 landscape ────────────────── */
         html, body { width: 320px; height: 240px; overflow: hidden; }
@@ -1232,7 +1192,29 @@ pre {
         /* ── focus 與 reduced motion ─────────────────────────── */
         .appbar__back:focus-visible, .seg__item:focus-visible, .act:focus-visible { outline: 2px solid var(--bg-brand); outline-offset: -2px; }
         @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
-    </style>
+    
+        /* ── 模式清單(左欄) ── */
+        .col--modes { flex: 0 0 104px; padding: var(--spacer-4); }
+        .mode-list { background: var(--bg-base-default); border: 1px solid var(--border-neutral-l1);
+                     border-radius: var(--radius-10); padding: var(--spacer-2); height: 100%;
+                     display: flex; flex-direction: column; gap: var(--spacer-2); }
+        .mode-item { padding: 8px 10px; font-size: 12px; color: var(--text-secondary);
+                     border-radius: var(--radius-6); }
+        .mode-item.is-active { background: var(--bg-brand); color: var(--text-onbrand); font-weight: 500; }
+        /* ── 倒數計時(右欄) ── */
+        .countdown { position: relative; display: flex; flex-direction: column; align-items: center;
+                     padding-top: var(--spacer-4); }
+        .countdown__state { position: absolute; right: 0; top: var(--spacer-2); font-size: 10px;
+                            color: var(--text-tertiary); }
+        .countdown__arc { position: relative; width: 110px; height: 110px; }
+        .countdown__ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+        .countdown__track { fill: none; stroke: var(--bg-overlay-l3); stroke-width: 10; }
+        .countdown__bar { fill: none; stroke: var(--bg-brand); stroke-width: 10; stroke-linecap: round; }
+        .countdown__time { position: absolute; inset: 0; display: flex; align-items: center;
+                           justify-content: center; font-size: 20px; font-weight: 600; }
+        .params-card__actions--flags { justify-content: flex-start; gap: var(--spacer-4); }
+        .params-card__actions--flags .ds-btn:last-child { margin-left: auto; }
+</style>
     <script>lucide.createIcons();</script>
 </body>
 </html>

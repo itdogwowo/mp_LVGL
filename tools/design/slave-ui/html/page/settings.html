@@ -1066,125 +1066,53 @@ pre {
             <span class="appbar__live"><span class="appbar__livedot"></span>v2.4.1</span>
         </header>
 
+        
         <section class="page-content">
-            <!-- Column A -->
+            <!-- Column A:網路 -->
             <div class="settings-col">
-                <!-- 一般 -->
-                <section class="set-card">
-                    <div class="set-card__head">
-                        <span class="set-card__chip"><i data-lucide="info" class="icon"></i></span>
-                        <h2 class="set-card__title">一般</h2>
-                    </div>
-                    <div class="set-row">
-                        <span class="set-row__label">裝置名稱</span>
-                        <label class="ds-input set-ctl"><input type="text" value="機組 A-01"></label>
-                    </div>
-                    <div class="set-row">
-                        <span class="set-row__label">語言</span>
-                        <div class="ds-select-wrap set-ctl">
-                            <select class="ds-select">
-                                <option selected>繁體中文</option>
-                                <option>English</option>
-                                <option>日本語</option>
-                            </select>
-                            <i data-lucide="chevron-down" class="icon ds-select__icon"></i>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 網路 -->
                 <section class="set-card">
                     <div class="set-card__head">
                         <span class="set-card__chip"><i data-lucide="wifi" class="icon"></i></span>
                         <h2 class="set-card__title">網路</h2>
                     </div>
                     <div class="set-row">
-                        <span class="set-row__label">Wi-Fi</span>
-                        <div class="ds-select-wrap set-ctl">
-                            <select class="ds-select">
-                                <option selected>Factory-5G</option>
-                                <option>Office-2.4G</option>
-                            </select>
-                            <i data-lucide="chevron-down" class="icon ds-select__icon"></i>
-                        </div>
+                        <span class="set-row__label">Wi-Fi 啟用</span>
+                        <label class="ds-switch set-ctl"><input type="checkbox" checked><span class="ds-switch__thumb"></span></label>
                     </div>
-                    <div class="set-row set-row--stack">
-                        <span class="set-row__label">狀態</span>
-                        <span class="ds-tag ds-tag--success set-tag">已連線 · <span class="set-ip">192.168.1.42</span></span>
+                    <div class="set-row">
+                        <span class="set-row__label">Wi-Fi</span>
+                        <span class="ds-tag ds-tag--success set-tag">Factory-5G</span>
+                    </div>
+                    <div class="set-row">
+                        <span class="set-row__label">Master</span>
+                        <span class="ds-tag set-tag">192.168.1.10:8600</span>
                     </div>
                 </section>
             </div>
 
-            <!-- Column B -->
+            <!-- Column B:系統 -->
             <div class="settings-col">
-                <!-- 顯示 -->
                 <section class="set-card">
                     <div class="set-card__head">
-                        <span class="set-card__chip"><i data-lucide="sun" class="icon"></i></span>
-                        <h2 class="set-card__title">顯示</h2>
-                    </div>
-                    <div class="set-row set-row--stack">
-                        <div class="set-row__top">
-                            <span class="set-row__label">螢幕亮度</span>
-                            <span class="set-val">80%</span>
-                        </div>
-                        <input type="range" class="ds-slider ds-slider--progress" min="0" max="100" value="80" aria-label="螢幕亮度"
-                            style="background: linear-gradient(90deg, var(--bg-brand) 0%, var(--bg-brand) 80%, var(--bg-overlay-l3) 80%, var(--bg-overlay-l3) 100%);">
-                    </div>
-                    <div class="set-row">
-                        <span class="set-row__label">待機時間</span>
-                        <div class="ds-select-wrap set-ctl">
-                            <select class="ds-select">
-                                <option>5分鐘</option>
-                                <option selected>10分鐘</option>
-                                <option>30分鐘</option>
-                            </select>
-                            <i data-lucide="chevron-down" class="icon ds-select__icon"></i>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 系統 -->
-                <section class="set-card">
-                    <div class="set-card__head">
-                        <span class="set-card__chip"><i data-lucide="shield" class="icon"></i></span>
+                        <span class="set-card__chip"><i data-lucide="info" class="icon"></i></span>
                         <h2 class="set-card__title">系統</h2>
                     </div>
                     <div class="set-row">
-                        <div class="set-row__text">
-                            <span class="set-row__label">自動更新</span>
-                            <span class="set-row__desc">下載並安裝新版本</span>
-                        </div>
-                        <label class="ds-switch"><input type="checkbox" checked><span class="ds-switch__thumb"></span></label>
+                        <span class="set-row__label">主機名</span>
+                        <span class="ds-tag set-tag">slave-01</span>
                     </div>
                     <div class="set-row">
-                        <div class="set-row__text">
-                            <span class="set-row__label">錯誤回報</span>
-                            <span class="set-row__desc">匿名傳送診斷資料</span>
-                        </div>
-                        <label class="ds-switch"><input type="checkbox" checked><span class="ds-switch__thumb"></span></label>
+                        <span class="set-row__label">裝置 ID</span>
+                        <span class="ds-tag set-tag">a1b2c3d4e5f6</span>
                     </div>
                     <div class="set-row">
-                        <div class="set-row__text">
-                            <span class="set-row__label">通知音效</span>
-                            <span class="set-row__desc">警示與操作提示音</span>
-                        </div>
-                        <label class="ds-switch"><input type="checkbox"><span class="ds-switch__thumb"></span></label>
-                    </div>
-                    <div class="set-row set-row--danger">
-                        <div class="set-row__text">
-                            <span class="set-row__label">恢復出廠設定</span>
-                            <span class="set-row__desc">清除所有設定與紀錄</span>
-                        </div>
-                        <button class="ds-btn ds-btn--danger-subtle ds-btn--sm" data-dom-id="act-reset">重設</button>
+                        <span class="set-row__label">MAC</span>
+                        <span class="ds-tag set-tag">a1:b2:c3:d4:e5:f6</span>
                     </div>
                 </section>
             </div>
         </section>
 
-        <footer class="settings-foot">
-            <button class="ds-btn ds-btn--brand save-btn" data-dom-id="act-save"><i data-lucide="save" class="icon"></i>儲存設定</button>
-        </footer>
     </main>
     <style>
         /* ── page-settings shell (ST7789 320×240 landscape panel) ── */
