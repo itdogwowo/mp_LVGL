@@ -1,6 +1,13 @@
 # LVGL Open Docs 检索清单
 
-这份清单用于快速查找 `LVGL` 官方文档里和当前项目最相关的能力，重点服务于：
+这份清单用于快速查找 `LVGL` 官方文档里和当前项目最相关的能力。
+
+当前策略：
+
+- **主参考版本：`LVGL 9.3`**
+- **兼容对照版本：`LVGL 9.0`**
+
+重点服务于：
 
 - `launcher` 轮播 / 卡片切换
 - 页面切换动画
@@ -14,7 +21,15 @@
 - 最新 Examples 总入口: [https://lvgl.io/docs/open/examples](https://lvgl.io/docs/open/examples)
 - 最新 API 总入口: [https://lvgl.io/docs/open/api](https://lvgl.io/docs/open/api)
 
-## v9.0 对照入口
+## 9.3 主参考入口
+
+`9.3` 作为当前项目的主实现基线。写动画、布局、切屏、样式时，优先看这里。
+
+- v9.3 文档根入口: [https://lvgl.io/docs/open/9.3/](https://lvgl.io/docs/open/9.3/)
+- v9.3 Examples 总页: [https://lvgl.io/docs/open/9.3/examples.html](https://lvgl.io/docs/open/9.3/examples.html)
+- v9.3 API 总入口: [https://lvgl.io/docs/open/9.3/API/index.html](https://lvgl.io/docs/open/9.3/API/index.html)
+
+## 9.0 对照入口
 
 - v9.0 文档根入口: [https://lvgl.io/docs/open/9.0/](https://lvgl.io/docs/open/9.0/)
 - v9.0 Examples 总页: [https://lvgl.io/docs/open/9.0/examples.html](https://lvgl.io/docs/open/9.0/examples.html)
@@ -26,6 +41,9 @@
 
 - 动画总指南: [https://lvgl.io/docs/open/main-modules/animation](https://lvgl.io/docs/open/main-modules/animation)
 - 动画示例: [https://lvgl.io/docs/open/examples/anim](https://lvgl.io/docs/open/examples/anim)
+- v9.3 动画示例总页: [https://lvgl.io/docs/open/9.3/examples.html](https://lvgl.io/docs/open/9.3/examples.html)
+- v9.3 `lv_anim.h`: [https://lvgl.io/docs/open/9.3/API/misc/lv_anim.html](https://lvgl.io/docs/open/9.3/API/misc/lv_anim.html)
+- v9.3 `lv_anim_timeline.h`: [https://lvgl.io/docs/open/9.3/API/misc/lv_anim_timeline.html](https://lvgl.io/docs/open/9.3/API/misc/lv_anim_timeline.html)
 - 当前 `lv_anim.h`: [https://lvgl.io/docs/open/api/public/core/lv_anim_h](https://lvgl.io/docs/open/api/public/core/lv_anim_h)
 - 当前 `lv_anim_timeline.h`: [https://lvgl.io/docs/open/api/public/core/lv_anim_timeline_h](https://lvgl.io/docs/open/api/public/core/lv_anim_timeline_h)
 - v9.0 `lv_anim.h`: [https://lvgl.io/docs/open/9.0/API/misc/lv_anim.html](https://lvgl.io/docs/open/9.0/API/misc/lv_anim.html)
@@ -82,6 +100,7 @@ LVGL 没有一个直接叫 carousel 的标准控件，最接近的官方实现�
 
 - Scrolling 通用特性: [https://lvgl.io/docs/open/common-widget-features/scrolling](https://lvgl.io/docs/open/common-widget-features/scrolling)
 - Scroll 示例总页: [https://lvgl.io/docs/open/examples/scroll](https://lvgl.io/docs/open/examples/scroll)
+- v9.3 示例总页: [https://lvgl.io/docs/open/9.3/examples.html](https://lvgl.io/docs/open/9.3/examples.html)
 
 ### 最有用的 examples
 
@@ -130,9 +149,11 @@ LVGL 没有一个直接叫 carousel 的标准控件，最接近的官方实现�
 
 ## 8. 版本注意
 
-- `open` 是最新维护文档，结构更清楚，但不一定完全等于冻结版 `v9.0`
-- 真正写 API 名称时，建议回 `open/9.0/API` 再核对一次
-- `timeline`、某些 widget 条目、以及部分命名，在新文档和 `v9.0` 里可能略有差异
+- 当前项目默认按 `9.3` 看文档和 example
+- 若某个 API 在你本地项目里表现异常，再回 `9.0` 做兼容核对
+- `open` 是最新维护文档，结构更清楚，但不一定完全等于冻结版 `9.3/9.0` 分支页
+- 真正写 API 名称时，优先核对 `open/9.3/API`
+- `timeline`、某些 widget 条目、以及部分命名，在新文档、`9.3`、`9.0` 之间可能略有差异
 
 ## 9. 当前问题对应建议
 
@@ -148,3 +169,15 @@ LVGL 没有一个直接叫 carousel 的标准控件，最接近的官方实现�
 - `lv_screen_load_anim`
 - `tileview`
 
+## 10. 当前执行原则
+
+后续在 `SimLab` / `slave` 项目里查文档、写动画、修页面时，按下面顺序执行：
+
+1. 先看 `9.3`
+2. 再看最新 `open`
+3. 最后只在需要兼容时回看 `9.0`
+
+一句话：
+
+- **实现以 `9.3` 为准**
+- **兼容以 `9.0` 为底**

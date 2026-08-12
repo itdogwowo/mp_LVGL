@@ -187,3 +187,12 @@ tools/simlab/
 ├── shim/                ← base.tpl(緩存模擬器+perf)+ framework.tpl + mp_lvgl.tpl
 └── web/index.html       ← SimLab 單頁 UI
 ```
+
+## 文件入口
+
+- `LVGL` 官方文檔索引:
+  - `tools/simlab/LVGL-open-doc-index.md`
+  - 目前以 `9.3` 為主，`9.0` 為兼容對照
+
+- `SimLab` 本地 API / runtime / 小工具文檔:
+  - `tools/simlab/SIMLAB-api-and-tools.md`
