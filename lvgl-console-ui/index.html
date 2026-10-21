@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LVGL Console UI · Simulator</title>
+    <style>
+      /* ═══════════════════════════════════════════════════════════
+         版面：header / 工作區（裝置置中 + 狀態列）/ 側欄（檢視）
+         規則：
+           - 8px 間距節奏（--s1 … --s8）
+           - 內文對比 ≥ 4.5:1（--muted 在 --bg 上約 7:1）
+           - 所有可操作元素都有 :focus-visible 外框
+           - 只有 transform/opacity 會動畫；尊重 prefers-reduced-motion
+         ═══════════════════════════════════════════════════════════ */
+      :root {
+        --bg: #0b0d11;
+        --bg-grid: #ffffff06;
+        --panel: #11141a;
+        --panel-2: #171b23;
+        --panel-3: #1f2530;
+        --line: #232936;
+        --line-soft: #1a1f29;
+        --text: #e9ecf3;
+        --muted: #9aa3b5;
+        --dim: #6f7889;
+        --accent: #5b8cff;
+        --accent-soft: #5b8cff1f;
+        --magenta: #ff4d9d;
+        --ok: #39c07d;
+        --warn: #e0a83a;
+        --err: #e2564a;
+        --mono: "Cascadia Mono", "SF Mono", Consolas, "JetBrains Mono", monospace;
+        --s1: 4px;
+        --s2: 8px;
+        --s3: 12px;
+        --s4: 16px;
+        --s5: 24px;
+        --s6: 32px;
+        --s7: 48px;
+        --r-sm: 6px;
+        --r-md: 10px;
+        --r-lg: 16px;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font: 13px/1.55 "Segoe UI", "PingFang TC", "Noto Sans TC", system-ui, sans-serif;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        overflow: hidden;
+        -webkit-font-smoothing: antialiased;
+      }
+      button, select, input { font: inherit; color: inherit; }
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+        border-radius: var(--r-sm);
+      }
+      ::selection { background: #5b8cff44; }
+
+      /* ── header ───────────────────────────────────────────── */
+      header {
+        display: flex;
+        align-items: center;
+        gap: var(--s3);
+        padding: var(--s2) var(--s4);
+        min-height: 52px;
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(180deg, #ffffff05, transparent);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: var(--s2);
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+      }
+      .brand__mark {
+        width: 22px;
+        height: 22px;
+        border-radius: var(--r-sm);
+        display: grid;
+        place-items: center;
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: #0b0d11;
+        background: linear-gradient(145deg, #8fb0ff, #5b8cff);
+      }
+      .brand__sub {
+        color: var(--dim);
+        font-weight: 400;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        font-size: 10px;
+      }
+
+      .select {
+        appearance: none;
+        background: var(--panel-2) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%239aa3b5' stroke-width='1.5' stroke-linecap='round'/></svg>") no-repeat right 9px center;
+        border: 1px solid var(--line);
+        border-radius: var(--r-sm);
+        color: var(--muted);
+        padding: 5px 26px 5px 10px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: border-color 0.15s, color 0.15s;
+      }
+      .select:hover { color: var(--text); border-color: #33405a; }
+
+      .pages {
+        display: flex;
+        gap: 2px;
+        flex-wrap: nowrap;          /* 9 頁也不換行，橫向捲動 */
+        overflow-x: auto;
+        max-width: 46vw;
+        padding-bottom: 2px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--line) transparent;
+      }
+      .pages::-webkit-scrollbar { height: 4px; }
+      .pages::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
+      .pill {
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: var(--r-sm);
+        color: var(--muted);
+        padding: 4px 9px;
+        font-size: 12px;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
+      }
+      .pill:hover { color: var(--text); background: var(--panel-2); }
+      .pill.active {
+        color: #dce6ff;
+        background: var(--accent-soft);
+        border-color: #5b8cff40;
+      }
+      .spacer { flex: 1; }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        border-radius: var(--r-sm);
+        color: var(--muted);
+        padding: 5px 10px;
+        font-size: 12px;
+        white-space: nowrap;
+        flex: none;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
+      }
+      .btn:hover { color: var(--text); border-color: #33405a; }
+      .btn svg { width: 14px; height: 14px; display: block; }
+      .btn.on {
+        color: #ffd9ec;
+        background: #ff4d9d14;
+        border-color: #ff4d9d40;
+      }
+
+      /* ── 工作區 ───────────────────────────────────────────── */
+      main { display: flex; min-height: 0; }
+
+      .stage {
+        flex: 1;
+        min-width: 0;
+        display: grid;
+        place-items: center;          /* ← 裝置置中，這是「重心」 */
+        padding: var(--s6) var(--s5) var(--s5);
+        overflow: auto;
+        background-color: var(--bg);
+        /* 柔光 + 藍圖網格：用背景畫，不要用會撐出捲軸的絕對定位元素 */
+        background-image:
+          radial-gradient(closest-side at 50% 42%, #5b8cff12, transparent 72%),
+          linear-gradient(var(--bg-grid) 1px, transparent 1px),
+          linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
+        background-size: 100% 100%, 32px 32px, 32px 32px;
+        background-position: center;
+      }
+
+      /* 裝置面板：身份列 / 畫面 / 狀態列 / 快捷鍵 = 同一個元素，全部左對齊到同一左緣 */
+      .device {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;      /* ← 不要讓每一行各自置中 */
+        gap: var(--s2);
+        padding: var(--s3);
+        border: 1px solid var(--line);
+        border-radius: var(--r-lg);
+        background: linear-gradient(180deg, #12161d 0%, #0c0f14 100%);
+        box-shadow:
+          0 1px 0 #ffffff08 inset,
+          0 28px 64px -28px #000000cc;
+      }
+
+      .device__meta {
+        display: flex;
+        align-items: center;
+        gap: var(--s2);
+        padding: 2px 2px var(--s2);
+        font-size: 12px;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .device__meta b { color: var(--text); font-weight: 600; }
+      .device__meta .sep { color: var(--line); }
+      .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--ok);
+        box-shadow: 0 0 0 3px #39c07d22;
+      }
+
+      .bezel {
+        position: relative;
+        padding: 6px;
+        border-radius: var(--r-md);
+        background: #07090c;
+        border: 1px solid #000;
+        line-height: 0;
+      }
+      #sim {
+        display: block;
+        image-rendering: pixelated;
+        border-radius: 8px;
+        background: #fff;
+      }
+      #overlay {
+        position: absolute;
+        left: 6px;
+        top: 6px;
+        pointer-events: none;
+        image-rendering: pixelated;
+        border-radius: 8px;
+      }
+
+      /* 檢視資訊列：畫布外、固定高度（hover 時不跳版） */
+      .inspect-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 24px;
+        padding: 2px 2px 0;
+        font-family: var(--mono);
+        font-size: 11.5px;
+        color: var(--dim);
+        white-space: nowrap;
+        overflow: hidden;
+        border-top: 1px solid var(--line-soft);
+      }
+      .inspect-bar .k {
+        flex: none;
+        color: var(--dim);
+        font-size: 9.5px;
+        letter-spacing: 0.12em;
+      }
+      .inspect-bar .v {
+        color: var(--text);
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .inspect-bar .muted {
+        color: var(--dim);
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .inspect-bar.hot .v { color: #ffd7ea; }
+
+
+      .stats {
+        display: flex;
+        align-items: stretch;
+        border-top: 1px solid var(--line-soft);
+        padding-top: var(--s1);
+      }
+      .stat {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        padding: 4px 12px;
+        border-left: 1px solid var(--line-soft);
+      }
+      .stat:first-child {
+        border-left: 0;
+        padding-left: 2px;
+      }
+      .stat .k {
+        color: var(--dim);
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .stat .v {
+        font-family: var(--mono);
+        font-size: 13px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        color: var(--text);
+      }
+
+      .hint {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--s2);
+        padding-top: var(--s2);
+        border-top: 1px solid var(--line-soft);
+        color: var(--dim);
+        font-size: 11.5px;
+      }
+
+      /* 操作列：旋鈕/確認/返回 —— 純鍵盤之外的替代操作，走同一條 bus */
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: var(--s3);
+        flex-wrap: wrap;
+        padding-top: var(--s2);
+        border-top: 1px solid var(--line-soft);
+      }
+      .controls .keys {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .controls .hint {
+        padding: 0;
+        border: 0;
+        margin-left: auto;
+      }
+      .keybtn {
+        display: inline-grid;
+        place-items: center;
+        min-width: 34px;
+        height: 30px;
+        padding: 0 10px;
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        border-bottom-width: 2px;
+        border-radius: var(--r-sm);
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 11.5px;
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.12s, color 0.12s, border-color 0.12s, transform 0.06s;
+      }
+      .keybtn svg { width: 15px; height: 15px; display: block; }
+      .keybtn.wide { padding: 0 14px; }
+      .keybtn:hover { color: var(--text); border-color: #33405a; background: var(--panel-3); }
+      .keybtn:active {
+        transform: translateY(1px);
+        background: var(--accent-soft);
+        border-color: #5b8cff59;
+        color: #dce6ff;
+      }
+      .hint kbd {
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        border-bottom-width: 2px;
+        border-radius: 5px;
+        padding: 0 5px;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        color: var(--muted);
+      }
+
+      /* ── 側欄 ─────────────────────────────────────────────── */
+      aside {
+        width: 400px;
+        flex: none;
+        border-left: 1px solid var(--line);
+        background: var(--panel);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      .tabs {
+        display: flex;
+        gap: var(--s1);
+        padding: var(--s3) var(--s3) var(--s2);
+        border-bottom: 1px solid var(--line-soft);
+        flex: none;
+      }
+      .tabs button {
+        flex: 1;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: var(--r-sm);
+        color: var(--muted);
+        padding: 5px 8px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
+      }
+      .tabs button:hover { color: var(--text); background: var(--panel-2); }
+      .tabs button.active {
+        color: #dce6ff;
+        background: var(--accent-soft);
+        border-color: #5b8cff40;
+      }
+      .tabs button .badge-n {
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--dim);
+        margin-left: 4px;
+      }
+
+      .panel { flex: 1; overflow: auto; min-height: 0; }
+      .panel.hidden { display: none; }
+
+      /* 空狀態：不要只留一行小字，給「怎麼開始」 */
+      .empty {
+        padding: var(--s6) var(--s5);
+        display: flex;
+        flex-direction: column;
+        gap: var(--s3);
+        align-items: flex-start;
+      }
+      .empty__icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--r-md);
+        display: grid;
+        place-items: center;
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        color: var(--dim);
+      }
+      .empty__icon svg { width: 20px; height: 20px; }
+      .empty h3 { margin: 0; font-size: 13px; font-weight: 600; color: var(--text); }
+      .empty p { margin: 0; color: var(--dim); font-size: 12px; line-height: 1.7; }
+      .empty .keys { display: flex; gap: 6px; flex-wrap: wrap; }
+      .empty kbd {
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        border-bottom-width: 2px;
+        border-radius: 5px;
+        padding: 1px 6px;
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      /* 屬性 */
+      .props { padding: var(--s3) var(--s4) var(--s5); }
+      .props .title {
+        display: flex;
+        align-items: center;
+        gap: var(--s2);
+        font-family: var(--mono);
+        font-size: 12.5px;
+        margin-bottom: var(--s3);
+        word-break: break-all;
+      }
+      .badge {
+        background: var(--panel-3);
+        color: var(--muted);
+        border-radius: 5px;
+        padding: 1px 7px;
+        font-size: 11px;
+        font-family: var(--mono);
+        flex: none;
+      }
+      .badge.label { color: #9ad2ff; }
+      .badge.list { color: #ffd08a; }
+      .kv { display: grid; grid-template-columns: 88px 1fr; gap: 4px 12px; font-size: 12px; margin: 0; }
+      .kv dt { color: var(--dim); }
+      .kv dd {
+        margin: 0;
+        font-family: var(--mono);
+        font-size: 11.5px;
+        word-break: break-all;
+        color: #cfd6e4;
+      }
+      .kv dd .sw {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border-radius: 2px;
+        border: 1px solid #ffffff33;
+        vertical-align: -1px;
+        margin-right: 4px;
+      }
+      .src {
+        margin-top: var(--s3);
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        border-radius: var(--r-md);
+        padding: var(--s2) var(--s3);
+        font-family: var(--mono);
+        font-size: 11.5px;
+        color: #9ad2ff;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--s2);
+      }
+      .src .via { color: var(--dim); margin-left: 8px; font-size: 10.5px; }
+      .src button {
+        background: var(--panel-3);
+        border: 1px solid var(--line);
+        color: var(--muted);
+        border-radius: 5px;
+        font: inherit;
+        font-size: 11px;
+        padding: 2px 8px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .src button:hover { color: #fff; }
+
+      /* 元件樹 */
+      .tree { padding: var(--s2) var(--s2) var(--s5); font-family: var(--mono); font-size: 11.5px; }
+      .node {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 8px;
+        border-radius: 5px;
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        color: var(--muted);
+      }
+      .node:hover { background: #ffffff08; color: var(--text); }
+      .node.sel { background: var(--accent-soft); color: #dce6ff; }
+      .node .cls { color: #9ad2ff; }
+      .node.sel .cls { color: #cfe0ff; }
+      .node .txt { color: var(--dim); overflow: hidden; text-overflow: ellipsis; }
+      .node .sz { margin-left: auto; color: #4b5468; font-size: 10.5px; }
+
+      /* 資產 */
+      .assets { padding: var(--s3) var(--s4) var(--s5); font-size: 12px; }
+      .assets h3 {
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--dim);
+        margin: var(--s5) 0 var(--s2);
+        font-weight: 600;
+      }
+      .assets h3:first-child { margin-top: 0; }
+      .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+      .chip {
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 1px 7px;
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .chip.bad { border-color: #e2564a55; color: #ff9c93; }
+      .chip.good { border-color: #35c07a44; color: #8fe0b4; }
+      .note { color: var(--dim); line-height: 1.7; margin: var(--s2) 0 0; font-size: 11.5px; }
+      code.cmd {
+        display: block;
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        border-radius: var(--r-md);
+        padding: var(--s2) var(--s3);
+        margin-top: var(--s2);
+        font-family: var(--mono);
+        font-size: 11px;
+        line-height: 1.6;
+        color: #b7c2d6;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+
+      /* Console */
+      #log {
+        padding: var(--s2) var(--s3) var(--s5);
+        font-family: var(--mono);
+        font-size: 11.5px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      #log .line { padding: 1px 0; }
+      #log .warn { color: var(--warn); }
+      #log .err { color: var(--err); }
+      #log .out { color: #a9b3c7; }
+
+      /* 窄螢幕：上下堆疊，工作區至少留 380px 高 */
+      @media (max-width: 1080px) {
+        main { flex-direction: column; }
+        aside { width: auto; border-left: none; border-top: 1px solid var(--line); max-height: 45vh; }
+        .stage { padding: var(--s4); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * { transition: none !important; animation: none !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <span class="brand__mark">LV</span>
+        LVGL Console UI
+        <span class="brand__sub">Simulator</span>
+      </div>
+
+      <select class="select" id="project-switch" title="切換工程" aria-label="切換工程"></select>
+
+      <div class="pages" id="pages" role="tablist" aria-label="頁面"></div>
+
+      <div class="spacer"></div>
+
+      <button class="btn on" id="inspector-toggle" title="I 鍵切換檢視器" aria-pressed="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M3 12h4l3 8 4-16 3 8h4" />
+        </svg>
+        檢視器
+      </button>
+    </header>
+
+    <main>
+      <section class="stage">
+        <div class="device">
+          <div class="device__meta">
+            <span class="dot" aria-hidden="true"></span>
+            <b id="device-title">—</b>
+            <span class="sep">·</span>
+            <span id="device-res">—</span>
+            <span class="sep">·</span>
+            <span id="device-theme">—</span>
+          </div>
+
+          <div class="bezel">
+            <canvas id="sim" width="320" height="240"></canvas>
+            <canvas id="overlay" width="320" height="240"></canvas>
+          </div>
+
+          <!-- 檢視資訊列：一律在畫布外（畫布內的文字會蓋住 UI、貼邊還會被裁掉） -->
+          <div class="inspect-bar" id="inspect-bar">
+            <span class="k">HOVER</span>
+            <span class="muted">把游標移到畫面上 · 點一下＝選取</span>
+          </div>
+
+          <div class="stats" id="stats"></div>
+
+          <!-- 操作列：沒有實體旋鈕/按鍵時，直接用滑鼠點（跟鍵盤走同一條 bus） -->
+          <div class="controls">
+            <div class="keys">
+              <button class="keybtn" data-enc="-1" title="旋鈕 ←（左轉一格）" aria-label="旋鈕左轉">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+              </button>
+              <button class="keybtn" data-enc="1" title="旋鈕 →（右轉一格）" aria-label="旋鈕右轉">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+              </button>
+              <button class="keybtn wide" data-pin="encC" title="確認（Enter）" aria-label="確認">Enter</button>
+              <button class="keybtn wide" data-pin="btn" title="返回（Esc）" aria-label="返回">Esc</button>
+            </div>
+            <span class="hint">滾輪＝旋鈕 · <kbd>I</kbd> 檢視器 · 點畫布選元件</span>
+          </div>
+        </div>
+      </section>
+
+      <aside>
+        <div class="tabs" id="tabs" role="tablist">
+          <button data-tab="inspect" class="active" role="tab">檢視</button>
+          <button data-tab="tree" role="tab">元件樹</button>
+          <button data-tab="assets" role="tab">資產</button>
+          <button data-tab="console" role="tab">Console</button>
+        </div>
+
+        <div class="panel" id="panel-inspect">
+          <div class="empty">
+            <div class="empty__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                <path d="M4 4l7 16 2.5-6.5L20 11 4 4z" />
+              </svg>
+            </div>
+            <h3>選一個元件</h3>
+            <p>把游標移到畫面上會標出元件框；點一下＝選取，這裡會顯示它的屬性、建立位置，以及焦點狀態。</p>
+            <div class="keys">
+              <span><kbd>I</kbd> 開關檢視器</span>
+              <span><kbd>Enter</kbd> 確認</span>
+            </div>
+          </div>
+        </div>
+        <div class="panel hidden" id="panel-tree"></div>
+        <div class="panel hidden" id="panel-assets"><div class="empty"><h3>載入資產盤點…</h3></div></div>
+        <div class="panel hidden" id="panel-console"><div id="log"></div></div>
+      </aside>
+    </main>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "@lvui/": "./",
+          "@packages/": "./packages/",
+          "@projects/": "./projects/"
+        }
+      }
+    </script>
+    <script type="module" src="./boot.js"></script>
+  </body>
+</html>

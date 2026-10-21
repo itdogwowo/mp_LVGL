@@ -1,0 +1,16 @@
+{
+  "id": "slave",
+  "title": "mp_Net-Core slave",
+  "description": "真機 UI 的 1:1 複刻（9 頁，旋鈕 + 兩鍵，320×240）",
+  "framework": "lvgl",
+  "theme": { "id": "traework", "version": "1.0.0" },
+  "display": { "w": 320, "h": 240 },
+  "fonts": {},
+  "pages": "pages",
+  "seed": "seed.js",
+  "target": {
+    "repo": "mp_Net-Core",
+    "path": "slave/ui/lvgl",
+    "entry": "ui/lvgl/app.py"
+  }
+}

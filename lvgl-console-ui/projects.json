@@ -1,0 +1,16 @@
+{
+  "$comment": "專案索引：模擬器啟動時讀這份決定有哪些工程可以開。一個專案 = 一個 UI 應用（pages + theme 綁定 + 假資料）。",
+  "projects": [
+    {
+      "id": "slave",
+      "title": "mp_Net-Core slave（1:1）",
+      "path": "projects/slave",
+      "default": true
+    },
+    {
+      "id": "sandbox",
+      "title": "沙盒 · 樣板頁",
+      "path": "projects/sandbox"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "sandbox",
+  "title": "沙盒 · 樣板頁",
+  "description": "拿來試版面/元件的空白工程（settings 樣板 + widgets 元件測試）",
+  "framework": "lvgl",
+  "theme": { "id": "traework", "version": "1.0.0" },
+  "display": { "w": 320, "h": 240 },
+  "fonts": {},
+  "pages": "pages",
+  "seed": "seed.js"
+}

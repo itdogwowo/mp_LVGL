@@ -1,0 +1,17 @@
+{
+  "name": "lvgl-console-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "LVGL Console UI · Simulator：用純 JS 做 LVGL UI，定稿後轉成 MicroPython",
+  "scripts": {
+    "dev": "node cli/serve.mjs --open",
+    "validate": "node cli/validate.mjs",
+    "assets": "node cli/assets.mjs",
+    "font:check": "node cli/font-check.mjs",
+    "coverage": "node cli/coverage.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

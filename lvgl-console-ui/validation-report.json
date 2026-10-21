@@ -1,107 +1,147 @@
 {
-  "success": true,
+  "schema": "validation-report/1",
+  "generated_at": "2026-10-21T09:41:06.458760+00:00",
   "outcome": "passed",
-  "repairable": true,
-  "terminalViolations": [],
-  "terminalBlockingSummary": null,
-  "skillProvenance": {
-    "name": "solo-design",
-    "version": "2026.07.22.00.00.00",
-    "version_source": "skill-release-manifest.json",
-    "runtime_skill_dir": null,
-    "recorded_at": null,
-    "expected_version": "2026.07.22.00.00.00",
-    "status": "matched",
-    "read_status": "ok"
-  },
-  "operatingMode": "library-bound",
-  "renderBlockingErrorCount": 0,
-  "softWarningCount": 5,
-  "renderBlockingErrors": [],
-  "errorSignatures": [],
-  "softWarnings": [
-    "[library-bound-css] control.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__live, .page-content, .col, .col--relays, .col--params). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
-    "[library-bound-css] launcher.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.statusbar, .statusbar__left, .statusbar__dot, .statusbar__device, .statusbar__right, .sb-icon, .statusbar__time, .launcher). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
-    "[library-bound-css] monitor.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__live, .page-content, .mon-cols, .mon-col--main, .mon-read). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
-    "[library-bound-css] overview.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.min-h-screen, .appbar, .appbar__back, .icon, .appbar__live, .page-content, .unit-head, .unit-id). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
-    "[library-bound-css] settings.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__live, .page-content, .settings-col, .settings-foot, .save-btn). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead."
-  ],
-  "repairPlanHints": [],
-  "repairActionTable": [],
   "errorCount": 0,
-  "warningCount": 5,
+  "warningCount": 2,
   "errors": [],
   "warnings": [
-    "[library-bound-css] control.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__live, .page-content, .col, .col--relays, .col--params). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
-    "[library-bound-css] launcher.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.statusbar, .statusbar__left, .statusbar__dot, .statusbar__device, .statusbar__right, .sb-icon, .statusbar__time, .launcher). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
-    "[library-bound-css] monitor.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__live, .page-content, .mon-cols, .mon-col--main, .mon-read). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
-    "[library-bound-css] overview.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.min-h-screen, .appbar, .appbar__back, .icon, .appbar__live, .page-content, .unit-head, .unit-id). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead.",
-    "[library-bound-css] settings.html: Library-bound mode discourages custom CSS class definitions in <style> blocks (.appbar, .appbar__back, .icon, .appbar__live, .page-content, .settings-col, .settings-foot, .save-btn). Prefer Tailwind utilities plus Library brand CSS variables/component JSON instead."
+    {
+      "project": "slave",
+      "check": "icon",
+      "message": "對照表有 24 個圖示沒用到（不是錯誤）"
+    },
+    {
+      "project": "sandbox",
+      "check": "icon",
+      "message": "對照表有 22 個圖示沒用到（不是錯誤）"
+    }
   ],
-  "validationRunDisciplineStatus": {
-    "declared": true,
-    "restoreMode": false,
-    "maxFullValidationRuns": null,
-    "validationHistoryCount": 0,
-    "repairLedgerCount": 0,
-    "softWarningsTriggerRepair": null,
-    "terminalState": null,
-    "nextAction": null,
-    "violations": [],
-    "success": true
-  },
-  "terminalState": null,
-  "nextCheck": {
-    "type": "finish-readiness",
-    "command": "node \"c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\validate-finish-readiness.mjs\" \"c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\" --check=all",
-    "fullValidationAllowed": false,
-    "reason": "workspace validation passed; run complete finish readiness before final delivery"
-  },
-  "repairBatch": [],
-  "repairContextPacket": {
-    "schema_version": "1.0",
-    "purpose": "small-context repair packet; read this before full validation-report.json",
-    "success": true,
-    "terminalState": null,
-    "skillProvenance": {
-      "name": "solo-design",
-      "version": "2026.07.22.00.00.00",
-      "version_source": "skill-release-manifest.json",
-      "runtime_skill_dir": null,
-      "recorded_at": null,
-      "expected_version": "2026.07.22.00.00.00",
-      "status": "matched",
-      "read_status": "ok"
+  "projects": [
+    {
+      "id": "slave",
+      "title": "mp_Net-Core slave",
+      "theme": "traework@1.0.0",
+      "pages": [
+        {
+          "id": "remote",
+          "title": "遙控器",
+          "icon": "wifi",
+          "order": 0.0,
+          "dev": false,
+          "file": "remote.js"
+        },
+        {
+          "id": "control_panel",
+          "title": "控制面板",
+          "icon": "sliders-horizontal",
+          "order": 1.0,
+          "dev": false,
+          "file": "control_panel.js"
+        },
+        {
+          "id": "now_setting",
+          "title": "ESP-NOW",
+          "icon": "sensors",
+          "order": 2.0,
+          "dev": false,
+          "file": "now_setting.js"
+        },
+        {
+          "id": "pca9685",
+          "title": "PCA9685",
+          "icon": "sun",
+          "order": 2.0,
+          "dev": false,
+          "file": "pca9685.js"
+        },
+        {
+          "id": "pixel_controller",
+          "title": "Pixel 控制",
+          "icon": "sliders-horizontal",
+          "order": 2.0,
+          "dev": false,
+          "file": "pixel_controller.js"
+        },
+        {
+          "id": "pixel_lab_apa",
+          "title": "PixelLab APA",
+          "icon": "sun",
+          "order": 2.0,
+          "dev": false,
+          "file": "pixel_lab_apa.js"
+        },
+        {
+          "id": "pixel_lab_rgb",
+          "title": "PixelLab RGB",
+          "icon": "sun",
+          "order": 3.0,
+          "dev": false,
+          "file": "pixel_lab_rgb.js"
+        },
+        {
+          "id": "settings",
+          "title": "系統設定",
+          "icon": "settings",
+          "order": 3.0,
+          "dev": false,
+          "file": "settings.js"
+        },
+        {
+          "id": "pixel_lab_pca",
+          "title": "PixelLab PCA",
+          "icon": "sun",
+          "order": 4.0,
+          "dev": false,
+          "file": "pixel_lab_pca.js"
+        }
+      ],
+      "chars": 172,
+      "icons": 5
     },
-    "renderBlockingErrorCount": 0,
-    "softWarningCount": 5,
-    "renderBlockingErrors": [],
-    "repairActionTable": [],
-    "nextCheck": {
-      "type": "finish-readiness",
-      "command": "node \"c:\\Users\\bl24847\\.trae\\builtin\\design\\default\\skills\\solo-design\\shared-runtime\\deterministic-tooling\\validate-finish-readiness.mjs\" \"c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui\" --check=all",
-      "fullValidationAllowed": false,
-      "reason": "workspace validation passed; run complete finish readiness before final delivery"
-    },
-    "forbidden": [
-      "do not read validator source",
-      "do not rerun full validation when nextCheck.fullValidationAllowed=false",
-      "do not start preview/browser unless user explicitly asks",
-      "do not hand-edit repair ledger fields"
-    ]
+    {
+      "id": "sandbox",
+      "title": "沙盒 · 樣板頁",
+      "theme": "traework@1.0.0",
+      "pages": [
+        {
+          "id": "settings",
+          "title": "系統設定",
+          "icon": "settings",
+          "order": 3.0,
+          "dev": false,
+          "file": "settings.js"
+        },
+        {
+          "id": "widgets",
+          "title": "元件測試",
+          "icon": "layout-dashboard",
+          "order": 90.0,
+          "dev": true,
+          "file": "widgets.js"
+        }
+      ],
+      "chars": 40,
+      "icons": 7
+    }
+  ],
+  "hashes": {
+    "projects.json": "f9bf3abc09a93870fbf7ada3ad192ee2cd75fa64ecad99f07d765bbf4990620b",
+    "projects/slave/project.json": "25899fcc7141e5bb77a0bb624afb7618059937c1fe0cfd9fbc4b8fbd5e366b11",
+    "packages/themes/traework/index.js": "004a2d38067daf6b4f5e40481addcc5521e96f16184ef777f042271a073bd376",
+    "projects/slave/pages/control_panel.js": "deb443890bc7e7cdfa34e383b39a9b4cfa5c043cdd4564533534397f940290b7",
+    "projects/slave/pages/now_setting.js": "29e90966bae953e730e729990ef1e5e3db82686c25283620998e5b5ab020690d",
+    "projects/slave/pages/pca9685.js": "3f6a290544d443e4d5cec4d8b54498c25ef969b831fc1b1f97c057aa60423cb7",
+    "projects/slave/pages/pixel_controller.js": "1f0c396d0ba6b95bb8362183342cf90aeee3c511bfe79cf1a81e6803b90e675c",
+    "projects/slave/pages/pixel_lab_apa.js": "0f8e7adcec76759d1410feb0d0baca223b07bc82bdc881cf7c12f863f3575422",
+    "projects/slave/pages/pixel_lab_common.js": "01575ce7d908fad9984d488ffabf9aaf689697d9daf128c1a8173df135b0462f",
+    "projects/slave/pages/pixel_lab_pca.js": "c1636e4936cc6c1304d80db806ab093148d3c91ece8c8be2f1da42b0ee711133",
+    "projects/slave/pages/pixel_lab_rgb.js": "f670cc8f430850ba72c83a69821a8401c9ab4320075d7eb6d4a6e5ae0603301a",
+    "projects/slave/pages/remote.js": "848b51d519da8df48144612aa214e42e7bf99e03999a6ae44d10a7759041e8ca",
+    "projects/slave/pages/settings.js": "abe7f7ea9eabca39f57aa2178179015d4b081c89eb7c443ec9f39e916afead4b",
+    "projects/sandbox/project.json": "a54e6dcc2ed8df1a044f103a564a40a0608db0ca863bb0f55958c4cb454fdb70",
+    "projects/sandbox/pages/settings.js": "abe7f7ea9eabca39f57aa2178179015d4b081c89eb7c443ec9f39e916afead4b",
+    "projects/sandbox/pages/widgets.js": "bbe4b76c8ba2083be0d42b838043f135234805939bf2ad81db016af16a6c6005"
   },
-  "projectFileHashes": {
-    "lvgl-console-ui.design": "0893528e56f37e41b0c9c19e4fc2c1e8b4db1c679bc1b5bb1113e81a7135446b",
-    "colors_and_type.css": "38e9864995e5e13eb5374471803f039d723ff35e3fc68863d145e878e9fbd539",
-    "runtime-orchestration-summary.json": "f49a5370108de5e410c78bf840c4fe6da0cdaa8baef7a4ca28a7395ed71e3d84",
-    "pages/control.html": "07443a6a980ce5b6e8336966a7451e506d9efc201fa6783b6d08907955595725",
-    "pages/launcher.html": "8603dbc97c0a0f51106396f823b9a9ede35e6ac33260478cf7ec5e03c9b5b76d",
-    "pages/monitor.html": "5f7b32ff55a2aef4b6cb93ab84364c1db401c61580bfabc4efe40a398cd77ff1",
-    "pages/overview.html": "3f104d5537a8d5272a7f9e105d074dda9daacadf9c692a1ed9909f30725e2917",
-    "pages/settings.html": "22593883911b2eefc46744339c2b76ad412a22253d278baeca08efca55475c93"
-  },
-  "designDir": "c:\\Users\\bl24847\\Documents\\code\\git\\mp_LVGL\\lvgl-console-ui",
-  "expectedPages": null,
-  "requireInteractions": null,
-  "checkedAt": "2026-08-12T06:22:26.546Z"
+  "checkedAt": "2026-10-21T09:41:06.458763+00:00"
 }
