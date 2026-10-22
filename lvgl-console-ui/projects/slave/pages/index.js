@@ -4,7 +4,7 @@
 // 容錯照裝置的 page/__init__.py：單頁載入失敗不拖垮其他頁（try-import 跳過）。
 //
 // 2026-10 改版：移除舊的 control_panel / pca9685（功能由 pixel_controller +
-// pixel_lab_* 取代），目前 7 頁：
+// pixel_lab_* 取代）。遷移對照用的 control_panel 參考頁也已刪除，目前 7 頁：
 //   0 Pixel 控制  1 PixelLab PCA  2 PixelLab RGB  3 PixelLab APA
 //   4 遙控器      5 ESP-NOW       6 系統設定
 
@@ -18,8 +18,6 @@ const PAGES = [
   ["remote", () => import("./remote.js")],
   ["now_setting", () => import("./now_setting.js")],
   ["settings", () => import("./settings.js")],
-  // 復原的參考頁（order 7）：遷移 pixel_controller 版面時拿來對照，完成後移除。
-  ["control_panel", () => import("./control_panel.js")],
 ];
 
 for (const [id, load] of PAGES) {

@@ -184,7 +184,7 @@ node cli/validate.mjs [project]
 ## 目前狀態（projects/slave）
 
 7 頁，`python cli/validate.py` → `PASSED`（2026-10 改版：移除舊的 `control_panel` / `pca9685`，
-功能由 `pixel_controller` + `pixel_lab_*` 取代）：
+功能由 `pixel_controller` + `pixel_lab_*` 取代；遷移對照用的 `control_panel` 參考頁也已刪除）：
 
 | 順序 | 頁面 | 標題 | 圖示 | 備註 |
 |---|---|---|---|---|
@@ -205,10 +205,11 @@ node cli/validate.mjs [project]
 
 **已知落差**（都不影響操作，屬於模擬器能力邊界）：
 
-1. `lv.list` 沒有捲動（`scroll_to_view`）：清單超過容器高度時，游標可以移到看不見的列
-2. `List._layoutItems()` 固定列高（font.lineHeight + 8）、忽略 `set_style_pad_all()` → 列距跟真機差幾 px
-3. 字型方框：裝置頁面有幾處用 `u.F_NUM_M` 畫中文（`模式 1`、`待機/計時中`、`—`、`無`），
+1. 字型方框：裝置頁面有幾處用 `u.F_NUM_M` 畫中文（`模式 1`、`待機/計時中`、`—`、`無`），
    Montserrat 沒有 CJK → 模擬器照真機畫方框。**要決定**：保持 1:1，或改成 `u.ZH`
+
+（2026-10 已補齊：`List.clean()` 會清 `_items`、`_layoutItems()` 會讀 pad 樣式、
+`List.scroll_to_view()` 已實作 —— 清單超過容器高度時游標會捲動到可視區。）
 
 
 

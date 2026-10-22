@@ -1,15 +1,15 @@
 // ui/registry.js — 頁面註冊表（對應 ui/lvgl/registry.py）
 //
 // 裝置端用 decorator：
-//     @register(id="control_panel", title="控制面板", icon="sliders-horizontal", order=1)
+//     @register(id="pixel_controller", title="Pixel 控制", icon="sliders-horizontal", order=0)
 //     def build(): ...
 //
 // 這裡用 meta 物件 + register(mod)：
-//     export const meta = { id: "control_panel", title: "控制面板", ... }
+//     export const meta = { id: "pixel_controller", title: "Pixel 控制", ... }
 //     export function build() { ... }
 //
 //     // page/index.js
-//     register(control_panel)
+//     register(pixel_controller)
 //
 // 差異只有「metadata 放哪」，語義完全一樣：build 一次、screen 永駐、
 // launcher 依 order 排序自動長出卡片。

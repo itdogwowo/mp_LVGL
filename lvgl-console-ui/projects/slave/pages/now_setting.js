@@ -60,9 +60,6 @@
 // ⚠ 缺少 API: cfg_manager.save_now() / clear_now()（projects/slave/mocks.js 只有
 //   get/set/save/now_state）→ 改用 set("now_setting", …) + save() 代替，
 //   語義對齊 ConfigManager.save_now()/clear_now()：寫回 @now.* 那一份 shared 狀態。
-// ⚠ 缺少 API: lv.js 的 lv.list.clean() 只刪 children、沒同步清 List._items，
-//   而 List._layoutItems()（每幀由 paint 呼叫）是照 _items 排版的 → 重填後
-//   內容會愈來愈往下飄。lv.js 不能改，所以在 _fill() 補一行等價於真機的 clean。
 // ⚠ 簽名差異: u.mk_list(..., font=) 在 JS 是第 7 個位置參數（f），改用位置傳 u.ZH。
 //
 // 轉換對照（Python → JS）：
@@ -514,6 +511,7 @@ function _on_opt_move(dd) {
     // Python 的 % 對負數也回正；JS 的 % 會留負號，所以要補一次
     _oi = (((_oi + dd) % n) + n) % n;
     u.list_select(_opt_btns, _oi, u.PRIMARY);
+    _scroll_into(_opt_list, _opt_btns, _oi);
   }
 }
 
@@ -523,6 +521,7 @@ function _on_sel_move(dd) {
   if (n) {
     _si = (((_si + dd) % n) + n) % n;
     u.list_select(_sel_btns, _si, u.PRIMARY);
+    _scroll_into(_sel_list, _sel_btns, _si);
   }
 }
 
@@ -549,11 +548,7 @@ function _panel(parent, x, y, w, h) {
 /** 重建清單內容。`mk_list` 只 append，所以要先 `clean()`。 */
 function _fill(lst, labels) {
   try {
-    lst.clean();
-    // ⚠ 缺少 API: lv.js 的 clean() 只刪 children，沒清 List._items；
-    //   而 _layoutItems() 每幀照 _items 排版 → 重填的列會接在已刪掉的列後面。
-    //   真機的 lv.list.clean() 是整個清掉，這裡補一步等價動作（不改 lv.js）。
-    if (Array.isArray(lst._items)) lst._items.length = 0;
+    lst.clean(); // lv.js 的 clean() 會連 _items 一起清（跟真機一致）
   } catch (e) {
     /* 跟裝置一樣：清不掉就繼續 */
   }
@@ -570,6 +565,16 @@ function _fill(lst, labels) {
     }
   }
   return out;
+}
+
+/** 游標列超出可視區時捲進來（binding 沒有這個方法就跳過，跟裝置一樣）。 */
+function _scroll_into(lst, btns, i) {
+  if (!(0 <= i && i < btns.length)) return;
+  try {
+    lst.scroll_to_view(btns[i]);
+  } catch (e) {
+    /* 跟裝置一樣容忍 binding 差異 */
+  }
 }
 
 export function build() {
@@ -695,6 +700,7 @@ function _refresh_opt(force = false) {
   _oi = Math.max(0, Math.min(_oi, Math.max(0, _opt_btns.length - 1)));
   if (_opt_btns.length) {
     u.list_select(_opt_btns, _oi, u.PRIMARY);
+    _scroll_into(_opt_list, _opt_btns, _oi);
   }
   _set("optn", `(${macs.length})`);
 }
@@ -716,6 +722,7 @@ function _refresh_sel(force = false) {
   _si = Math.max(0, Math.min(_si, Math.max(0, _sel_btns.length - 1)));
   if (_sel_btns.length) {
     u.list_select(_sel_btns, _si, u.PRIMARY);
+    _scroll_into(_sel_list, _sel_btns, _si);
   }
   const over = _sel_macs.length > _cap();
   _set("seln", `(${_sel_macs.length}/${_cap()})${over ? " 超標!" : _dirty ? " *" : ""}`);

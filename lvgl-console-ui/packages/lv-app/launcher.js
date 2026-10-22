@@ -62,6 +62,9 @@ export function build() {
     num.align(lv.ALIGN.TOP_RIGHT, -8, 8);
 
     u.mk_label(c, meta.title, 14, 68, u.TEXT, u.ZH);
+    // desc 只是裝飾文字，必須整串放進卡內可用寬（CARD_W-14-8 ≈ 138px）。
+    // 刻意不做「…」截斷——「還有資訊但永遠看不到」比短一點更糟；
+    // 太長就把 desc 本身寫短（放不放在寫 meta 時就要考慮）。
     u.mk_label(c, meta.desc, 14, 92, u.TEXT3, u.ZH);
     cards.push(c);
   }

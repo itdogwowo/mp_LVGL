@@ -19,6 +19,7 @@ import "@lvui/frameworks/lvgl/anim.js"; // 註冊 lv.anim_t + tick 掛勾
 import { bus } from "@packages/lv-app/bus.js";
 import * as registry from "@packages/lv-app/registry.js";
 import * as app from "@packages/lv-app/app.js";
+import { ICONS } from "@packages/lv-app/lv_icons.js";
 import * as u from "@packages/lv-app/ui_common.js";
 import { createDisplay } from "@lvui/host/display.js";
 import { createInspector, locatorOf } from "@lvui/inspect/inspector.js";
@@ -148,6 +149,9 @@ const escHtml = (s) =>
 
 let selectedW = null; // 離開 hover 後，資訊列要退回「已選取」那一筆
 
+/** PUA 字元 → 圖示名（lv_icons.js 的反查表；inspector 顯示用）。 */
+const _nameByIcon = Object.fromEntries(Object.entries(ICONS).map(([n, ch]) => [ch, n]));
+
 /** 從 widget 往上收集整條祖先鏈（screen → … → 自己）。 */
 function chainOf(w) {
   const out = [];
@@ -163,6 +167,12 @@ function renderInspectBar(w, kind) {
     return;
   }
   const text = typeof w.get_text === "function" ? w.get_text() : "";
+  // 圖示 label 的文字是 PUA 私有區碼點（HTML 字型顯示不出來 → 面板上看起來是「空白」）
+  // → 換成 ⟨icon:名稱⟩，一眼看得出這是哪個圖示
+  const shown = String(text ?? "").replace(/[\uE000-\uF8FF]/g, (ch) => {
+    const name = _nameByIcon[ch];
+    return name ? `⟨icon:${name}⟩` : `⟨u+${ch.charCodeAt(0).toString(16)}⟩`;
+  });
   const chain = chainOf(w);
   // 麵包屑：每一段都可以點，直接跳到那一層（被蓋住的父層就靠這個選）
   const crumbs = chain
@@ -177,7 +187,7 @@ function renderInspectBar(w, kind) {
   inspectBar.classList.toggle("hot", kind === "HOVER");
   inspectBar.innerHTML =
     `<span class="k">${kind}</span>` +
-    `<span class="v">${escHtml(w.objClass)} #${w.oid}${text ? ` 「${escHtml(text)}」` : ""}</span>` +
+    `<span class="v">${escHtml(w.objClass)} #${w.oid}${shown ? ` 「${escHtml(shown)}」` : ""}</span>` +
     `<span class="muted">${w.w}×${w.h} · x=${w._ax} y=${w._ay}</span>` +
     `<span class="path">${crumbs}</span>`;
 

@@ -46,12 +46,8 @@
 //   —— 那是把 ESP-NOW 的實作細節寫進 UI，換一條管子就不能用（已移除）。
 //
 // ⚠ 缺少 API / 模擬器差異：
-//   - lv.list.clean() 只刪 children、沒有清 List 內部的 _items（真機 LVGL 會清乾淨）
-//     → 已補 `_peer_list._items.length = 0`；不補的話重進頁面每一列會被往下推。
 //   - mocks 的 cfg_manager 沒有 save_node()（真機在綁定/解除後落盤）
 //     → 已用 typeof 守衛，沒有就跳過。
-//   - lv.js 的 list item 預設 bg_opa=0（真機主題是 COVER）→ _sync_list 補
-//     set_style_bg_opa(255)，否則「選中底色」完全看不到。
 //   - bus.cid / bus.targets / bus.role 在模擬器是 Bus 實例上的動態屬性（類別沒有），
 //     讀不到時用 0xFFFF / [] / null 當預設，跟真機 getattr 的預設一致。
 
@@ -587,13 +583,10 @@ function _refresh_peers(force = false) {
   _last["peers"] = labels;
   _peer_rows = rows;
   try {
-    _peer_list.clean();
+    _peer_list.clean(); // lv.js 的 clean() 會連 _items 一起清（跟真機一致）
   } catch (e) {
     /* 跟裝置一樣：清不掉就跳過，下一幀再試 */
   }
-  // ⚠ lv.js 的 List.clean() 只刪 children，沒有同步清 List 內部的 _items。
-  //   真機 LVGL 的 clean 會一起清掉；不補這行，重進頁面每一列都會被往下推。
-  if (_peer_list._items) _peer_list._items.length = 0;
   _peer_btns = [];
   for (const txt of labels) {
     try {
@@ -628,12 +621,17 @@ function _sync_list() {
       //   舊版選中時把文字改成白色 → 使用者回報「藍底灰字，看不出狀態」。
       //   改成淺藍底之後，三個狀態色在底色上都還讀得出來。
       b.set_style_bg_color(u.C(sel ? SEL_BG : u.BG), 0);
-      // ⚠ 真機 list item 的 bg_opa 來自主題（COVER）；lv.js 的 ListBtn 預設 0，
-      //   只設顏色不會顯示 → 這裡補上，否則「選中」完全看不到。
-      b.set_style_bg_opa(255, 0);
       b.set_style_text_color(u.C(_row_color(r || dict())), 0);
     } catch (e) {
       /* 單列樣式失敗不影響其他列 */
+    }
+  }
+  // 游標超出可視區時把該列捲進來（binding 沒有這個方法就跳過，跟裝置一樣）
+  if (n) {
+    try {
+      _peer_list.scroll_to_view(_peer_btns[Math.max(0, Math.min(_sel, n - 1))]);
+    } catch (e) {
+      /* 沒有 scroll_to_view 的 binding 就跳過 */
     }
   }
 }

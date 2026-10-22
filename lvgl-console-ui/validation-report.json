@@ -1,6 +1,6 @@
 {
   "schema": "validation-report/1",
-  "generated_at": "2026-10-22T07:58:19.012780+00:00",
+  "generated_at": "2026-10-22T09:02:52.163453+00:00",
   "outcome": "passed",
   "errorCount": 0,
   "warningCount": 2,
@@ -9,7 +9,7 @@
     {
       "project": "slave",
       "check": "icon",
-      "message": "對照表有 21 個圖示沒用到（不是錯誤）"
+      "message": "對照表有 22 個圖示沒用到（不是錯誤）"
     },
     {
       "project": "sandbox",
@@ -78,18 +78,10 @@
           "order": 6.0,
           "dev": false,
           "file": "settings.js"
-        },
-        {
-          "id": "control_panel",
-          "title": "控制面板",
-          "icon": "layout-dashboard",
-          "order": 7.0,
-          "dev": false,
-          "file": "control_panel.js"
         }
       ],
-      "chars": 168,
-      "icons": 8
+      "chars": 161,
+      "icons": 7
     },
     {
       "id": "sandbox",
@@ -119,20 +111,19 @@
   ],
   "hashes": {
     "projects.json": "f9bf3abc09a93870fbf7ada3ad192ee2cd75fa64ecad99f07d765bbf4990620b",
-    "projects/slave/project.json": "25899fcc7141e5bb77a0bb624afb7618059937c1fe0cfd9fbc4b8fbd5e366b11",
+    "projects/slave/project.json": "a59df89b5fc07f5b85284d582a8da47cb47c669f6dca64379c049e865f05dd1f",
     "packages/themes/traework/index.js": "7671f4606f494bbcc439f05c4aeeae03806e6746032d3f6730aec7b11c5e34e4",
-    "projects/slave/pages/control_panel.js": "a37c3de645a7adbf0cf530ecd14cbbd303998ac09c1981aecd76ad0afc9d97ae",
-    "projects/slave/pages/now_setting.js": "00a6630fa94a3b5089a3993a459a547c7c3cf7bd4a41a3c185d59ad002ed42a8",
-    "projects/slave/pages/pixel_controller.js": "e41d369849ea4a573d50e40d31536b812a1ee777c8eb72d8ee0f04fe2b3a7279",
-    "projects/slave/pages/pixel_lab_apa.js": "4b91e453837eeba1f8d677334824b7ad2497ad58b4aaaca96325e61044a5f344",
+    "projects/slave/pages/now_setting.js": "de9f8e4e99d9646453ce9dc0e4fd9094a879d4932b1f8f02903453e0f4acb679",
+    "projects/slave/pages/pixel_controller.js": "fde0923243891c345515b821221f11de9f2cb3bae7f183e4be050aa680eeb73d",
+    "projects/slave/pages/pixel_lab_apa.js": "640a65ec51dcf852d0393e04cf065e2de232974f3bf7150a6f88805d00f813bf",
     "projects/slave/pages/pixel_lab_common.js": "6893b9a9cad3232a295305972d6c08878489a6cbc571a17a26a94cca66f7f97a",
-    "projects/slave/pages/pixel_lab_pca.js": "6d60f1a6208e3ad826a602f177cfbff74d2b4a6cbccae15672292fa1431990f7",
-    "projects/slave/pages/pixel_lab_rgb.js": "fd80e29f22ed36ae270156f4c5f05d7d228d330a36b6c43a8f423934e0f815d1",
-    "projects/slave/pages/remote.js": "a7e31557e4970a594aabf3782132b50420eae7f3e3acb8eeb624906361abbbe8",
+    "projects/slave/pages/pixel_lab_pca.js": "52edc0caaef7f826e3d14dfc2b286e281e42ce2ec55214315322c4e594558b72",
+    "projects/slave/pages/pixel_lab_rgb.js": "e8330336c3ab5946b5ce07d7ecd2b84d1158e4ada895a6b94ca57c86509f1691",
+    "projects/slave/pages/remote.js": "c310583a44802a3fc188e760b30cc1682a644314fcb4b8fc17120e2bf872c430",
     "projects/slave/pages/settings.js": "f0fca5b67116c958d95bf730f5b7e2fa8b205d862d0ef36d5f410e9b4bcb57ee",
     "projects/sandbox/project.json": "a54e6dcc2ed8df1a044f103a564a40a0608db0ca863bb0f55958c4cb454fdb70",
     "projects/sandbox/pages/settings.js": "abe7f7ea9eabca39f57aa2178179015d4b081c89eb7c443ec9f39e916afead4b",
     "projects/sandbox/pages/widgets.js": "bbe4b76c8ba2083be0d42b838043f135234805939bf2ad81db016af16a6c6005"
   },
-  "checkedAt": "2026-10-22T07:58:19.012782+00:00"
+  "checkedAt": "2026-10-22T09:02:52.163456+00:00"
 }

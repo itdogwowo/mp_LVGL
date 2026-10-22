@@ -9,11 +9,9 @@
 //   pca9685_ctl（driver 建的控制表）→ 清單/掃描
 //   PixelLabTask 直接寫選中的 PCA；本頁只設定 target/ch，不碰硬體
 //
-// ⚠ 缺少 API: lv.list.scroll_to_view / list_item.scroll_to_view
-//    模擬器的 lv.list 沒有捲動實作；原檔本來就用 try/except 容忍 binding 缺這個方法，
-//    這裡照抄同樣的 fallback：游標仍可移動、只是可視區不會跟著捲（維持原狀）。
-// ⚠ 缺少 API: lv.list.clean() 只刪 children、不清 List._items → 已用 _list_clear() 代替
-//    （不清 _items 的話，下一次 add_text 的新列會接在已刪掉的列後面，越排越下面、被 clip 掉）
+// 游標捲動：lv.js 的 List 已實作 scroll_to_view（游標超出可視區時捲動）。
+//    照原檔用 try/catch 容忍 binding 差異（先試 item 版、失敗改 list 版）。
+//    晶片表因列高固定（14px），維持「先判斷底端能不能塞下、塞不下直接跳過」的門檻。
 //
 // ⚠ 與原檔不同的地方：
 //   1. 晶片內部排版（尺寸沿用設計的 104×138，不改大小）：
@@ -25,8 +23,6 @@
 //   3. 底部：「同步 N 台」從卡內 (6,116) 移到 (6,170)，「掃描」移到最底 (6,204)
 //   晶片大小只有一個係數 S（現在 1.0＝設計尺寸），其餘尺寸全部由它推導。
 //   → 轉回 MicroPython 時，pixel_lab_pca.py 的這幾個座標要一起改，否則兩邊不一致。
-// ⚠ 缺少 API: lv.list 的列在 lv.js 預設透明（bg_opa = 0）→ 已用 set_style_bg_opa(255) 補
-//    （只換 bg_color 看不到藍底/琥珀底；真機由 theme 決定）
 
 import lv from "@lvui/frameworks/lvgl/lv.js";
 import { bus, dict } from "@packages/lv-app/bus.js";
@@ -47,17 +43,6 @@ function _g(r, k, dflt = null) {
   if (r == null) return dflt;
   if (typeof r.get === "function") return r.get(k, dflt);
   return r[k] === undefined ? dflt : r[k];
-}
-
-function _list_clear(lst) {
-  // ⚠ lv.js 的 clean() 只刪 children；List._items 留著會讓下一次 add_text 從舊位置
-  //   續排（新列排在已刪除的列後面）→ 這裡連 _items 一起清。
-  try {
-    lst.clean();
-  } catch (e) {
-    /* 跟裝置一樣：失敗就跳過 */
-  }
-  if (lst && lst._items) lst._items.length = 0;
 }
 
 /** 兩組 [i2c, addr] 的逐值比較（Python tuple == tuple；JS 陣列不能直接 ==）。 */
@@ -206,7 +191,7 @@ export class PcaPage {
       labels = ["(無控制器)"];
     }
     try {
-      _list_clear(this._list);
+      this._list.clean(); // lv.js 的 clean() 會連 _items 一起清（跟真機一致）
     } catch (e) {
       /* 清單已不在就跳過 */
     }
@@ -283,8 +268,6 @@ export class PcaPage {
         }
       }
       try {
-        // ⚠ 模擬器的 list 列預設透明（bg_opa = 0）→ 一起設，否則藍底/琥珀底看不到。
-        b.set_style_bg_opa(255, 0);
         b.set_style_bg_color(u.C(bg), 0);
         b.set_style_text_color(u.C(fg), 0);
       } catch (e) {
@@ -752,7 +735,7 @@ export const meta = {
   id: "pixel_lab_pca",
   title: "PixelLab PCA",
   icon: "gauge",
-  desc: "PCA9685 · 目標/16 通道",
+  desc: "PCA9685",
   order: 1,
   accent: 0xD97706,
 };

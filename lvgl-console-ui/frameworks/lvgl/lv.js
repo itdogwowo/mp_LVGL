@@ -700,6 +700,7 @@ export class List extends Obj {
     this._style("pad_row", 4, 0);
     this._sizeToContent = false;
     this._items = [];
+    this._scrollY = 0;
   }
 
   add_text(text) {
@@ -719,10 +720,12 @@ export class List extends Obj {
    * ⚠️ 一定要覆寫：基底只會刪 children，但 `_layoutItems()` 每幀照 `_items` 排版，
    *    沒清 `_items` 的話舊項目還留在陣列裡 → 重新 add_text 之後列距會累加，
    *    內容一路往下飄（now_setting 頁重填清單時踩到，第二列從 y=32 變 y=60）。
+   *    清單內容歸零，捲動偏移也一起歸零。
    */
   clean() {
     super.clean();
     this._items = [];
+    this._scrollY = 0;
     return this;
   }
 
@@ -730,9 +733,13 @@ export class List extends Obj {
    * list 是縱向堆疊（LVGL 的 flex column），這裡直接算。
    *
    * ⚠ 一定要讀 pad 樣式，不能寫死 4/4：
-   *   - 頁面常用 `set_style_pad_all(1)` 把列壓緊（pixel_lab / pca9685 / now_setting 都這樣做）
+   *   - 頁面常用 `set_style_pad_all(1)` 把列壓緊（pixel_controller / pixel_lab_pca /
+   *     now_setting 都這樣做）
    *   - 寫死的話列高固定 27px，3 列就要 89px，塞進 88px 的清單 → 最後一列直接被裁掉
    *   LVGL 的列高 = 字高 + item 的 pad_top + pad_bottom，列距 = list 的 pad_row。
+   *
+   * 捲動：`_scrollY` 是「內容往上提的量」，套在最終 y 上（paint 每幀重排，
+   * 所以捲動偏移改了就會生效）。內容比容器矮時夾回 0，內容變少時夾回合法上限。
    */
   _layoutItems() {
     const padAll = this.getStyle("pad_all") ?? 4;
@@ -746,10 +753,46 @@ export class List extends Obj {
       const padTop = it.getStyle("pad_top") ?? it.getStyle("pad_all") ?? 4;
       const padBottom = it.getStyle("pad_bottom") ?? it.getStyle("pad_all") ?? 4;
       const h = lh + padTop + padBottom;
-      it.set_pos(padAll, y);
+      it.set_pos(padAll, y - this._scrollY);
       it.set_size(Math.max(0, this.w - padAll * 2), h);
       y += h + padRow;
     }
+    // 迴圈結束時 y = 最後一列的底 + padRow；內容高（含底部 pad）= y - padRow + padAll
+    const maxSy = Math.max(0, y - padRow + padAll - this.h);
+    if (this._scrollY > maxSy) {
+      this._scrollY = maxSy;
+      this._layoutItems(); // 用夾回來的偏移重排一次（第二次必收斂，不會遞迴）
+    }
+  }
+
+  /**
+   * 把某一列捲進可視區（LVGL: lv_obj_scroll_to_view）。
+   *
+   * 只處理垂直方向：列在可視區內 → 不動；在上方 → 往上捲到露出上緣；
+   * 在下方 → 往下捲到露出下緣。偏移由 `_layoutItems()` 夾限。
+   *
+   * 真機 binding 是 widget 方法；這裡放在 List 上（頁面以 try/catch 容忍
+   * 兩種 binding 的差異，跟裝置的寫法一致）。
+   */
+  scroll_to_view(item) {
+    if (!item || !this._items.includes(item)) return this;
+    const padAll = this.getStyle("pad_all") ?? 4;
+    // item.y 已含 -_scrollY 的偏移 → 未捲動的版面位置要加回來
+    const top = item.y + this._scrollY;
+    const bottom = top + item.h;
+    const viewTop = padAll;
+    const viewBottom = this.h - padAll;
+    let sy = this._scrollY;
+    if (top - sy < viewTop) {
+      sy = Math.max(0, top - viewTop);
+    } else if (bottom - sy > viewBottom) {
+      sy = bottom - viewBottom;
+    }
+    if (sy !== this._scrollY) {
+      this._scrollY = sy;
+      this._layoutItems();
+    }
+    return this;
   }
 }
 

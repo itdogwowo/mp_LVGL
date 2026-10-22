@@ -11,7 +11,7 @@ export const meta = {
   id: "pixel_lab_apa",
   title: "PixelLab APA",
   icon: "zap",
-  desc: "APA102 · 呼吸/選中",
+  desc: "APA102",
   order: 3,
   accent: 0x6D5BD0,
 };

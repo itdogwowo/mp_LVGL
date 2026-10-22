@@ -22,9 +22,6 @@
 //   struct.pack("<BBHB", ...) → Uint8Array.of(...)（B B H B 共 5 bytes，H 佔 2 bytes）
 //   0x{:04X}                  → 0x + padStart(4, "0")
 //   sorted(int(i) for ...)    → 轉數字（任何一個失敗就整個清空）、由小到大排序
-//
-// ⚠ 缺少 API: lv.list.clean() 只刪 children、不清 List._items → 已用 _list_clear() 代替
-//    （不清 _items 的話，下一次 add_text 的新列會接在已刪掉的列後面，越排越下面、被 clip 掉）
 
 import lv from "@lvui/frameworks/lvgl/lv.js";
 import * as u from "@packages/lv-app/ui_common.js";
@@ -141,17 +138,6 @@ function _dget(d, k, dflt = null) {
   if (typeof d.get === "function") return d.get(k, dflt);
   const v = d[k];
   return v === undefined ? dflt : v;
-}
-
-function _list_clear(lst) {
-  // ⚠ lv.js 的 clean() 只刪 children；List._items 留著會讓下一次 add_text 從舊位置
-  //   續排（新列排在已刪除的列後面）→ 這裡連 _items 一起清。
-  try {
-    lst.clean();
-  } catch (e) {
-    /* 跟裝置一樣：失敗就跳過 */
-  }
-  if (lst && lst._items) lst._items.length = 0;
 }
 
 export const meta = {
@@ -375,7 +361,7 @@ function _refresh_list() {
     return;
   }
   try {
-    _list_clear(_mode_list);
+    _mode_list.clean(); // lv.js 的 clean() 會連 _items 一起清（跟真機一致）
   } catch (e) {
     /* 清單已不在就跳過 */
   }
@@ -407,6 +393,12 @@ function _sync_list() {
     return;
   }
   u.list_select(_mode_btns, _cur_idx, u.PRIMARY);
+  // 游標超出可視區時把該列捲進來（binding 沒有這個方法就跳過，跟裝置一樣）
+  try {
+    _mode_list.scroll_to_view(_mode_btns[Math.max(0, Math.min(_cur_idx, _mode_btns.length - 1))]);
+  } catch (e) {
+    /* 沒有 scroll_to_view 的 binding 就跳過 */
+  }
 }
 
 // ═══ 動作 ═══

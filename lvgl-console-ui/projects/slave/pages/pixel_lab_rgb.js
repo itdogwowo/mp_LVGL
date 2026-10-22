@@ -11,7 +11,7 @@ export const meta = {
   id: "pixel_lab_rgb",
   title: "PixelLab RGB",
   icon: "lightbulb",
-  desc: "WS2812 · 呼吸/選中",
+  desc: "WS2812",
   order: 2,
   accent: 0x0E9F6E,
 };

@@ -4,7 +4,7 @@
 //   1. bus.shared 的資料（頁面唯一會讀的東西）
 //   2. 板上其實存在的服務（peers / NowBus / disp）→ 見 mocks.install_services()
 //   3. **假 action_task**：把頁面送出的 _display_cmd 套用到 _display_*
-//      → control_panel 的「送出→琥珀→回藍/綠」三態才看得到
+//      → pixel_controller 的倒數計時才看得到反應
 //
 // ⚠ 這支不會被轉換到真機（真機的這些東西都是真的）。
 
@@ -35,12 +35,11 @@ export function seed() {
       targets: [dict({ cid: 0x0002, name: "peer-a", active: true, slave_id: "AABBCCDDEEFF" })],
     }),
 
-    // control_panel 的協議欄位（控制端送指令 / 被控制端回 echo）
+    // pixel_controller 的協議欄位（控制端送指令 / 被控制端回 echo）
     _display_mode: 0,
     _display_brightness: 18,
     _display_time: 90,
     _display_time_seq: 1,
-    control_panel: dict({ is_running: true }),
 
     // now_setting 的持久狀態（對齊 ConfigManager.now_state()）
     now_setting: dict({ selected: [], encrypt: 0, pmk: "", lmk: "" }),
@@ -142,7 +141,7 @@ function _fake_action_task() {
 
     if (mode !== null) {
       bus.shared["_display_mode"] = mode;
-      // 新的一幀 → seq +1（control_panel 靠它判斷「重新計時」）
+      // 新的一幀 → seq +1（pixel_controller 靠它判斷「重新計時」）
       bus.shared["_display_time_seq"] = (bus.shared.get("_display_time_seq", 0) | 0) + 1;
     }
     if (brightness !== null) bus.shared["_display_brightness"] = brightness;
