@@ -21,7 +21,7 @@ import * as registry from "@packages/lv-app/registry.js";
 import * as app from "@packages/lv-app/app.js";
 import * as u from "@packages/lv-app/ui_common.js";
 import { createDisplay } from "@lvui/host/display.js";
-import { createInspector, pathOf } from "@lvui/inspect/inspector.js";
+import { createInspector, locatorOf } from "@lvui/inspect/inspector.js";
 import { createHud } from "@lvui/inspect/hud.js";
 
 const STEP_MS = 5; // 裝置主迴圈的 sleep(5)
@@ -133,24 +133,63 @@ seedMod.seed?.();
 //  為什麼：文字疊在畫面上會蓋住 UI、元件貼邊時還會被裁掉，
 //  而且「label 65×19」這種標籤會擋住你正要看的字（例如它自己）。
 const inspectBar = document.getElementById("inspect-bar");
+const toastEl = document.getElementById("toast");
+let toastTimer = 0;
+/** 複製定位後的提示（3 秒淡出；不擋操作） */
+function copyToast(text) {
+  if (!toastEl) return;
+  toastEl.textContent = `已複製定位 → ${text}`;
+  toastEl.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove("on"), 4000);
+}
 const escHtml = (s) =>
   String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 let selectedW = null; // 離開 hover 後，資訊列要退回「已選取」那一筆
 
+/** 從 widget 往上收集整條祖先鏈（screen → … → 自己）。 */
+function chainOf(w) {
+  const out = [];
+  for (let n = w; n; n = n.parent) out.unshift(n);
+  return out;
+}
+
 function renderInspectBar(w, kind) {
   if (!inspectBar) return;
   if (!w) {
     inspectBar.classList.remove("hot");
-    inspectBar.innerHTML = `<span class="k">HOVER</span><span class="muted">把游標移到畫面上 · 點一下＝選取</span>`;
+    inspectBar.innerHTML = `<span class="k">HOVER</span><span class="muted">點一下＝選取 · <b>Alt+Click</b>＝上一層 · <b>C</b>＝複製定位 · <b>I</b>＝開關</span>`;
     return;
   }
   const text = typeof w.get_text === "function" ? w.get_text() : "";
+  const chain = chainOf(w);
+  // 麵包屑：每一段都可以點，直接跳到那一層（被蓋住的父層就靠這個選）
+  const crumbs = chain
+    .map((n, i) => {
+      const label = n.parent ? `${n.objClass} #${n.oid}` : "screen";
+      const cur = n === w ? " cur" : "";
+      return `<button class="crumb${cur}" data-chain="${i}" title="${escHtml(
+        `${n.objClass} ${n.w}×${n.h} @${n._ax},${n._ay}`
+      )}">${escHtml(label)}</button>`;
+    })
+    .join(`<span class="sep">›</span>`);
   inspectBar.classList.toggle("hot", kind === "HOVER");
   inspectBar.innerHTML =
     `<span class="k">${kind}</span>` +
     `<span class="v">${escHtml(w.objClass)} #${w.oid}${text ? ` 「${escHtml(text)}」` : ""}</span>` +
-    `<span class="muted">${w.w}×${w.h} · x=${w._ax} y=${w._ay} · ${escHtml(pathOf(w))}</span>`;
+    `<span class="muted">${w.w}×${w.h} · x=${w._ax} y=${w._ay}</span>` +
+    `<span class="path">${crumbs}</span>`;
+
+  // 點麵包屑 → 選那一層（並閃一下，因為它可能被別的東西完全蓋住）
+  const btn = inspectBar.querySelectorAll(".crumb");
+  btn.forEach((el) => {
+    el.addEventListener("click", () => {
+      const i = Number(el.dataset.chain);
+      const target = chain[i];
+      if (target) inspector.select(target);
+    });
+  });
 }
 
 const inspector = createInspector({
@@ -236,10 +275,26 @@ function setInspector(on) {
 }
 
 window.addEventListener("keydown", (e) => {
+  const typing =
+    e.target instanceof HTMLInputElement ||
+    e.target instanceof HTMLTextAreaElement ||
+    e.target instanceof HTMLSelectElement;
   if (e.key === "i" || e.key === "I") {
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+    if (typing) return;
     setInspector(!inspector.enabled);
     e.preventDefault();
+    return;
+  }
+  // C = 複製「游標指到的那個元件」的定位字串（沒 hover 就複製已選取的）
+  if ((e.key === "c" || e.key === "C") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (typing) return;
+    const w = inspector.hovered ?? inspector.selected;
+    if (w) {
+      const loc = locatorOf(w);
+      navigator.clipboard?.writeText(loc);
+      copyToast(loc);
+      e.preventDefault();
+    }
     return;
   }
   const fn = KEYMAP[e.key];

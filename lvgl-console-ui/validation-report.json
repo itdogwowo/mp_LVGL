@@ -1,6 +1,6 @@
 {
   "schema": "validation-report/1",
-  "generated_at": "2026-10-21T09:41:06.458760+00:00",
+  "generated_at": "2026-10-22T07:58:19.012780+00:00",
   "outcome": "passed",
   "errorCount": 0,
   "warningCount": 2,
@@ -9,7 +9,7 @@
     {
       "project": "slave",
       "check": "icon",
-      "message": "對照表有 24 個圖示沒用到（不是錯誤）"
+      "message": "對照表有 21 個圖示沒用到（不是錯誤）"
     },
     {
       "project": "sandbox",
@@ -24,80 +24,72 @@
       "theme": "traework@1.0.0",
       "pages": [
         {
+          "id": "pixel_controller",
+          "title": "Pixel 控制",
+          "icon": "sliders-horizontal",
+          "order": 0.0,
+          "dev": false,
+          "file": "pixel_controller.js"
+        },
+        {
+          "id": "pixel_lab_pca",
+          "title": "PixelLab PCA",
+          "icon": "gauge",
+          "order": 1.0,
+          "dev": false,
+          "file": "pixel_lab_pca.js"
+        },
+        {
+          "id": "pixel_lab_rgb",
+          "title": "PixelLab RGB",
+          "icon": "lightbulb",
+          "order": 2.0,
+          "dev": false,
+          "file": "pixel_lab_rgb.js"
+        },
+        {
+          "id": "pixel_lab_apa",
+          "title": "PixelLab APA",
+          "icon": "zap",
+          "order": 3.0,
+          "dev": false,
+          "file": "pixel_lab_apa.js"
+        },
+        {
           "id": "remote",
           "title": "遙控器",
           "icon": "wifi",
-          "order": 0.0,
+          "order": 4.0,
           "dev": false,
           "file": "remote.js"
-        },
-        {
-          "id": "control_panel",
-          "title": "控制面板",
-          "icon": "sliders-horizontal",
-          "order": 1.0,
-          "dev": false,
-          "file": "control_panel.js"
         },
         {
           "id": "now_setting",
           "title": "ESP-NOW",
           "icon": "sensors",
-          "order": 2.0,
+          "order": 5.0,
           "dev": false,
           "file": "now_setting.js"
-        },
-        {
-          "id": "pca9685",
-          "title": "PCA9685",
-          "icon": "sun",
-          "order": 2.0,
-          "dev": false,
-          "file": "pca9685.js"
-        },
-        {
-          "id": "pixel_controller",
-          "title": "Pixel 控制",
-          "icon": "sliders-horizontal",
-          "order": 2.0,
-          "dev": false,
-          "file": "pixel_controller.js"
-        },
-        {
-          "id": "pixel_lab_apa",
-          "title": "PixelLab APA",
-          "icon": "sun",
-          "order": 2.0,
-          "dev": false,
-          "file": "pixel_lab_apa.js"
-        },
-        {
-          "id": "pixel_lab_rgb",
-          "title": "PixelLab RGB",
-          "icon": "sun",
-          "order": 3.0,
-          "dev": false,
-          "file": "pixel_lab_rgb.js"
         },
         {
           "id": "settings",
           "title": "系統設定",
           "icon": "settings",
-          "order": 3.0,
+          "order": 6.0,
           "dev": false,
           "file": "settings.js"
         },
         {
-          "id": "pixel_lab_pca",
-          "title": "PixelLab PCA",
-          "icon": "sun",
-          "order": 4.0,
+          "id": "control_panel",
+          "title": "控制面板",
+          "icon": "layout-dashboard",
+          "order": 7.0,
           "dev": false,
-          "file": "pixel_lab_pca.js"
+          "file": "control_panel.js"
         }
       ],
-      "chars": 172,
-      "icons": 5
+      "chars": 168,
+      "icons": 8
     },
     {
       "id": "sandbox",
@@ -128,20 +120,19 @@
   "hashes": {
     "projects.json": "f9bf3abc09a93870fbf7ada3ad192ee2cd75fa64ecad99f07d765bbf4990620b",
     "projects/slave/project.json": "25899fcc7141e5bb77a0bb624afb7618059937c1fe0cfd9fbc4b8fbd5e366b11",
-    "packages/themes/traework/index.js": "004a2d38067daf6b4f5e40481addcc5521e96f16184ef777f042271a073bd376",
-    "projects/slave/pages/control_panel.js": "deb443890bc7e7cdfa34e383b39a9b4cfa5c043cdd4564533534397f940290b7",
-    "projects/slave/pages/now_setting.js": "29e90966bae953e730e729990ef1e5e3db82686c25283620998e5b5ab020690d",
-    "projects/slave/pages/pca9685.js": "3f6a290544d443e4d5cec4d8b54498c25ef969b831fc1b1f97c057aa60423cb7",
-    "projects/slave/pages/pixel_controller.js": "1f0c396d0ba6b95bb8362183342cf90aeee3c511bfe79cf1a81e6803b90e675c",
-    "projects/slave/pages/pixel_lab_apa.js": "0f8e7adcec76759d1410feb0d0baca223b07bc82bdc881cf7c12f863f3575422",
-    "projects/slave/pages/pixel_lab_common.js": "01575ce7d908fad9984d488ffabf9aaf689697d9daf128c1a8173df135b0462f",
-    "projects/slave/pages/pixel_lab_pca.js": "c1636e4936cc6c1304d80db806ab093148d3c91ece8c8be2f1da42b0ee711133",
-    "projects/slave/pages/pixel_lab_rgb.js": "f670cc8f430850ba72c83a69821a8401c9ab4320075d7eb6d4a6e5ae0603301a",
-    "projects/slave/pages/remote.js": "848b51d519da8df48144612aa214e42e7bf99e03999a6ae44d10a7759041e8ca",
-    "projects/slave/pages/settings.js": "abe7f7ea9eabca39f57aa2178179015d4b081c89eb7c443ec9f39e916afead4b",
+    "packages/themes/traework/index.js": "7671f4606f494bbcc439f05c4aeeae03806e6746032d3f6730aec7b11c5e34e4",
+    "projects/slave/pages/control_panel.js": "a37c3de645a7adbf0cf530ecd14cbbd303998ac09c1981aecd76ad0afc9d97ae",
+    "projects/slave/pages/now_setting.js": "00a6630fa94a3b5089a3993a459a547c7c3cf7bd4a41a3c185d59ad002ed42a8",
+    "projects/slave/pages/pixel_controller.js": "e41d369849ea4a573d50e40d31536b812a1ee777c8eb72d8ee0f04fe2b3a7279",
+    "projects/slave/pages/pixel_lab_apa.js": "4b91e453837eeba1f8d677334824b7ad2497ad58b4aaaca96325e61044a5f344",
+    "projects/slave/pages/pixel_lab_common.js": "6893b9a9cad3232a295305972d6c08878489a6cbc571a17a26a94cca66f7f97a",
+    "projects/slave/pages/pixel_lab_pca.js": "6d60f1a6208e3ad826a602f177cfbff74d2b4a6cbccae15672292fa1431990f7",
+    "projects/slave/pages/pixel_lab_rgb.js": "fd80e29f22ed36ae270156f4c5f05d7d228d330a36b6c43a8f423934e0f815d1",
+    "projects/slave/pages/remote.js": "a7e31557e4970a594aabf3782132b50420eae7f3e3acb8eeb624906361abbbe8",
+    "projects/slave/pages/settings.js": "f0fca5b67116c958d95bf730f5b7e2fa8b205d862d0ef36d5f410e9b4bcb57ee",
     "projects/sandbox/project.json": "a54e6dcc2ed8df1a044f103a564a40a0608db0ca863bb0f55958c4cb454fdb70",
     "projects/sandbox/pages/settings.js": "abe7f7ea9eabca39f57aa2178179015d4b081c89eb7c443ec9f39e916afead4b",
     "projects/sandbox/pages/widgets.js": "bbe4b76c8ba2083be0d42b838043f135234805939bf2ad81db016af16a6c6005"
   },
-  "checkedAt": "2026-10-21T09:41:06.458763+00:00"
+  "checkedAt": "2026-10-22T07:58:19.012782+00:00"
 }

@@ -36,9 +36,11 @@ const _MODE_MASK = 0x3f;
 export const meta = {
   id: "control_panel",
   title: "控制面板",
-  icon: "sliders-horizontal",
-  desc: "模式·亮度·計時",
-  order: 1,
+  // 復原的參考頁：先放最後（order 7），不影響 0..6 的正式次序。
+  // 遷移完成後這頁會再拿掉。
+  icon: "layout-dashboard",
+  desc: "模式·亮度·計時（參考）",
+  order: 7,
   accent: 0xf9ab00,
 };
 
@@ -82,12 +84,12 @@ export function build() {
   scr.set_style_bg_color(u.C(u.BG), 0);
   scr.set_style_bg_opa(255, 0);
 
-  // 左欄：模式清單（lv_list，字體放大用 F_NUM_M）
+  // 左欄：模式清單（文字是「模式 1」含中文，字型一定要用 ZH；用 F_NUM_M 會變方框）
   const lx = 4;
   const lw = 96;
   const rx = lx + lw + 4;
   const rw = u.W - 4 - rx;
-  [_mode_list, _mode_btns] = u.mk_list(scr, lx, 4, lw, u.H - 8, MODE_LABELS, u.F_NUM_M);
+  [_mode_list, _mode_btns] = u.mk_list(scr, lx, 4, lw, u.H - 8, MODE_LABELS, u.ZH);
   nav.add(_mode_list, ITEM_LIST, { on_change: _sel_mode_delta });
 
   // 右欄上：亮度（無邊框卡片，省空間）
@@ -115,10 +117,10 @@ export function build() {
   _time_lb.set_style_text_font(u.F_NUM_XL, 0);
   _time_lb.set_style_text_color(u.C(u.TEXT), 0);
   _time_lb.set_text("00:00");
-  // 狀態（arc 右上角）
+  // 狀態（arc 右上角）—「待機 / 計時中」是中文，字型用 ZH
   _run_lb = lv.label(c3);
   _run_lb.align(lv.ALIGN.TOP_RIGHT, -6, 8);
-  _run_lb.set_style_text_font(u.F_NUM_M, 0);
+  _run_lb.set_style_text_font(u.ZH, 0);
   _run_lb.set_style_text_color(u.C(u.TEXT3), 0);
   _run_lb.set_text("待機");
 

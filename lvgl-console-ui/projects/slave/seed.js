@@ -84,7 +84,31 @@ export function seed() {
 
   install_services();
   _fake_action_task();
+  _fake_pixel_lab_task();
   return bus;
+}
+
+/**
+ * 假 PixelLabTask：把 pixel_lab 的 mode/active 鏡射到 pixel_lab_view。
+ *
+ * 為什麼需要：三個 lab 頁都只在 `view.mode === 自己的模式` 時才更新晶片/亮度，
+ * 而 view 是 **task 寫的**（真機由 PixelLabTask 發布）。模擬器沒有那個 task，
+ * view.mode 會一直停在 seed 的舊值 → 頁面永遠走「還沒開始」分支（0%、灰格子）。
+ * 這裡只做「鏡射 + io 名稱」，不碰頁面邏輯。
+ */
+function _fake_pixel_lab_task() {
+  setInterval(() => {
+    const st = bus.shared.get("pixel_lab");
+    const v = bus.shared.get("pixel_lab_view");
+    if (!st || !v || typeof v.get !== "function") return;
+    const mode = st.get("mode") || "apa";
+    v["mode"] = mode;
+    v["active"] = st.get("active") || 0;
+    v["busy"] = 0;
+    v["io"] = mode === "pca" ? "I2C0" : "SPI1";
+    // 實際接腳：PCA9685 走 I2C0（SDA=8 / SCL=9，見驅動的 init_i2c）
+    v["pins"] = mode === "pca" ? "SDA 8 · SCL 9" : "MOSI 11 · SCK 12";
+  }, 120);
 }
 
 /**
@@ -95,7 +119,7 @@ export function seed() {
  */
 function _pixel_maps() {
   const m = dict({});
-  m.set(0x3105, dict({ name: "彩帶" }));
+  m.set(0x3105, dict({ name: "流動" }));
   m.set(0x0200, dict({ name: "可動" }));
   m.set(0x0301, dict({ name: "呼吸" }));
   return m;

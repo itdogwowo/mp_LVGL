@@ -87,7 +87,7 @@ export const meta = {
   title: "ESP-NOW",
   icon: "sensors",
   desc: "頻道·加密·已選節點",
-  order: 2,
+  order: 5,
   accent: 0x7B1FA2,
 };
 

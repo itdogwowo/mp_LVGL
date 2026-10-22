@@ -51,6 +51,8 @@ export const fonts = {
 /** 焦點框（nav 的選中視覺）。 */
 export const focus = {
   width: 3,
+  // 畫在**外側** 3px：這樣藍框在灰色底、藍色按鈕上都看得見（內縮會跟按鈕同色而消失）。
+  // 代價是父容器要留 4px 邊，否則會被裁掉 → 頁面的 _panel 已經改成留邊。
   pad: 3,
 };
 

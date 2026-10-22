@@ -1,0 +1,1142 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pixel Controller — 320×240 encoder UI study</title>
+<style>
+  :root{
+    --bg:#F5F5F5;
+    --surface:#FFFFFF;
+    --text:#1F1F1F;
+    --text2:#5F5F5F;
+    --primary:#1A73E8;
+    --track:#DADCE0;
+    --success:#188038;
+
+    --paper:#E9E6DF;
+    --frame:#DCD9D2;
+    --frame-line:#BEBBB3;
+    --page-line:#C9C5BD;
+    --page-muted:#504D47;
+
+    --cjk:system-ui,-apple-system,"Segoe UI","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+    --mono:ui-monospace,"Cascadia Mono","SFMono-Regular",Consolas,"Liberation Mono",monospace;
+  }
+
+  *,*::before,*::after{box-sizing:border-box;}
+  html{background:var(--paper);}
+  body{
+    margin:0;
+    min-width:100%;
+    background:var(--paper);
+    color:var(--text);
+    font-family:var(--cjk);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .board{
+    width:max-content;
+    min-width:100%;
+    padding:42px 48px 34px;
+  }
+
+  /* ---------- sheet header ---------- */
+
+  .masthead{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:72px;
+    padding-bottom:24px;
+    border-bottom:1px solid var(--text);
+  }
+  .masthead-copy{min-width:640px;}
+  .eyebrow{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    margin:0 0 18px;
+    color:var(--page-muted);
+    font-family:var(--mono);
+    font-size:10px;
+    line-height:1;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+  }
+  .eyebrow::before{
+    content:"";
+    width:22px;
+    height:2px;
+    background:var(--primary);
+  }
+  h1{
+    margin:0;
+    font-size:44px;
+    line-height:1;
+    font-weight:700;
+    letter-spacing:-.045em;
+  }
+  h1 .cn{
+    display:inline-block;
+    margin-left:10px;
+    color:var(--page-muted);
+    font-size:18px;
+    font-weight:600;
+    letter-spacing:.02em;
+    transform:translateY(-3px);
+  }
+  .dek{
+    max-width:710px;
+    margin:16px 0 0;
+    color:var(--page-muted);
+    font-size:14px;
+    line-height:1.65;
+  }
+  .dek strong{color:var(--text);font-weight:600;}
+
+  .specs{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    column-gap:34px;
+    width:560px;
+    padding-left:24px;
+    border-left:1px solid var(--page-line);
+    font-family:var(--mono);
+    font-size:10px;
+    line-height:1.2;
+    letter-spacing:.02em;
+  }
+  .spec{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:16px;
+    padding:9px 0;
+    border-top:1px solid var(--page-line);
+  }
+  .spec:nth-child(-n+2){border-top:0;}
+  .spec span{color:var(--page-muted);letter-spacing:.12em;}
+  .spec strong{font-weight:600;color:var(--text);white-space:nowrap;}
+
+  /* ---------- variant grid ---------- */
+
+  .deck{
+    display:flex;
+    align-items:flex-start;
+    gap:32px;
+    padding-top:28px;
+  }
+  .variant{width:674px;flex:none;}
+  .variant-head{
+    min-height:108px;
+    padding-top:12px;
+    border-top:2px solid var(--text);
+  }
+  .v-kicker{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .v-letter{
+    display:grid;
+    place-items:center;
+    width:28px;
+    height:28px;
+    background:var(--text);
+    color:#F5F5F5;
+    font-family:var(--mono);
+    font-size:14px;
+    font-weight:600;
+    line-height:1;
+  }
+  .v-tag{
+    padding:4px 6px 3px;
+    border:1px solid var(--page-line);
+    color:var(--page-muted);
+    font-family:var(--mono);
+    font-size:9px;
+    line-height:1;
+    letter-spacing:.11em;
+    text-transform:uppercase;
+  }
+  .variant h2{
+    margin:12px 0 5px;
+    font-size:20px;
+    line-height:1.25;
+    font-weight:650;
+    letter-spacing:-.02em;
+  }
+  .v-note{
+    max-width:610px;
+    margin:0;
+    color:var(--page-muted);
+    font-size:12px;
+    line-height:1.6;
+  }
+
+  /* ---------- physical frame ---------- */
+
+  .device{
+    width:674px;
+    padding:16px;
+    border:1px solid var(--frame-line);
+    border-radius:18px;
+    background:var(--frame);
+  }
+  .display{
+    position:relative;
+    width:640px;
+    height:480px;
+    overflow:hidden;
+    outline:1px solid #AAA79F;
+    background:var(--bg);
+  }
+
+  /* every screen is authored at 320×240, then scaled by exactly 2 */
+  .screen{
+    position:relative;
+    width:320px;
+    height:240px;
+    overflow:hidden;
+    transform:scale(2);
+    transform-origin:top left;
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--cjk);
+    font-size:16px;
+    line-height:20px;
+  }
+  .screen *,
+  .screen *::before,
+  .screen *::after{box-sizing:border-box;}
+
+  .arc{
+    transform:rotate(-90deg);
+    transform-origin:50% 50%;
+    animation:arc-in 800ms cubic-bezier(.2,.7,.2,1) both;
+  }
+  @keyframes arc-in{
+    from{stroke-dasharray:0 100;}
+  }
+
+  .enc-focus{
+    outline:2px solid var(--primary);
+    outline-offset:2px;
+  }
+
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+
+  .dot-6{display:block;width:6px;height:6px;flex:none;}
+
+  .btn-label{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+    white-space:nowrap;
+  }
+
+  .tri{display:block;flex:none;}
+
+  /* ---------- A : faithful baseline ---------- */
+
+  .a-list{
+    position:absolute;
+    left:4px;
+    top:4px;
+    width:96px;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+  .a-mode{
+    position:relative;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    width:96px;
+    height:32px;
+    padding:0 6px;
+    border:1px solid transparent;
+    border-radius:3px;
+    background:transparent;
+  }
+  .a-mode.is-selected{
+    border-color:var(--track);
+    background:var(--surface);
+  }
+  .a-code{
+    flex:none;
+    color:var(--text2);
+    font-family:var(--mono);
+    font-size:10px;
+    line-height:1;
+    letter-spacing:0;
+  }
+  .a-name{
+    color:var(--text);
+    font-size:16px;
+    font-weight:500;
+    line-height:20px;
+    letter-spacing:0;
+  }
+  .a-mode.is-selected .a-name{font-weight:650;}
+  .a-live{
+    position:absolute;
+    right:5px;
+    top:5px;
+    width:4px;
+    height:4px;
+    background:var(--success);
+  }
+
+  .a-main{
+    position:absolute;
+    left:108px;
+    top:0;
+    width:208px;
+    height:240px;
+  }
+  .a-ring{
+    position:absolute;
+    left:56px;
+    top:4px;
+    width:96px;
+    height:96px;
+  }
+  .a-time{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--text);
+    font-family:var(--mono);
+    font-size:28px;
+    font-weight:600;
+    line-height:1;
+    letter-spacing:-1px;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .a-bright-head{
+    position:absolute;
+    left:0;
+    top:108px;
+    width:208px;
+    height:20px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .a-label{
+    color:var(--text2);
+    font-size:16px;
+    line-height:20px;
+  }
+  .a-value{
+    color:var(--text);
+    font-family:var(--mono);
+    font-size:16px;
+    font-weight:600;
+    line-height:20px;
+    letter-spacing:.02em;
+    font-variant-numeric:tabular-nums;
+  }
+  .a-track{
+    position:absolute;
+    left:0;
+    top:136px;
+    width:208px;
+    height:8px;
+    border-radius:4px;
+    background:var(--track);
+    overflow:hidden;
+  }
+  .a-fill{
+    width:100%;
+    height:8px;
+    background:var(--primary);
+  }
+  .a-knob{
+    position:absolute;
+    right:0;
+    top:132px;
+    width:12px;
+    height:16px;
+    border:2px solid var(--primary);
+    border-radius:2px;
+    background:var(--surface);
+  }
+
+  .a-actions{
+    position:absolute;
+    left:0;
+    top:160px;
+    width:208px;
+    height:72px;
+  }
+  .a-btn{
+    position:absolute;
+    left:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:160px;
+    height:32px;
+    border-radius:3px;
+    font-size:16px;
+    font-weight:550;
+    line-height:1;
+  }
+  .a-primary{
+    top:0;
+    border:1px solid var(--primary);
+    background:var(--primary);
+    color:#FFFFFF;
+    font-weight:600;
+  }
+  .a-secondary{
+    top:40px;
+    border:1px solid var(--track);
+    background:var(--surface);
+    color:var(--text);
+  }
+  .a-arrow{
+    position:absolute;
+    left:168px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:40px;
+    height:32px;
+    border:1px solid var(--track);
+    border-radius:3px;
+    background:var(--surface);
+    color:var(--text);
+  }
+  .a-up{top:0;}
+  .a-down{top:40px;}
+
+  /* ---------- B : 8px modern minimal ---------- */
+
+  .b-list{
+    position:absolute;
+    left:8px;
+    top:8px;
+    width:96px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .b-mode{
+    position:relative;
+    width:96px;
+    height:48px;
+    padding-left:12px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    gap:2px;
+    background:transparent;
+  }
+  .b-mode.is-selected{background:var(--surface);}
+  .b-mode.is-selected::before{
+    content:"";
+    position:absolute;
+    left:0;
+    top:0;
+    bottom:0;
+    width:2px;
+    background:var(--text);
+  }
+  .b-code{
+    color:var(--text2);
+    font-family:var(--mono);
+    font-size:10px;
+    line-height:12px;
+    letter-spacing:0;
+  }
+  .b-name{
+    color:var(--text2);
+    font-size:16px;
+    font-weight:500;
+    line-height:20px;
+  }
+  .b-mode.is-selected .b-name{
+    color:var(--text);
+    font-weight:650;
+  }
+  .b-mode.is-selected .b-code{color:var(--text);}
+  .b-live{
+    position:absolute;
+    right:8px;
+    top:8px;
+    width:4px;
+    height:4px;
+    background:var(--success);
+  }
+
+  .b-ring{
+    position:absolute;
+    left:164px;
+    top:8px;
+    width:96px;
+    height:96px;
+  }
+  .b-time{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--text);
+    font-family:var(--mono);
+    font-size:28px;
+    font-weight:600;
+    line-height:1;
+    letter-spacing:-1px;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .b-bright-head{
+    position:absolute;
+    left:112px;
+    top:112px;
+    width:200px;
+    height:24px;
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+  }
+  .b-label{
+    color:var(--text2);
+    font-size:16px;
+    line-height:24px;
+  }
+  .b-value{
+    color:var(--text);
+    font-family:var(--mono);
+    font-size:24px;
+    font-weight:650;
+    line-height:24px;
+    letter-spacing:-.02em;
+    font-variant-numeric:tabular-nums;
+  }
+  .b-track{
+    position:absolute;
+    left:112px;
+    top:144px;
+    width:200px;
+    height:8px;
+    background:var(--track);
+  }
+  .b-fill{
+    width:100%;
+    height:8px;
+    background:var(--primary);
+  }
+  .b-knob{
+    position:absolute;
+    left:300px;
+    top:139px;
+    width:12px;
+    height:18px;
+    border:2px solid var(--primary);
+    background:var(--surface);
+  }
+
+  .b-actions{
+    position:absolute;
+    left:112px;
+    top:160px;
+    width:200px;
+    height:72px;
+  }
+  .b-btn{
+    position:absolute;
+    left:0;
+    width:160px;
+    height:32px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border:1px solid var(--text);
+    background:var(--surface);
+    color:var(--text);
+    font-size:16px;
+    font-weight:550;
+    line-height:1;
+  }
+  .b-primary{
+    top:0;
+    border-color:var(--primary);
+    background:var(--primary);
+    color:#FFFFFF;
+    font-weight:600;
+  }
+  .b-secondary{top:40px;}
+  .b-arrow{
+    position:absolute;
+    left:168px;
+    width:32px;
+    height:32px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border:1px solid var(--text);
+    background:var(--surface);
+    color:var(--text);
+  }
+  .b-up{top:0;}
+  .b-down{top:40px;}
+
+  /* ---------- C : ring-led, tabbed instrument ---------- */
+
+  .c-tabs{
+    position:absolute;
+    left:8px;
+    top:8px;
+    width:304px;
+    height:28px;
+    display:flex;
+    gap:8px;
+  }
+  .c-tab{
+    width:96px;
+    height:28px;
+    padding:0 7px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border:1px solid var(--track);
+    background:var(--surface);
+    color:var(--text);
+  }
+  .c-tab.is-selected{
+    border-color:var(--text);
+    background:var(--text);
+    color:#FFFFFF;
+  }
+  .c-code{
+    color:var(--text2);
+    font-family:var(--mono);
+    font-size:10px;
+    line-height:1;
+    letter-spacing:0;
+  }
+  .c-tab.is-selected .c-code{color:var(--track);}
+  .c-name{
+    font-size:16px;
+    font-weight:500;
+    line-height:20px;
+  }
+  .c-tab.is-selected .c-name{font-weight:650;}
+
+  .c-ring-wrap{
+    position:absolute;
+    left:8px;
+    top:44px;
+    width:120px;
+    height:120px;
+  }
+  .c-time{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--text);
+    font-family:var(--mono);
+    font-size:32px;
+    font-weight:650;
+    line-height:1;
+    letter-spacing:-1.5px;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .c-bright{
+    position:absolute;
+    left:158px;
+    top:44px;
+    width:154px;
+    height:120px;
+  }
+  .c-label{
+    position:absolute;
+    left:0;
+    top:11px;
+    color:var(--text2);
+    font-size:16px;
+    line-height:20px;
+  }
+  .c-value{
+    position:absolute;
+    right:0;
+    top:0;
+    color:var(--text);
+    font-family:var(--mono);
+    font-size:32px;
+    font-weight:650;
+    line-height:36px;
+    letter-spacing:-.03em;
+    font-variant-numeric:tabular-nums;
+  }
+  .c-rule{
+    position:absolute;
+    left:0;
+    top:48px;
+    width:154px;
+    height:1px;
+    background:var(--track);
+  }
+  .c-ruler{
+    position:absolute;
+    left:0;
+    top:56px;
+    width:154px;
+    height:22px;
+    display:flex;
+    align-items:flex-end;
+    gap:1px;
+  }
+  .c-tick{
+    width:4px;
+    height:12px;
+    flex:none;
+    background:var(--primary);
+  }
+  .c-tick:nth-child(8n+1),
+  .c-tick:last-child{height:22px;}
+  .c-scale-labels{
+    position:absolute;
+    left:0;
+    top:82px;
+    width:154px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    color:var(--text2);
+    font-family:var(--mono);
+    font-size:10px;
+    line-height:12px;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .c-actions{
+    position:absolute;
+    left:8px;
+    top:172px;
+    width:304px;
+    height:60px;
+  }
+  .c-btn{
+    position:absolute;
+    left:0;
+    width:256px;
+    height:28px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border:1px solid var(--text);
+    background:var(--surface);
+    color:var(--text);
+    font-size:16px;
+    font-weight:550;
+    line-height:1;
+  }
+  .c-primary{
+    top:0;
+    border-color:var(--primary);
+    background:var(--primary);
+    color:#FFFFFF;
+    font-weight:600;
+  }
+  .c-secondary{top:32px;}
+  .c-arrow{
+    position:absolute;
+    left:264px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:40px;
+    height:28px;
+    border:1px solid var(--text);
+    background:var(--surface);
+    color:var(--text);
+  }
+  .c-up{top:0;}
+  .c-down{top:32px;}
+
+  /* ---------- token line ---------- */
+
+  .tokens{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    width:674px;
+    margin-top:10px;
+    padding-top:9px;
+    border-top:1px solid var(--page-line);
+    color:var(--page-muted);
+    font-family:var(--mono);
+    font-size:10px;
+    line-height:1.3;
+    letter-spacing:.015em;
+    white-space:nowrap;
+  }
+  .tokens-label{
+    color:var(--text);
+    font-weight:600;
+    letter-spacing:.12em;
+    margin-right:2px;
+  }
+  .tok{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+  }
+  .swatch{
+    display:inline-block;
+    width:8px;
+    height:8px;
+    flex:none;
+    border:1px solid #A6A39B;
+    background:var(--sw);
+  }
+  .swatch.is-light{border-color:#B9B5AD;}
+  .tok-sep{
+    width:1px;
+    height:11px;
+    flex:none;
+    background:var(--page-line);
+    margin:0 1px;
+  }
+  .tokens-meta{letter-spacing:.02em;}
+
+  /* ---------- footer ---------- */
+
+  .sheet-foot{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:32px;
+    margin-top:28px;
+    padding-top:12px;
+    border-top:1px solid var(--text);
+    color:var(--page-muted);
+    font-family:var(--mono);
+    font-size:10px;
+    line-height:1.5;
+    letter-spacing:.015em;
+  }
+  .sheet-foot p{margin:0;}
+  .sheet-foot strong{color:var(--text);font-weight:600;}
+  .foot-key{display:inline-flex;align-items:center;gap:7px;}
+  .foot-ring{
+    display:inline-block;
+    width:10px;
+    height:10px;
+    border:2px solid var(--primary);
+    background:transparent;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{
+      animation:none !important;
+      transition:none !important;
+      scroll-behavior:auto !important;
+    }
+    .arc{animation:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+
+  <header class="masthead">
+    <div class="masthead-copy">
+      <p class="eyebrow">LVGL / encoder interface study · no touch</p>
+      <h1>Pixel Controller <span class="cn">像素控制器</span></h1>
+      <p class="dek">320×240、RGB565、1:1 像素。三個以<strong>旋鈕＋確認＋返回</strong>為前提的頁面方向；中央畫面以整數 2× 放大，所有內容都在真實像素邊界上完成。</p>
+    </div>
+    <div class="specs" aria-label="預覽規格">
+      <div class="spec"><span>CANVAS</span><strong>320 × 240</strong></div>
+      <div class="spec"><span>PREVIEW</span><strong>2× / 640 × 480</strong></div>
+      <div class="spec"><span>INPUT</span><strong>ROTATE · OK · BACK</strong></div>
+      <div class="spec"><span>FOCUS</span><strong>2 PX BLUE OUTLINE</strong></div>
+    </div>
+  </header>
+
+  <main class="deck">
+
+    <!-- ================= A ================= -->
+    <article class="variant" aria-labelledby="a-title">
+      <header class="variant-head">
+        <div class="v-kicker">
+          <span class="v-letter" aria-hidden="true">A</span>
+          <span class="v-tag">baseline / as specified</span>
+        </div>
+        <h2 id="a-title">現況還原</h2>
+        <p class="v-note">照規格落位：左側 96px 模式清單、右側 96px 倒數環與 208px 控制欄。焦點以藍框標在目前模式列，建立可直接比較的基準。</p>
+      </header>
+
+      <div class="device">
+        <div class="display">
+          <div class="screen screen-a" role="img" aria-label="變體 A，現況還原：左側三列模式清單，第一列 0x0200 可動被選取；右側 01:27 倒數圓環、亮度 31、獲取與可動按鈕，以及上下箭頭。">
+            <div class="a-list">
+              <div class="a-mode is-selected enc-focus">
+                <span class="a-code">0x0200</span>
+                <span class="a-name">可動</span>
+                <span class="a-live" aria-hidden="true"></span>
+              </div>
+              <div class="a-mode">
+                <span class="a-code">0x0301</span>
+                <span class="a-name">呼吸</span>
+              </div>
+              <div class="a-mode">
+                <span class="a-code">0x3105</span>
+                <span class="a-name">流動</span>
+              </div>
+            </div>
+
+            <div class="a-main">
+              <div class="a-ring">
+                <svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true">
+                  <circle cx="48" cy="48" r="40" fill="none" stroke="#DADCE0" stroke-width="8"/>
+                  <circle class="arc" cx="48" cy="48" r="40" fill="none" stroke="#1A73E8" stroke-width="8" pathLength="100" stroke-dasharray="55 45" stroke-linecap="butt"/>
+                </svg>
+                <div class="a-time">01:27</div>
+              </div>
+
+              <div class="a-bright-head">
+                <span class="a-label">亮度</span>
+                <span class="a-value">31</span>
+              </div>
+              <div class="a-track" aria-hidden="true"><div class="a-fill"></div></div>
+              <div class="a-knob" aria-hidden="true"></div>
+
+              <div class="a-actions">
+                <div class="a-btn a-primary">
+                  <span class="btn-label">
+                    <svg class="dot-6" viewBox="0 0 6 6" aria-hidden="true"><circle cx="3" cy="3" r="3" fill="currentColor"/></svg>
+                    獲取
+                  </span>
+                </div>
+                <div class="a-btn a-secondary">
+                  <span class="btn-label">
+                    <svg class="dot-6" viewBox="0 0 6 6" aria-hidden="true"><circle cx="3" cy="3" r="3" fill="currentColor"/></svg>
+                    可動
+                  </span>
+                </div>
+                <div class="a-arrow a-up" aria-hidden="true">
+                  <svg class="tri" width="9" height="9" viewBox="0 0 10 10"><path d="M5 1 9.5 8.5H.5Z" fill="currentColor"/></svg>
+                </div>
+                <div class="a-arrow a-down" aria-hidden="true">
+                  <svg class="tri" width="9" height="9" viewBox="0 0 10 10"><path d="M5 9 .5 1.5h9Z" fill="currentColor"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tokens" aria-label="A 使用 token">
+        <span class="tokens-label">TOKENS</span>
+        <span class="tok"><i class="swatch" style="--sw:#F5F5F5"></i>bg</span>
+        <span class="tok"><i class="swatch is-light" style="--sw:#FFFFFF"></i>surface</span>
+        <span class="tok"><i class="swatch" style="--sw:#1F1F1F"></i>text</span>
+        <span class="tok"><i class="swatch" style="--sw:#5F5F5F"></i>text2</span>
+        <span class="tok"><i class="swatch" style="--sw:#1A73E8"></i>primary</span>
+        <span class="tok"><i class="swatch" style="--sw:#DADCE0"></i>track</span>
+        <span class="tok"><i class="swatch" style="--sw:#188038"></i>success</span>
+        <span class="tok-sep" aria-hidden="true"></span>
+        <span class="tokens-meta">TYPE 10 / 16 / 28 MONO · GAP 4 / 8</span>
+      </div>
+    </article>
+
+    <!-- ================= B ================= -->
+    <article class="variant" aria-labelledby="b-title">
+      <header class="variant-head">
+        <div class="v-kicker">
+          <span class="v-letter" aria-hidden="true">B</span>
+          <span class="v-tag">8 px grid / minimal</span>
+        </div>
+        <h2 id="b-title">現代極簡</h2>
+        <p class="v-note">把卡片拆成無框列，所有間距落在 8px 節奏上。倒數環改用黑色資料色，藍色只留給焦點、滑桿與唯一主動作「獲取」。</p>
+      </header>
+
+      <div class="device">
+        <div class="display">
+          <div class="screen screen-b" role="img" aria-label="變體 B，現代極簡：8px 網格，第一列 0x0200 可動獲得藍色焦點；右側黑色 01:27 圓環、亮度 31 滑桿、唯一的藍色獲取按鈕與外框按鈕。">
+            <div class="b-list">
+              <div class="b-mode is-selected enc-focus">
+                <span class="b-code">0x0200</span>
+                <span class="b-name">可動</span>
+                <span class="b-live" aria-hidden="true"></span>
+              </div>
+              <div class="b-mode">
+                <span class="b-code">0x0301</span>
+                <span class="b-name">呼吸</span>
+              </div>
+              <div class="b-mode">
+                <span class="b-code">0x3105</span>
+                <span class="b-name">流動</span>
+              </div>
+            </div>
+
+            <div class="b-ring">
+              <svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true">
+                <circle cx="48" cy="48" r="40" fill="none" stroke="#DADCE0" stroke-width="8"/>
+                <circle class="arc" cx="48" cy="48" r="40" fill="none" stroke="#1F1F1F" stroke-width="8" pathLength="100" stroke-dasharray="55 45" stroke-linecap="butt"/>
+              </svg>
+              <div class="b-time">01:27</div>
+            </div>
+
+            <div class="b-bright-head">
+              <span class="b-label">亮度</span>
+              <span class="b-value">31</span>
+            </div>
+            <div class="b-track" aria-hidden="true"><div class="b-fill"></div></div>
+            <div class="b-knob" aria-hidden="true"></div>
+
+            <div class="b-actions">
+              <div class="b-btn b-primary">
+                <span class="btn-label">
+                  <svg class="dot-6" viewBox="0 0 6 6" aria-hidden="true"><circle cx="3" cy="3" r="3" fill="currentColor"/></svg>
+                  獲取
+                </span>
+              </div>
+              <div class="b-btn b-secondary">
+                <span class="btn-label">
+                  <svg class="dot-6" viewBox="0 0 6 6" aria-hidden="true"><circle cx="3" cy="3" r="3" fill="currentColor"/></svg>
+                  可動
+                </span>
+              </div>
+              <div class="b-arrow b-up" aria-hidden="true">
+                <svg class="tri" width="9" height="9" viewBox="0 0 10 10"><path d="M5 1 9.5 8.5H.5Z" fill="currentColor"/></svg>
+              </div>
+              <div class="b-arrow b-down" aria-hidden="true">
+                <svg class="tri" width="9" height="9" viewBox="0 0 10 10"><path d="M5 9 .5 1.5h9Z" fill="currentColor"/></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tokens" aria-label="B 使用 token">
+        <span class="tokens-label">TOKENS</span>
+        <span class="tok"><i class="swatch" style="--sw:#F5F5F5"></i>bg</span>
+        <span class="tok"><i class="swatch is-light" style="--sw:#FFFFFF"></i>surface</span>
+        <span class="tok"><i class="swatch" style="--sw:#1F1F1F"></i>text</span>
+        <span class="tok"><i class="swatch" style="--sw:#5F5F5F"></i>text2</span>
+        <span class="tok"><i class="swatch" style="--sw:#1A73E8"></i>primary</span>
+        <span class="tok"><i class="swatch" style="--sw:#DADCE0"></i>track</span>
+        <span class="tok"><i class="swatch" style="--sw:#188038"></i>success</span>
+        <span class="tok-sep" aria-hidden="true"></span>
+        <span class="tokens-meta">TYPE 10 / 16 / 24 DATA / 28 MONO · GAP 8</span>
+      </div>
+    </article>
+
+    <!-- ================= C ================= -->
+    <article class="variant" aria-labelledby="c-title">
+      <header class="variant-head">
+        <div class="v-kicker">
+          <span class="v-letter" aria-hidden="true">C</span>
+          <span class="v-tag">radial hero / instrument</span>
+        </div>
+        <h2 id="c-title">圓環主角</h2>
+        <p class="v-note">模式變成頂部橫向頁籤，120px 倒數環成為唯一視覺主角。亮度改為 31 格刻度尺，底部保留兩列大型指令鍵，仍以旋鈕逐項移動。</p>
+      </header>
+
+      <div class="device">
+        <div class="display">
+          <div class="screen screen-c" role="img" aria-label="變體 C，圓環主角：頂部橫向模式頁籤，第一頁 0x0200 可動被選取；120px 倒數圓環 01:27，右側亮度 31 與 31 格刻度尺，底部獲取、可動與上下鍵。">
+            <div class="c-tabs">
+              <div class="c-tab is-selected enc-focus">
+                <span class="c-code">0x0200</span>
+                <span class="c-name">可動</span>
+              </div>
+              <div class="c-tab">
+                <span class="c-code">0x0301</span>
+                <span class="c-name">呼吸</span>
+              </div>
+              <div class="c-tab">
+                <span class="c-code">0x3105</span>
+                <span class="c-name">流動</span>
+              </div>
+            </div>
+
+            <div class="c-ring-wrap">
+              <svg width="120" height="120" viewBox="0 0 120 120" aria-hidden="true">
+                <circle cx="60" cy="60" r="52" fill="none" stroke="#DADCE0" stroke-width="8"/>
+                <circle class="arc" cx="60" cy="60" r="52" fill="none" stroke="#1A73E8" stroke-width="8" pathLength="100" stroke-dasharray="55 45" stroke-linecap="butt"/>
+              </svg>
+              <div class="c-time">01:27</div>
+            </div>
+
+            <div class="c-bright">
+              <span class="c-label">亮度</span>
+              <span class="c-value">31</span>
+              <div class="c-rule" aria-hidden="true"></div>
+              <div class="c-ruler" aria-hidden="true">
+                <span class="c-tick"></span><span class="c-tick"></span><span class="c-tick"></span><span class="c-tick"></span><span class="c-tick"></span>
+                <span class="c-tick"></span><span class="c-tick"></span><span class="c-tick"></span><span class="c-tick"></span><span class="c-tick"></span>
+                <span class="c-tick"></span><span class="c-tick"></span><span class="c-tick"></span><span class="c-tick"></span><span class="c-tick"></span>
+                <span class="c-tick"></span><span class="c-tick"></span><span class="c-tick"></span><span class="c-tick"></span><span class="c-tick"></span>
+                <span class="c-tick"></span><span class="c-tick"></span><span class="c-tick"></span><span class="c-tick"></span><span class="c-tick"></span>
+                <span class="c-tick"></span><span class="c-tick"></span><span class="c-tick"></span><span class="c-tick"></span><span class="c-tick"></span>
+                <span class="c-tick"></span>
+              </div>
+              <div class="c-scale-labels" aria-hidden="true"><span>0</span><span>16</span><span>31</span></div>
+            </div>
+
+            <div class="c-actions">
+              <div class="c-btn c-primary">
+                <span class="btn-label">
+                  <svg class="dot-6" viewBox="0 0 6 6" aria-hidden="true"><circle cx="3" cy="3" r="3" fill="currentColor"/></svg>
+                  獲取
+                </span>
+              </div>
+              <div class="c-btn c-secondary">
+                <span class="btn-label">
+                  <svg class="dot-6" viewBox="0 0 6 6" aria-hidden="true"><circle cx="3" cy="3" r="3" fill="currentColor"/></svg>
+                  可動
+                </span>
+              </div>
+              <div class="c-arrow c-up" aria-hidden="true">
+                <svg class="tri" width="9" height="9" viewBox="0 0 10 10"><path d="M5 1 9.5 8.5H.5Z" fill="currentColor"/></svg>
+              </div>
+              <div class="c-arrow c-down" aria-hidden="true">
+                <svg class="tri" width="9" height="9" viewBox="0 0 10 10"><path d="M5 9 .5 1.5h9Z" fill="currentColor"/></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tokens" aria-label="C 使用 token">
+        <span class="tokens-label">TOKENS</span>
+        <span class="tok"><i class="swatch" style="--sw:#F5F5F5"></i>bg</span>
+        <span class="tok"><i class="swatch is-light" style="--sw:#FFFFFF"></i>surface</span>
+        <span class="tok"><i class="swatch" style="--sw:#1F1F1F"></i>text</span>
+        <span class="tok"><i class="swatch" style="--sw:#5F5F5F"></i>text2</span>
+        <span class="tok"><i class="swatch" style="--sw:#1A73E8"></i>primary</span>
+        <span class="tok"><i class="swatch" style="--sw:#DADCE0"></i>track</span>
+        <span class="tok-sep" aria-hidden="true"></span>
+        <span class="tokens-meta">TYPE 10 / 16 / 32 MONO · GAP 4 / 8 / 16</span>
+      </div>
+    </article>
+
+  </main>
+
+  <footer class="sheet-foot">
+    <p><span class="foot-key"><span class="foot-ring" aria-hidden="true"></span><strong>FOCUS</strong> 藍框 2px，外距 2px，表示旋鈕目前停留位置。</span></p>
+    <p><strong>MOTION</strong> 僅圓環繪入；<strong>prefers-reduced-motion</strong> 時完全停用。無陰影、模糊、半透明或漸層。</p>
+    <p>320×240 / RGB565 / 1:1</p>
+  </footer>
+
+</div>
+</body>
+</html>

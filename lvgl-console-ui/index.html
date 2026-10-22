@@ -280,6 +280,29 @@
       }
       .inspect-bar.hot .v { color: #ffd7ea; }
 
+      /* 麵包屑：每一層都可點（被蓋住的父層就靠這個選） */
+      .inspect-bar .path {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        margin-left: auto;
+        overflow: hidden;
+      }
+      .inspect-bar .sep { color: #3a4256; }
+      .crumb {
+        background: transparent;
+        border: 0;
+        padding: 1px 4px;
+        border-radius: 4px;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 11px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .crumb:hover { background: var(--panel-3); color: var(--text); }
+      .crumb.cur { color: #dce6ff; background: var(--accent-soft); }
+
 
       .stats {
         display: flex;
@@ -508,11 +531,20 @@
         color: #9ad2ff;
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: var(--s2);
+        flex-wrap: wrap;          /* 檔名長 + 兩顆按鈕 → 換行，不要撐出橫向捲軸 */
+        gap: 6px;
       }
+      .src > span {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .src > span:only-child { flex: 1 1 100%; }
       .src .via { color: var(--dim); margin-left: 8px; font-size: 10.5px; }
       .src button {
+        flex: none;
         background: var(--panel-3);
         border: 1px solid var(--line);
         color: var(--muted);
@@ -604,6 +636,30 @@
         aside { width: auto; border-left: none; border-top: 1px solid var(--line); max-height: 45vh; }
         .stage { padding: var(--s4); }
       }
+
+      .toast {
+        position: fixed;
+        left: 50%;
+        bottom: 64px;   /* 抬到操作列上方，不要蓋住 Enter / Esc */
+        transform: translateX(-50%) translateY(8px);
+        max-width: min(80vw, 720px);
+        padding: 8px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: #0f1420f2;
+        color: var(--text);
+        font-family: var(--mono);
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        box-shadow: 0 10px 30px -12px #000000cc;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.16s, transform 0.16s;
+        z-index: 50;
+      }
+      .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
 
       @media (prefers-reduced-motion: reduce) {
         * { transition: none !important; animation: none !important; }
@@ -702,6 +758,9 @@
         <div class="panel hidden" id="panel-console"><div id="log"></div></div>
       </aside>
     </main>
+
+    <!-- 複製定位的提示（3 秒後淡出） -->
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <script type="importmap">
       {

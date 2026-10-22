@@ -22,7 +22,7 @@ export const meta = {
   title: "系統設定",
   icon: "settings",
   desc: "網路·裝置資訊",
-  order: 3,
+  order: 6,
   accent: 0x7f8c8d,
 };
 

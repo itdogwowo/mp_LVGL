@@ -228,9 +228,11 @@ function drawSlider(ctx, o) {
   const bgOpa = o.getStyle("bg_opa") ?? 255;
   const ind = o._styles.get(PART.INDICATOR);
   const indColor = ind?.get("bg_color");
+  const indOpa = ind?.get("bg_opa") ?? 255;
   const indRadius = ind?.get("radius") ?? radius;
   const knob = o._styles.get(PART.KNOB);
   const knobColor = knob?.get("bg_color") ?? indColor;
+  const knobOpa = knob?.get("bg_opa") ?? 255;
   const knobPad = knob?.get("pad_all") ?? 4;
   const knobD = o.h + 2 * knobPad;
   const ratio = o.getRatio();
@@ -255,18 +257,19 @@ function drawSlider(ctx, o) {
     }
   }
 
-  if (indColor && ratio > 0) {
+  if (indColor && ratio > 0 && indOpa > 0) {
     ctx.save();
-    ctx.globalAlpha *= bgOpa / 255;
+    ctx.globalAlpha *= (bgOpa / 255) * (indOpa / 255);
     ctx.fillStyle = css(indColor);
     roundRect(ctx, x, y, knobX + knobD / 2, o.h, indRadius);
     ctx.fill();
     ctx.restore();
   }
 
-  if (knobColor) {
+  if (knobColor && knobOpa > 0) {
     const r = knobD / 2;
     ctx.save();
+    ctx.globalAlpha *= knobOpa / 255;
     ctx.beginPath();
     ctx.arc(x + knobX + r, y + o.h / 2, r, 0, Math.PI * 2);
     ctx.fillStyle = css(knobColor);

@@ -488,7 +488,15 @@ export class Obj {
     return this._style("text_align", v, part);
   }
   set_style_pad_all(v, part = 0) {
-    return this._style("pad_all", v, part);
+    // LVGL 的 pad_all 是「四邊一起設」：之後單獨設 pad_top 才會蓋掉上面那一個。
+    // 只寫 pad_all 的話，物件本身先設過的 pad_top/bottom（例如 list item 的 4）
+    // 會留下來，頁面再呼叫 pad_all(1) 就完全沒效果。
+    this._style("pad_all", v, part);
+    this._style("pad_top", v, part);
+    this._style("pad_bottom", v, part);
+    this._style("pad_left", v, part);
+    this._style("pad_right", v, part);
+    return this;
   }
   set_style_pad_top(v, part = 0) {
     return this._style("pad_top", v, part);
@@ -718,16 +726,29 @@ export class List extends Obj {
     return this;
   }
 
-  /** list 是縱向堆疊：LVGL 的 flex column，這裡直接算。 */
+  /**
+   * list 是縱向堆疊（LVGL 的 flex column），這裡直接算。
+   *
+   * ⚠ 一定要讀 pad 樣式，不能寫死 4/4：
+   *   - 頁面常用 `set_style_pad_all(1)` 把列壓緊（pixel_lab / pca9685 / now_setting 都這樣做）
+   *   - 寫死的話列高固定 27px，3 列就要 89px，塞進 88px 的清單 → 最後一列直接被裁掉
+   *   LVGL 的列高 = 字高 + item 的 pad_top + pad_bottom，列距 = list 的 pad_row。
+   */
   _layoutItems() {
-    let y = 4;
+    const padAll = this.getStyle("pad_all") ?? 4;
+    const padRow = this.getStyle("pad_row") ?? 4;
+    let y = padAll;
     for (const it of this._items) {
       const lbl = it.lbl;
       const lh = (lbl.getStyle("text_font") || { lineHeight: 16 }).lineHeight;
-      const h = lh + 8; // pad_top/bottom 各 4
-      it.set_pos(4, y);
-      it.set_size(Math.max(0, this.w - 8), h);
-      y += h + 4; // pad_row
+      // 頁面通常只寫 set_style_pad_all()，所以 pad_all 要當成四邊的 fallback
+      // （LVGL 的 pad_all 就是「四邊一起設」，單邊沒設時就吃這個值）
+      const padTop = it.getStyle("pad_top") ?? it.getStyle("pad_all") ?? 4;
+      const padBottom = it.getStyle("pad_bottom") ?? it.getStyle("pad_all") ?? 4;
+      const h = lh + padTop + padBottom;
+      it.set_pos(padAll, y);
+      it.set_size(Math.max(0, this.w - padAll * 2), h);
+      y += h + padRow;
     }
   }
 }

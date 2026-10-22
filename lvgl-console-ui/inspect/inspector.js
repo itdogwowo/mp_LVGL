@@ -25,6 +25,36 @@ export function pathOf(w) {
   return parts.join(" › ");
 }
 
+/**
+ * 「定位字串」：足以唯一描述一個元件、而且可以直接貼給人或貼回工具。
+ *
+ *   projects/slave/pages/pixel_controller.js:360 · screen/0/1 · list_btn · 94×27@6,37
+ *
+ * 為什麼要四個欄位：
+ *   - file:line  → 找到是哪一行建的
+ *   - screen/0/1 → child index 路徑（oid 會隨程式碼改動跳號，index 不會）
+ *   - 類別       → 認錯時最明顯的線索
+ *   - WxH@x,y    → 最後一道驗證（版面改過就對不上）
+ */
+export function locatorOf(w) {
+  if (!w) return "";
+  const chain = [];
+  for (let n = w; n; n = n.parent) chain.unshift(n);
+  const idxPath = chain
+    .slice(1)
+    .map((n) => (n.parent ? n.parent.children.indexOf(n) : 0))
+    .join("/");
+  const text = typeof w.get_text === "function" ? w.get_text() : "";
+  return [
+    w._src ? `${w._src.file}:${w._src.line}` : null,
+    `screen/${idxPath}`,
+    `${w.objClass}${text ? `「${text}」` : ""}`,
+    `${w.w}×${w.h}@${w._ax},${w._ay}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 /** 深度優先、子優先的命中測試。回傳最深（最上層）的 widget。 */
 export function hitTest(obj, x, y) {
   if (!obj || obj._hidden || obj.has_flag(FLAG.HIDDEN)) return null;
@@ -86,7 +116,13 @@ export function createInspector({ canvas, overlay, display, onSelect, onHover })
   canvas.addEventListener("click", (e) => {
     if (!enabled) return;
     const { x, y } = toDevice(e);
-    const w = hitTest(display.screen, x, y);
+    let w = hitTest(display.screen, x, y);
+    // Alt/Option（或 Cmd）+ Click = 往上一層。
+    // 為什麼需要：卡片幾乎都被子元件蓋住，正常點擊永遠只會選到最深的那個，
+    // 想選「卡片本身」或中間的容器時完全點不到。
+    if (w && (e.altKey || e.metaKey) && w.parent) {
+      w = w.parent;
+    }
     if (w) select(w);
   });
 

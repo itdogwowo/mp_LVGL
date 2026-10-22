@@ -62,7 +62,7 @@ import { Nav, ITEM_LIST, ITEM_BUTTON } from "@packages/lv-app/nav.js";
 import { bus, dict, cfg_manager, get_vbus } from "../mocks.js";
 
 export const meta = { id: "remote", title: "遙控器", icon: "wifi",
-                      desc: "配對·節點·模式", order: 0, accent: 0x188038 };
+                      desc: "配對·節點·模式", order: 4, accent: 0x188038 };
 
 const REFRESH_EVERY = 10;       // 每 N 幀刷新一次顯示（run % N）
 const SCAN_SPREAD_MS = 500;     // 掃描的抖動視窗（0 = 不抖動）。見 _do_scan

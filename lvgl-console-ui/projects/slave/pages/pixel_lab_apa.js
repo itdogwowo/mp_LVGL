@@ -10,9 +10,9 @@ import { SimplePage } from "./pixel_lab_common.js";
 export const meta = {
   id: "pixel_lab_apa",
   title: "PixelLab APA",
-  icon: "sun",
+  icon: "zap",
   desc: "APA102 · 呼吸/選中",
-  order: 2,
+  order: 3,
   accent: 0x6D5BD0,
 };
 

@@ -3,7 +3,7 @@
 // 這裡只做「把資料變成 DOM」。資料一律由 boot.js 或 inspector 提供，
 // 這樣面板本身不需要知道 app / display / bus 的存在。
 
-import { pathOf, ALIGN_NAME, FLAG_NAME } from "./inspector.js";
+import { pathOf, locatorOf, ALIGN_NAME, FLAG_NAME } from "./inspector.js";
 
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -93,6 +93,16 @@ export function createHud({ onSelectOid } = {}) {
     const ow = w.getStyle?.("outline_width");
     const oc = css(w.getStyle?.("outline_color"));
     const text = typeof w.get_text === "function" ? w.get_text() : null;
+
+    // 索引路徑：從 screen 起算的 child index（例：4/2/1）。
+    // 為什麼要這個：oid 會隨程式碼增減而跳號，原始碼行號在迴圈裡又對應到 N 個元件，
+    // 只有「索引 + 類別 + 文字 + 尺寸座標」合起來才足以唯一描述一個元件。
+    const chain = [];
+    for (let n = w; n; n = n.parent) chain.unshift(n);
+    const idxPath = chain
+      .slice(1)
+      .map((n) => (n.parent ? n.parent.children.indexOf(n) : 0))
+      .join("/");
     const align = w._align ? `${ALIGN_NAME[w._align.type] ?? w._align.type} (${w._align.dx}, ${w._align.dy})` : "—";
     const value =
       typeof w.get_value === "function"
@@ -113,13 +123,21 @@ export function createHud({ onSelectOid } = {}) {
     ];
     if (value !== null) rows.push(["數值", value]);
     rows.push(["子元件", String(w.children.length)]);
+    rows.push(["索引", `screen/${idxPath}`]);
     rows.push(["路徑", pathOf(w)]);
 
-    const src = w._src
-      ? `<div class="src"><span>${esc(w._src.file)}:${w._src.line}` +
-        (w._src.via ? `<span class="via">via ${esc(w._src.via)}</span>` : "") +
-        `</span><button data-copy="${esc(`${w._src.file}:${w._src.line}`)}">複製</button></div>`
-      : "";
+    // 一顆就夠：定位字串已含 file:line、索引路徑、類別、尺寸座標
+    // （`screen › obj #68` 只是索引路徑的好看寫法，oid 又會跳號 → 不需要第二顆）
+    const locator = locatorOf(w);
+    const src =
+      `<div class="src">` +
+      (w._src
+        ? `<span>${esc(w._src.file)}:${w._src.line}` +
+          (w._src.via ? `<span class="via">via ${esc(w._src.via)}</span>` : "") +
+          `</span>`
+        : `<span style="color:#626a7d">（無建立位置）</span>`) +
+      `<button data-copy="${esc(locator)}">複製定位</button>` +
+      `</div>`;
 
     panels.inspect.innerHTML = `
       <div class="props">
@@ -134,10 +152,14 @@ export function createHud({ onSelectOid } = {}) {
         ${src}
       </div>
     `;
-    panels.inspect.querySelector("[data-copy]")?.addEventListener("click", (e) => {
-      navigator.clipboard?.writeText(e.target.dataset.copy);
-      e.target.textContent = "已複製";
-      setTimeout(() => (e.target.textContent = "複製"), 900);
+    panels.inspect.querySelectorAll("[data-copy]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const el = e.currentTarget;
+        navigator.clipboard?.writeText(el.dataset.copy);
+        const old = el.textContent;
+        el.textContent = "已複製";
+        setTimeout(() => (el.textContent = old), 900);
+      });
     });
     markTreeSelection();
   }

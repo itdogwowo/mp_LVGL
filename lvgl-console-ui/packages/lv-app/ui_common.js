@@ -261,16 +261,16 @@ export function mk_slider(parent, x, y, w, lo, hi, val, color = PRIMARY) {
   return s;
 }
 
-/** 環形進度量表（不可調整，knob 隱藏）。 */
-export function mk_arc(parent, x, y, size, color, lo = 0, hi = 100) {
+/** 環形進度量表（不可調整，knob 隱藏）。width = 線寬（預設 6，頁面可加粗）。 */
+export function mk_arc(parent, x, y, size, color, lo = 0, hi = 100, width = 6) {
   const a = lv.arc(parent);
   a.set_size(size, size);
   a.set_pos(x, y);
   a.set_range(lo, hi);
   a.set_value(hi);
-  a.set_style_arc_width(6, lv.PART.MAIN);
+  a.set_style_arc_width(width, lv.PART.MAIN);
   a.set_style_arc_color(C(TRACK), lv.PART.MAIN);
-  a.set_style_arc_width(6, lv.PART.INDICATOR);
+  a.set_style_arc_width(width, lv.PART.INDICATOR);
   a.set_style_arc_color(C(color), lv.PART.INDICATOR);
   a.set_style_arc_opa(0, lv.PART.KNOB);
   a.set_style_bg_opa(0, lv.PART.KNOB);

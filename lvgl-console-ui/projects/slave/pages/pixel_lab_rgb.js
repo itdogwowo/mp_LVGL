@@ -10,9 +10,9 @@ import { SimplePage } from "./pixel_lab_common.js";
 export const meta = {
   id: "pixel_lab_rgb",
   title: "PixelLab RGB",
-  icon: "sun",
+  icon: "lightbulb",
   desc: "WS2812 · 呼吸/選中",
-  order: 3,
+  order: 2,
   accent: 0x0E9F6E,
 };
 

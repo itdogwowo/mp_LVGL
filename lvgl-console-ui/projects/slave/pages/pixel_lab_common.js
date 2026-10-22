@@ -91,23 +91,44 @@ export function pct(v) {
   }
 }
 
-/** 垂直亮度方塊：track + fill。回傳 [track, fill]。 */
+/** 方塊的圓角與內縮「按尺寸比例」算，不要寫死。
+ *
+ * 原本 mk_vbar 是為 34×126 的長條寫的（圓角 7、內縮 2）；PCA 頁拿同一支
+ * 去畫 14×14 的格子時，圓角 7 剛好等於半邊 → 方塊變成圓形，fill 的 1px
+ * 底線又露在圓形之外。這裡改成由尺寸推導：
+ *   34×126 → 圓角 7 / 內縮 2（跟原本一模一樣）
+ *   14×14  → 圓角 3 / 內縮 1（圓角方塊）
+ */
+function _vbar_metrics(w, h) {
+  const r = Math.max(2, Math.min(7, Math.round(Math.min(w, h) * 0.22)));
+  const inset = Math.max(1, Math.min(2, Math.round(w * 0.06)));
+  return { r: r, inset: inset };
+}
+
+/** 垂直亮度方塊：track + fill。回傳 [track, fill]。
+ *
+ * ⚠ fill 是 track 的**兄弟**（掛在同一個 parent），不是子物件。
+ *   當子物件會被 track 的圓角裁掉：14×14、圓角 3 的格子，底部那一行的左右各被切 1px，
+ *   看起來就像「填充條被削掉兩端」。真機 LVGL 也是裁的，但視覺上不該長這樣。
+ */
 export function mk_vbar(parent, x, y, w, h, color) {
+  const m = _vbar_metrics(w, h);
   const track = lv.obj(parent);
   track.set_size(w, h);
   track.set_pos(x, y);
   track.set_style_bg_color(u.C(u.TRACK), 0);
-  track.set_style_radius(7, 0);
+  track.set_style_radius(m.r, 0);
   track.set_style_border_color(u.C(u.BORDER), 0);
   track.set_style_border_width(1, 0);
   track.set_style_pad_all(0, 0);
   track.remove_flag(lv.obj.FLAG.SCROLLABLE);
 
-  const fill = lv.obj(track);
-  fill.set_size(w - 4, 1);
-  fill.set_pos(2, h - 3);
+  const fill = lv.obj(parent);
+  fill._vbase = { x: x, y: y, w: w, h: h };
+  fill.set_size(w - m.inset * 2, 1);
+  fill.set_pos(x + m.inset, y + h - m.inset - 1);
   fill.set_style_bg_color(u.C(color), 0);
-  fill.set_style_radius(5, 0);
+  fill.set_style_radius(Math.max(1, Math.round(m.r * 0.7)), 0);
   fill.set_style_border_width(0, 0);
   fill.set_style_pad_all(0, 0);
   fill.remove_flag(lv.obj.FLAG.SCROLLABLE);
@@ -116,14 +137,17 @@ export function mk_vbar(parent, x, y, w, h, color) {
 
 /** p=0..100；填滿高度依 p 改變；0 也留 1px 讓 track 不被動態隱藏。 */
 export function set_vbar(fill, w, h, p, color, color_empty = null) {
+  const m = _vbar_metrics(w, h);
+  // fill 是 sibling，位置要用 mk_vbar 記下來的基準點（不是相對 track）
+  const b = fill._vbase || { x: fill.x || 0, y: fill.y || 0, w: w, h: h };
   p = pct(p);
-  let fh = Math.trunc(((h - 4) * p) / 100.0);
+  let fh = Math.trunc(((h - m.inset * 2) * p) / 100.0);
   if (fh < 1) {
     fh = 1;
   }
   try {
-    fill.set_size(w - 4, fh);
-    fill.set_pos(2, h - 2 - fh);
+    fill.set_size(w - m.inset * 2, fh);
+    fill.set_pos(b.x + m.inset, b.y + h - m.inset - fh);
     fill.set_style_bg_color(u.C(p > 0 || !color_empty ? color : color_empty), 0);
   } catch (e) {
     /* 跟裝置一樣：fill 還沒建好就跳過 */

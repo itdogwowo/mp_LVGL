@@ -111,7 +111,7 @@ lvgl-console-ui/                ★ 根
 │   └── themes/traework/        風格：id / version / colors / radii / fonts / focus
 │
 └── projects/
-    ├── slave/                  ★ 工程 A：mp_Net-Core slave 的 1:1 複刻（9 頁）
+    ├── slave/                  ★ 工程 A：mp_Net-Core slave 的複刻（7 頁）
     │   ├── project.json        綁 theme（含版本）/ display / fonts / 轉換目標
     │   ├── mocks.js            模擬板上沒有的子系統（cfg_manager / get_vbus / Proto）
     │   ├── seed.js             bus.shared 初始資料 + 假 action_task（echo 迴路）
@@ -181,19 +181,22 @@ node cli/validate.mjs [project]
 
 ---
 
-## 目前狀態（projects/slave 1:1 複刻）
+## 目前狀態（projects/slave）
 
-9 頁全部移植完成，`python cli/validate.py` → `PASSED`：
+7 頁，`python cli/validate.py` → `PASSED`（2026-10 改版：移除舊的 `control_panel` / `pca9685`，
+功能由 `pixel_controller` + `pixel_lab_*` 取代）：
 
-| 頁面 | 順序 | 備註 |
-|---|---|---|
-| `remote` | 0 | 節點清單 / 身份 / 模式表 / 5 顆指令按鈕 |
-| `control_panel` | 1 | 模式清單 + 亮度 + arc 倒數 + LED 三態（echo 迴路可跑） |
-| `now_setting` | 2 | ESP-NOW：可選/已選清單、套用/清除、頻道/加密 |
-| `pca9685` | 2 | 目標清單（0x70 廣播 / 0x40 / 0x41）+ 16 通道 |
-| `pixel_controller` | 2 | 模式清單 + 列表 |
-| `pixel_lab_apa` / `rgb` / `pca` | 2/3/4 | 共用 `pixel_lab_common.js`（`SimplePage`），pca 有目標清單 |
-| `settings` | 3 | 網路 / 裝置資訊 |
+| 順序 | 頁面 | 標題 | 圖示 | 備註 |
+|---|---|---|---|---|
+| 0 | `pixel_controller` | Pixel 控制 | `sliders-horizontal` | 模式清單 + 可動快捷 |
+| 1 | `pixel_lab_pca` | PixelLab PCA | `gauge` | 16 通道 + 目標清單，ALL/LED |
+| 2 | `pixel_lab_rgb` | PixelLab RGB | `lightbulb` | WS2812，共用 `SimplePage` |
+| 3 | `pixel_lab_apa` | PixelLab APA | `zap` | APA102，共用 `SimplePage` |
+| 4 | `remote` | 遙控器 | `wifi` | 節點清單 / 身份 / 模式表 |
+| 5 | `now_setting` | ESP-NOW | `sensors` | 頻道 / 加密 / 已選節點 |
+| 6 | `settings` | 系統設定 | `settings` | 網路 / 裝置資訊 |
+
+> 卡片與頁籤的順序完全由 `meta.order` 決定，`pages/index.js` 的順序不影響顯示。
 
 支撐它們的假資料層：
 
@@ -209,14 +212,16 @@ node cli/validate.mjs [project]
 
 
 
+## 新增一頁
+
 1. 建 `projects/<id>/pages/xxx.js`
 
 ```js
 import lv from "@lvui/frameworks/lvgl/lv.js";
 import * as u from "@packages/lv-app/ui_common.js";
 
-export const meta = { id: "control_panel", title: "控制面板", icon: "sliders-horizontal",
-                      desc: "模式·亮度", order: 1, accent: 0xF9AB00 };
+export const meta = { id: "pixel_controller", title: "Pixel 控制", icon: "sliders-horizontal",
+                      desc: "模式設置·列表·可動", order: 0, accent: 0x1A73E8 };
 
 let scr = null;
 export function build() {

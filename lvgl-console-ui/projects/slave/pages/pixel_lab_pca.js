@@ -14,6 +14,17 @@
 //    這裡照抄同樣的 fallback：游標仍可移動、只是可視區不會跟著捲（維持原狀）。
 // ⚠ 缺少 API: lv.list.clean() 只刪 children、不清 List._items → 已用 _list_clear() 代替
 //    （不清 _items 的話，下一次 add_text 的新列會接在已刪掉的列後面，越排越下面、被 clip 掉）
+//
+// ⚠ 與原檔不同的地方：
+//   1. 晶片內部排版（尺寸沿用設計的 104×138，不改大小）：
+//      原檔格子 x=18/91、寬 14 → 右排 91+14=105 超出 104 的晶片（被裁 2px），
+//      腳位 x=0/100 又壓在格子上。這裡改成兩排對稱（14..28 / 76..90）、腳位不越界，
+//      讀數「00」改 22px 並置中（原本 28px 放在 x=52，會偏右壓到右排）。
+//   2. 左卡清單 y：16 → 30（原檔清單 16 就壓到「目標」標籤 4..23，
+//      加上 focus 外框再往外 3px，字的下緣會被切掉）
+//   3. 底部：「同步 N 台」從卡內 (6,116) 移到 (6,170)，「掃描」移到最底 (6,204)
+//   晶片大小只有一個係數 S（現在 1.0＝設計尺寸），其餘尺寸全部由它推導。
+//   → 轉回 MicroPython 時，pixel_lab_pca.py 的這幾個座標要一起改，否則兩邊不一致。
 // ⚠ 缺少 API: lv.list 的列在 lv.js 預設透明（bg_opa = 0）→ 已用 set_style_bg_opa(255) 補
 //    （只換 bg_color 看不到藍底/琥珀底；真機由 theme 決定）
 
@@ -23,6 +34,10 @@ import * as u from "@packages/lv-app/ui_common.js";
 import * as c from "./pixel_lab_common.js";
 
 const CH_COUNT = 16;
+// 「全部通道」：PCA9685 的 ALL_LED 暫存器寫一次就套用到 0..15。
+// 游標用 -1 表示「全部」（只存在 UI 層），寫進 state 時轉成 0xFF。
+const ALL_CH = 0xff;
+const CURSOR_ALL = -1;
 const SCAN_TIMEOUT_MS = 8000;
 const SEL_BG = 0xD2E3FC;
 const CURSOR_BG = 0xFFF3CD;
@@ -67,6 +82,7 @@ export class PcaPage {
     this._last_run = -99;
     this._status_lb = null;
     this._io_lb = null;
+    this._pins_lb = null;
     this._sync_lb = null;
     this._scan_btn = null;
     this._chip = null;
@@ -125,7 +141,12 @@ export class PcaPage {
   _applied_ch() {
     try {
       const st = c.state();
-      return c.wrap(Math.trunc(Number(st.get("ch", 0) || 0)), CH_COUNT);
+      const raw = Math.trunc(Number(st.get("ch", 0) || 0)) & 0xff;
+      // 0xFF = ALL_LED = 全部通道（回 -1，給 UI 當「全部」用）
+      if (raw === ALL_CH) {
+        return CURSOR_ALL;
+      }
+      return c.wrap(raw, CH_COUNT);
     } catch (e) {
       return 0;
     }
@@ -205,6 +226,13 @@ export class PcaPage {
       } catch (e) {
         continue;
       }
+    }
+    // 列高是「字高 + item pad」，pad 是 add_text 之後才設的 →
+    // 全部加完要重排一次，否則列距還是預設值（3 列就超出清單被裁掉）。
+    try {
+      this._list._layoutItems();
+    } catch (e) {
+      /* 沒有這個方法就跳過 */
     }
 
     this._sel = 0;
@@ -344,7 +372,10 @@ export class PcaPage {
     // ── 左：固定高度清單卡 + 清單外的掃描 ──
     const left = u.mk_card(scr, 6, 38, 104, 128);
     u.mk_label(left, "目標", 6, 4, u.TEXT3, u.ZH);
-    const pair = u.mk_list(left, 2, 16, 100, 96, ["(載入中)"], u.ZH);
+    // 清單從 y=30 開始：原檔 y=16 會壓到上面「目標」那行字（標籤 4..23），
+    // 而且清單的 focus 外框還會再往外 3px（outline_pad），剛好切到字的下緣。
+    // 30 之後留 7px 給外框，字不會被壓到。
+    const pair = u.mk_list(left, 2, 30, 100, 88, ["(載入中)"], u.ZH);
     this._list = pair[0];
     this._btns = pair[1];
     try {
@@ -372,15 +403,36 @@ export class PcaPage {
     } catch (e) {
       /* 沒有這個 flag 的 binding 就跳過 */
     }
-    u.mk_label(right, "IO", 12, 8, u.TEXT3, u.ZH);
-    this._io_lb = u.mk_label(right, "—", 12, 20, u.TEXT, u.ZH);
+    // 兩行（行高 19）：IO 在 6、接腳在 25 → 文字佔到 44
+    u.mk_label(right, "IO", 12, 6, u.TEXT3, u.ZH);
+    this._io_lb = u.mk_label(right, "—", 40, 6, u.TEXT, u.ZH);
+    this._pins_lb = u.mk_label(right, "", 12, 25, u.TEXT3, u.ZH);
 
-    // chip body (vertical)
+    // ── 晶片（設計尺寸 → 實際）────────────────────────────
+    //
+    // 這頁的設計是在「實際的兩倍」上畫的（設計高度 100、實際只有 50），
+    // 也就是原始那組數字（104×138、圓角 10、格子 14、間距 16、腳位 4）
+    // 是**設計尺寸**，不是要縮，是要按設計放大。
+    // S = 1.0 就是「照設計尺寸」；其餘全部由它推導，要微調只改這一個數字。
+    const S = 1.0;
+    const CHIP_W = Math.round(104 * S); // 104
+    const CHIP_H = Math.round(138 * S); // 138
+    const CELL = Math.round(14 * S); // 14
+    const PITCH = Math.round(16 * S); // 16
+    const PIN_W = Math.max(2, Math.round(4 * S)); // 4
+    const PAD = Math.round(4 * S); // 4
+    // 讀數字級跟著晶片寬度走（12 / 16 / 22px），不要寫死
+    const NUM_FONT = CHIP_W >= 96 ? u.F_NUM_L : CHIP_W >= 72 ? u.F_NUM_M : u.F_NUM_S;
+    this._cell = CELL;
+    // 置中要扣掉 1px 邊框：卡片內容區 = w-2，直接 (w-CHIP_W)/2 會右偏 2px。
+    const chipX = Math.round((right.w - 2 - CHIP_W) / 2);
+    // 卡片內高 192、晶片 138 → 上下各留 6：文字 6..44、晶片 48..186（abs 87..225）
+    const chipY = 48;
     const chip = lv.obj(right);
-    chip.set_size(104, 138);
-    chip.set_pos(44, 40);
+    chip.set_size(CHIP_W, CHIP_H);
+    chip.set_pos(chipX, chipY);
     chip.set_style_bg_color(u.C(0xFBFCFE), 0);
-    chip.set_style_radius(10, 0);
+    chip.set_style_radius(Math.round(10 * S), 0); // 10
     chip.set_style_border_color(u.C(0xCBD5E1), 0);
     chip.set_style_border_width(1, 0);
     chip.set_style_pad_all(0, 0);
@@ -395,9 +447,9 @@ export class PcaPage {
     let notch = null;
     try {
       notch = lv.obj(chip);
-      notch.set_size(5, 5);
-      notch.set_pos(5, 4);
-      notch.set_style_radius(3, 0);
+      notch.set_size(4, 4);
+      notch.set_pos(4, 3);
+      notch.set_style_radius(2, 0);
       notch.set_style_bg_color(u.C(u.TEXT3), 0);
       notch.set_style_border_width(0, 0);
       notch.set_style_pad_all(0, 0);
@@ -405,13 +457,15 @@ export class PcaPage {
       notch = null;
     }
 
-    // side pins (inside chip edges; decorative)
+    // side pins：**伸出晶片外**（真 IC 的腳是外露的；畫在晶片裡面會像虛線邊框）。
+    //   ⚠ 不能掛在 chip 底下：子物件會被父物件的裁切區剪掉（負座標直接消失），
+    //   所以掛在卡片 right 上，用晶片的相對位置算。
     for (let i = 0; i < 8; i++) {
-      const y = 10 + i * 16;
-      for (const x of [0, 100]) {
+      const y = chipY + PAD + 2 + i * PITCH + Math.round((CELL - 2) / 2);
+      for (const x of [chipX - PIN_W, chipX + CHIP_W]) {
         try {
-          const pin = lv.obj(chip);
-          pin.set_size(4, 1);
+          const pin = lv.obj(right);
+          pin.set_size(PIN_W, 1);
           pin.set_pos(x, y);
           pin.set_style_bg_color(u.C(0xB4BDC9), 0);
           pin.set_style_border_width(0, 0);
@@ -422,20 +476,27 @@ export class PcaPage {
       }
     }
 
-    // 2 columns × 8 squares
+    // 2 columns × 8 squares（尺寸/間距由 CELL/PITCH 推導，兩排對稱）
+    //   margin 取 0.13 × 寬（104 → 14）：兩排 14..28 / 76..90，
+    //   中間 48px 留給讀數，22px 的「00」約 25 寬，置中後左右各還有 11px。
     this._squares = [];
+    const margin = Math.max(3, Math.round(CHIP_W * 0.13));
+    const COL_X = [margin, CHIP_W - margin - CELL];
     for (let idx = 0; idx < CH_COUNT; idx++) {
       const col = idx < 8 ? 0 : 1;
       const row = idx % 8;
-      const x = col === 0 ? 18 : 91;
-      const y = 10 + row * 16;
-      const [track, fill] = c.mk_vbar(chip, x, y, 14, 14, 0xD97706);
+      const x = COL_X[col];
+      const y = PAD + 1 + row * PITCH;
+      const [track, fill] = c.mk_vbar(chip, x, y, CELL, CELL, 0xD97706);
       this._squares.push({ track: track, fill: fill, idx: idx, x: x, y: y });
     }
 
-    // center channel + selected %
-    this._ch_lb = u.mk_label(chip, "00", 52, 32, 0xD97706, u.F_NUM_XL);
-    this._pct_lb = u.mk_label(chip, "0%", 52, 72, u.TEXT2, u.F_NUM_S);
+    // center channel + selected %（用字型實際量到的寬度置中；-1 是 1px 邊框偏移）
+    const numW = Math.round(NUM_FONT.measure("00"));
+    const pctW = Math.round(u.F_NUM_S.measure("0%"));
+    const numY = Math.round(CHIP_H / 2) - Math.round(NUM_FONT.lineHeight * 0.75);
+    this._ch_lb = u.mk_label(chip, "00", Math.round((CHIP_W - numW) / 2) - 1, numY, 0xD97706, NUM_FONT);
+    this._pct_lb = u.mk_label(chip, "0%", Math.round((CHIP_W - pctW) / 2) - 1, numY + NUM_FONT.lineHeight + 2, u.TEXT2, u.F_NUM_S);
 
     // focus frame on the chip
     this._paint_focus();
@@ -449,8 +510,10 @@ export class PcaPage {
     } catch (e) {
       /* 沒有 set_focus 的 binding 就跳過 */
     }
+    // 晶片本體不再畫大框：整個 104×138 被 3px 藍框包住，看起來像「整顆被選取」。
+    // 進入晶片區的提示改由「游標框」表示（見 _paint_selected）。
     try {
-      u.set_focus(this._chip, this._focus === 1);
+      u.set_focus(this._chip, false);
     } catch (e) {
       /* 同上 */
     }
@@ -462,22 +525,47 @@ export class PcaPage {
     this._paint_selected();
   }
 
+  /**
+   * 晶片上只允許**一個**框，跟著焦點走：
+   *   focus 0（清單）      → 不畫框（還沒選目標，沒有「已選」這回事）
+   *   focus 1（選通道）    → 琥珀框：游標在單格就框那一格；游標在「全部」就框**晶片本體**
+   *   focus 2（掃描）      → 藍框，停在剛套用的位置（單格或晶片本體）
+   * 「全部」用晶片本體表示（一個框），不要 16 個框一起亮——那看起來很雜。
+   */
+  _set_chip_frame(color) {
+    try {
+      if (color === null) {
+        this._chip.set_style_outline_width(0, 0);
+      } else {
+        this._chip.set_style_outline_color(u.C(color), 0);
+        this._chip.set_style_outline_width(2, 0);
+        this._chip.set_style_outline_pad(2, 0);
+      }
+    } catch (e) {
+      /* 晶片不在就跳過 */
+    }
+  }
+
   _paint_selected() {
-    // 主色框 = 真正套用的 channel；左/右游標用 warning 框預覽。
     const ch = this._applied_ch();
-    const cur = this._focus === 1 ? this._ch_cursor : ch;
+    const cur = this._ch_cursor;
+    const allCursor = this._focus === 1 && cur === CURSOR_ALL;
+    const allApplied = this._focus === 2 && ch === CURSOR_ALL;
+    this._set_chip_frame(allCursor ? u.WARNING : allApplied ? u.PRIMARY : null);
     for (const s of this._squares) {
       try {
-        if (s["idx"] === ch) {
-          s["track"].set_style_outline_color(u.C(u.PRIMARY), 0);
+        let color = null;
+        if (this._focus === 1 && cur !== CURSOR_ALL && s["idx"] === cur) {
+          color = u.WARNING;
+        } else if (this._focus === 2 && ch !== CURSOR_ALL && s["idx"] === ch) {
+          color = u.PRIMARY;
+        }
+        if (color === null) {
+          s["track"].set_style_outline_width(0, 0);
+        } else {
+          s["track"].set_style_outline_color(u.C(color), 0);
           s["track"].set_style_outline_width(2, 0);
           s["track"].set_style_outline_pad(1, 0);
-        } else if (s["idx"] === cur) {
-          s["track"].set_style_outline_color(u.C(u.WARNING), 0);
-          s["track"].set_style_outline_width(1, 0);
-          s["track"].set_style_outline_pad(1, 0);
-        } else {
-          s["track"].set_style_outline_width(0, 0);
         }
       } catch (e) {
         /* 格子還沒建好就跳過 */
@@ -490,30 +578,33 @@ export class PcaPage {
     const base = c.pct(v.get("base_pct", 0));
     const ch = this._applied_ch();
     const cur = this._focus === 1 ? this._ch_cursor : ch;
+    const sel = c.pct(v.get("sel_pct", 0));
     for (const s of this._squares) {
       const i = s["idx"];
       let p = base;
       if (Array.isArray(pcts) && i < pcts.length) {
         p = c.pct(pcts[i]);
       }
-      if (i === ch) {
-        p = c.pct(v.get("sel_pct", p));
+      // 亮色/亮度一律跟游標（游標 = -1 時＝全部通道，16 格一起亮）
+      const isCur = cur === CURSOR_ALL || i === cur;
+      if (isCur) {
+        p = sel;
       }
-      const color = i === ch ? 0xD97706 : 0xF0C98A;
+      const color = isCur ? 0xD97706 : 0xF0C98A;
       try {
-        c.set_vbar(s["fill"], 14, 14, p, color);
+        c.set_vbar(s["fill"], this._cell, this._cell, p, color);
       } catch (e) {
         /* 格子 fill 不在就跳過 */
       }
     }
-    // 中央是游標數字（左/右會動）；enter 後才會套用到 task。
+    // 中央顯示游標（全部 → ALL）；enter 後才會套用到 task。
     try {
-      this._ch_lb.set_text(String(cur).padStart(2, "0"));
+      this._ch_lb.set_text(cur === CURSOR_ALL ? "ALL" : String(cur).padStart(2, "0"));
     } catch (e) {
       /* label 不在就跳過 */
     }
     let pct = v.get("sel_pct", 0);
-    if (cur !== ch && Array.isArray(pcts) && cur < pcts.length) {
+    if (cur !== CURSOR_ALL && cur !== ch && Array.isArray(pcts) && cur < pcts.length) {
       pct = pcts[cur];
     }
     try {
@@ -553,7 +644,8 @@ export class PcaPage {
   // ── 頁面接口 ────────────────────────────────────────
   on_enter() {
     this._focus = 0;
-    this._ch_cursor = this._applied_ch();
+    // 第一次進來：游標停在「全部通道」（＝ALL_LED），不是 00。
+    this._ch_cursor = CURSOR_ALL;
     this._refresh_targets(true);
     c.open_page("pca");
     c.touch();
@@ -570,16 +662,20 @@ export class PcaPage {
     if (!d) {
       return;
     }
+    const step = Math.trunc(d);
     if (this._focus === 0) {
       const n = this._targets.length;
       if (n) {
-        this._cursor = c.wrap(this._cursor + Math.trunc(d), n);
+        this._cursor = c.wrap(this._cursor + step, n);
         c.touch();
         this._sync_list();
       }
     } else if (this._focus === 1) {
-      // 左右只移動 channel 游標；enter 才寫入 state 給 task。
-      this._ch_cursor = c.wrap(this._ch_cursor + Math.trunc(d), CH_COUNT);
+      // 游標順序：ALL → 00 → 01 … → 15 → ALL（繞一圈，隨時可以再選回「全部」）
+      const n = CH_COUNT + 1;
+      const pos = this._ch_cursor === CURSOR_ALL ? 0 : this._ch_cursor + 1;
+      const next = (((pos + step) % n) + n) % n;
+      this._ch_cursor = next === 0 ? CURSOR_ALL : next - 1;
       c.touch();
       this._paint_selected();
       this._paint_squares(c.view());
@@ -588,17 +684,17 @@ export class PcaPage {
 
   on_confirm() {
     if (this._focus === 0) {
-      // enter：真正選取目標，然後換到 channel 區。
+      // enter：真正選取目標，然後換到 channel 區（游標先停在「全部」）。
       this._commit();
       this._focus = 1;
-      this._ch_cursor = this._applied_ch();
+      this._ch_cursor = CURSOR_ALL;
       this._paint_focus();
       this._paint_squares(c.view());
       c.touch();
     } else if (this._focus === 1) {
-      // enter：真正選取 channel。
+      // enter：真正選取 channel（「全部」→ 0xFF，代表 ALL_LED 一次寫 16 個通道）。
       const st = c.state();
-      st["ch"] = c.wrap(this._ch_cursor, CH_COUNT);
+      st["ch"] = this._ch_cursor === CURSOR_ALL ? ALL_CH : c.wrap(this._ch_cursor, CH_COUNT);
       c.touch();
       this._focus = 2;
       this._paint_focus();
@@ -638,6 +734,7 @@ export class PcaPage {
     const [txt, col] = c.status_text(v);
     c.set_label(this._status_lb, txt, col);
     c.set_label(this._io_lb, v.get("io") || "—");
+    c.set_label(this._pins_lb, v.get("pins") || "");
     this._paint_sync();
     if (v.get("mode") === "pca") {
       this._paint_squares(v);
@@ -654,9 +751,9 @@ export let scr = null;
 export const meta = {
   id: "pixel_lab_pca",
   title: "PixelLab PCA",
-  icon: "sun",
+  icon: "gauge",
   desc: "PCA9685 · 目標/16 通道",
-  order: 4,
+  order: 1,
   accent: 0xD97706,
 };
 
