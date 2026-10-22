@@ -80,7 +80,7 @@ def build():
     _bright_lb = lv.label(c2)
     _bright_lb.align(lv.ALIGN.TOP_RIGHT, -6, 4)
     _bright_lb.set_style_text_font(u.F_NUM_M, 0)
-    _bright_lb.set_style_text_color(u.C(u.PRIMARY), 0)
+    _bright_lb.set_style_text_color(u.C(u.TEXT), 0)
     _bright_lb.set_text("0")
     _bright_sl = u.mk_slider(c2, 6, 30, rw - 12, 0, 36, 0)
     nav.add(_bright_sl, ITEM_SLIDER, on_change=_adj_bright)
@@ -140,13 +140,15 @@ def _init_local():
 
 
 def _panel(parent, x, y, w, h):
-    """輕量分區:無邊框、淡底色、pad 0(比 mk_card 省邊框空間)。"""
+    """輕量分區:收斂成一致卡片語言。"""
     c = lv.obj(parent)
     c.set_size(w, h)
     c.set_pos(x, y)
-    c.set_style_bg_color(u.C(u.SURFACE), 0)
-    c.set_style_radius(8, 0)
-    c.set_style_border_width(0, 0)
+    c.set_style_bg_color(u.C(u.SURFACE_2), 0)
+    c.set_style_radius(10, 0)
+    c.set_style_border_color(u.C(u.BORDER), 0)
+    c.set_style_border_width(1, 0)
+    c.set_style_shadow_width(0, 0)
     c.set_style_pad_all(0, 0)
     c.remove_flag(lv.obj.FLAG.SCROLLABLE)
     return c
@@ -264,15 +266,12 @@ def _adj_bright(dd):
 # ====== 頁面接口(轉發給 nav) ======
 
 def on_enter():
-    """進頁:改用安全的輕位移入場,避免整區透明度動畫導致白屏。"""
-    for w, d in ((_mode_list, 40), (_p_bright, 100), (_p_main, 160)):
+    """進頁:先固定落位,避免容器飛到左上角。"""
+    for w in (_mode_list, _p_bright, _p_main):
         if w is not None:
             try:
-                x, y = w.get_x(), w.get_y()
                 u.cancel(w)
                 w.set_style_opa(255, 0)
-                w.set_pos(x, y + 4)
-                u.anim_pos(w, x, y, 220, d)
             except Exception:
                 pass
 

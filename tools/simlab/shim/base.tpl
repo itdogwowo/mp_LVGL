@@ -281,11 +281,12 @@ except Exception as _e:
 
 _tick_last = _time.ticks_ms()
 _perf_n = 0
+_perf_last = _time.ticks_ms()
 
 
 def _tick():
     """一幀:LVGL tick(量測真實間隔)+ task_handler + 強制渲染;量渲染成本。"""
-    global _tick_last, _perf_n
+    global _tick_last, _perf_n, _perf_last
     now = _time.ticks_ms()
     diff = _time.ticks_diff(now, _tick_last)
     _tick_last = now
@@ -301,7 +302,9 @@ def _tick():
             pass
     _t1 = _tu() if _tu else 0
     _perf_n += 1
-    if _tu:
+    # 連續步進(30Hz)時限流輸出(≥150ms 才印),避免 REPL 被 [perf] 淹沒
+    if _tu and _time.ticks_diff(_time.ticks_ms(), _perf_last) >= 150:
+        _perf_last = _time.ticks_ms()
         print("[perf] r={} n={}".format(_t1 - _t0, _perf_n))
 
 

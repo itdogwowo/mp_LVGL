@@ -40,7 +40,7 @@ def build():
     # Wi-Fi 開關(左上)
     c1 = u.mk_card(scr, 12, 6, 148, 48)
     _cards.append(c1)
-    u.mk_icon(c1, "wifi", 10, 12, u.TEXT2)
+    u.mk_icon(c1, "wifi", 10, 12, u.TEXT3)
     u.mk_label(c1, "Wi-Fi 啟用", 32, 14, u.TEXT, u.ZH)
     _wifi_sw = u.mk_switch(c1, 100, 12, on=False)
     nav.add(_wifi_sw, ITEM_SWITCH, on_change=_toggle_wifi)
@@ -94,14 +94,11 @@ def _toggle_wifi():
 
 
 def on_enter():
-    """進頁:卡片輕位移級聯,保留節奏感但不走整卡透明度。"""
+    """進頁:先固定落位,避免資訊卡飛去左上角。"""
     for i, c in enumerate(_cards):
         try:
-            x, y = c.get_x(), c.get_y()
             u.cancel(c)
             c.set_style_opa(255, 0)
-            c.set_pos(x, y + 4)
-            u.anim_pos(c, x, y, 220, i * 50)
         except Exception:
             pass
 

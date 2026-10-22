@@ -62,10 +62,11 @@ def build():
 
 
 def _box_style(o):
-    o.set_style_bg_color(u.C(u.SURFACE), 0)
+    o.set_style_bg_color(u.C(u.SURFACE_2), 0)
     o.set_style_radius(6, 0)
     o.set_style_border_color(u.C(u.BORDER), 0)
     o.set_style_border_width(1, 0)
+    o.set_style_shadow_width(0, 0)
     o.set_style_pad_all(0, 0)
     o.remove_flag(lv.obj.FLAG.SCROLLABLE)
 
@@ -153,20 +154,16 @@ def _cycle_target():
 
 
 def on_enter():
-    """進頁:頂部控制列輕位移,點陣保留階梯亮起。"""
-    for i, w in enumerate(_ctl_els):
+    """進頁:先固定落位,避免頂部控制列與點陣飛位。"""
+    for w in _ctl_els:
         try:
-            x, y = w.get_x(), w.get_y()
             u.cancel(w)
             w.set_style_opa(255, 0)
-            w.set_pos(x, y + 3)
-            u.anim_pos(w, x, y, 220, i * 35)
         except Exception:
             pass
     for i, d in enumerate(_dots):
         u.cancel(d)
-        d.set_style_opa(180, 0)
-        u.opa_to(d, 255, 220, 60 + (i // 8) * 80 + (i % 8) * 16, from_opa=180)
+        d.set_style_opa(255, 0)
     s = _state()
     _post({"action": "start", "mode": s.get("mode", 0),
            "target": s.get("target", -1)})
@@ -197,7 +194,7 @@ def update(run):
             ratio = v / 4095.0
             if ratio > 0.05:
                 _dots[i].set_style_bg_color(u.C(u.PRIMARY), 0)
-                _dots[i].set_style_opa(int(80 + 175 * ratio), 0)
+                _dots[i].set_style_opa(int(120 + 110 * ratio), 0)
             else:
                 _dots[i].set_style_bg_color(u.C(u.TRACK), 0)
                 _dots[i].set_style_opa(255, 0)

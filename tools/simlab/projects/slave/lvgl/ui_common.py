@@ -15,20 +15,22 @@ import lvgl as lv
 W = 240
 H = 320
 
-# ====== Palette(來自 colors_and_type.css) ======
-BG       = 0xF5F5F5
-SURFACE  = 0xFFFFFF
-BORDER   = 0xE0E0E0
-TEXT     = 0x1F1F1F
-TEXT2    = 0x5F5F5F
-TEXT3    = 0x8F8F8F
-PRIMARY  = 0x1A73E8
-SUCCESS  = 0x188038
-WARNING  = 0xF9AB00
-DANGER   = 0xD93025
-TRACK    = 0xDADCE0
-FOCUS_BG = 0xE8F0FE
-DANGER_BG = 0xFCE8E6
+# ====== Palette(9.3 基線:收斂、偏中性) ======
+BG        = 0xF5F5F7
+SURFACE   = 0xFFFFFF
+SURFACE_2 = 0xFAFAFC
+BORDER    = 0xDADCE2
+TEXT      = 0x1D1D1F
+TEXT2     = 0x4C4C50
+TEXT3     = 0x8E8E93
+PRIMARY   = 0x2F6FE4
+PRIMARY_BG = 0xEAF1FF
+SUCCESS   = 0x2E8B57
+WARNING   = 0xC28A00
+DANGER    = 0xC33B31
+TRACK     = 0xDADCE0
+FOCUS_BG  = 0xEDF3FF
+DANGER_BG = 0xFDECEC
 
 
 def init(plat):
@@ -204,9 +206,10 @@ def mk_card(parent, x, y, w, h):
     c.set_size(w, h)
     c.set_pos(x, y)
     c.set_style_bg_color(C(SURFACE), 0)
-    c.set_style_radius(10, 0)
+    c.set_style_radius(12, 0)
     c.set_style_border_color(C(BORDER), 0)
     c.set_style_border_width(1, 0)
+    c.set_style_shadow_width(0, 0)
     c.set_style_pad_all(0, 0)
     c.remove_flag(lv.obj.FLAG.SCROLLABLE)
     return c
@@ -245,11 +248,12 @@ def mk_btn(parent, text, x, y, w, h, kind="primary"):
         b.set_style_border_width(0, 0)
         fg = DANGER
     else:
-        b.set_style_bg_color(C(SURFACE), 0)
+        b.set_style_bg_color(C(SURFACE_2), 0)
         b.set_style_border_color(C(BORDER), 0)
         b.set_style_border_width(1, 0)
         fg = TEXT2
-    b.set_style_radius(8, 0)
+    b.set_style_radius(9, 0)
+    b.set_style_shadow_width(0, 0)
     lb = lv.label(b)
     lb.set_text(text)
     lb.align(lv.ALIGN.CENTER, 0, 0)
@@ -268,7 +272,9 @@ def mk_slider(parent, x, y, w, lo, hi, val, color=PRIMARY):
     s.set_style_radius(4, lv.PART.MAIN)
     s.set_style_bg_color(C(color), lv.PART.INDICATOR)
     s.set_style_radius(4, lv.PART.INDICATOR)
-    s.set_style_bg_color(C(color), lv.PART.KNOB)
+    s.set_style_bg_color(C(SURFACE), lv.PART.KNOB)
+    s.set_style_border_color(C(color), lv.PART.KNOB)
+    s.set_style_border_width(2, lv.PART.KNOB)
     s.set_style_radius(8, lv.PART.KNOB)
     s.set_style_pad_all(4, lv.PART.KNOB)
     return s
@@ -414,6 +420,7 @@ def mk_led(parent, x, y, size=12, on=False, on_color=SUCCESS, off_color=BORDER):
     d.set_style_radius(size // 2, 0)
     d.set_style_bg_color(C(on_color if on else off_color), 0)
     d.set_style_border_width(0, 0)
+    d.set_style_shadow_width(0, 0)
     d.set_style_pad_all(0, 0)
     d.remove_flag(lv.obj.FLAG.SCROLLABLE)
     return d
@@ -468,5 +475,4 @@ def list_select(btns, idx, color=PRIMARY):
                 b.set_style_text_color(C(TEXT), 0)
         except Exception:
             pass
-
 

@@ -177,7 +177,7 @@
     <div id="pane-repl">
       <div class="card">
         <div class="row" style="margin-top:0">
-          <button id="btn-pause" title="暫停:操作只注入不步進,REPL 直接輸指令(像真機 Ctrl-C)">⏸ 暫停</button>
+          <button id="btn-pause" title="暫停:連續步進與操作都只注入不步進,REPL 直接輸指令(像真機 Ctrl-C)">⏸ 暫停</button>
           <button id="btn-step" title="單步:執行一幀 __step()">單步</button>
           <button id="btn-dbg" title="顯示/隱藏 debug 行(perf/echo/frame)">🔊</button>
           <button id="btn-repl-clr" title="清空 REPL 轉錄">🧹</button>
@@ -478,6 +478,13 @@ function wireIframe() {
     if (!state.started || !state.booted) return;
     simPost("sim-do-str", { code: "" });
   }, 3000);
+  // 連續步進:模擬真機主迴圈(過場/淡入/pulse 動畫與頁面 update 才會跑,
+  // 否則只在有輸入時才渲染一幀 → 轉頁後畫面凍結、動畫完全不會播放)。
+  // 33ms ≈ LVGL 內部刷新節拍(LV_DEF_REFR_PERIOD);暫停時只注入不步進。
+  setInterval(() => {
+    if (!state.started || !state.booted || state.paused) return;
+    simPost("sim-input", { do: "__step()" });
+  }, 33);
   reloadSim();
 }
 
@@ -569,7 +576,7 @@ function bindOps() {
     state.paused = !state.paused;
     $("btn-pause").textContent = state.paused ? "▶ 繼續" : "⏸ 暫停";
     $("btn-pause").classList.toggle("paused", state.paused);
-    log(state.paused ? "⏸ 已暫停:操作只注入緩存不步進;REPL 可直接下指令,「單步」執行一幀" : "▶ 已繼續");
+    log(state.paused ? "⏸ 已暫停:連續步進與操作都只注入不步進;REPL 可直接下指令,「單步」執行一幀" : "▶ 已繼續(連續步進恢復)");
   };
   $("btn-step").onclick = () => stepOnce();
   $("btn-code-refresh").onclick = () => loadCodeTree();

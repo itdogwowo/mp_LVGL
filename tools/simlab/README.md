@@ -55,6 +55,9 @@ python tools/ui_assets_server.py      # 零參數,開瀏覽器 → /simlab/
 
 ## 操作
 
+- **連續步進**:模擬器開機後以 33ms(= LVGL 內部刷新節拍)自動步進,像真機主迴圈 —
+  過場動畫 / fade_in / pulse 呼吸 / 頁面 update 都會真正播放;轉頁後畫面不再凍結。
+  指令注入仍走中間緩存(累加),每次輸入立即步進一幀,其餘由定時器補幀。
 - **◀ ▶** 編碼器(累加 delta,可 >±1)、**Enter** 確認(encC)、**Esc** 返回(btn)
 - 按住不重複(鍵盤 `e.repeat` 抑制,對齊裝置去抖邊緣語義)
 - **指令輸入框**:`enc 1` / `enc -1` / `pin encC` / `pin btn`(Enter 執行,腳本/除錯用)
@@ -71,7 +74,7 @@ python tools/ui_assets_server.py      # 零參數,開瀏覽器 → /simlab/
   None
   >>> 
   ```
-- **⏸ 暫停**:操作只注入中間緩存**不步進**(像真機 Ctrl-C 停住),REPL 任意下指令;
+- **⏸ 暫停**:連續步進與操作都只注入中間緩存**不步進**(像真機 Ctrl-C 停住),REPL 任意下指令;
   **單步**執行一幀 `__step()`;**▶ 繼續**恢復
 - 別名:`bus`(bus.shared 緩存)、`lv`(lvgl)、`inject_enc/inject_edge/inject_release/inject_reset`
 

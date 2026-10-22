@@ -41,6 +41,17 @@
 				if (_diagEl) _diagEl.textContent += "[" + Date.now().toString().slice(-6) + "] " + s + "\n";
 			} catch (e) {}
 		}
+		// SimLab:執行序列化 — 連續步進(30Hz)+ 輸入 + REPL 都走同一條 promise 鏈,
+		// 避免兩個 asyncify exec 同時掛起(wasm 狀態會壞)。錯誤已被 _runPyAsync 吞掉並回報。
+		// ⚠ 必須在 module 頂層(不能在 startRunning 內),message handler 才看得到。
+		var _pyQueue = Promise.resolve();
+		function _runPyQueued(code) {
+			_pyQueue = _pyQueue.then(function () {
+				return _runPyAsync(code);
+			}).catch(function () {});
+			return _pyQueue;
+		}
+		_diagLog("queue ready");
 		_diagLog("module script start");
 		// LVGL-UI-STUDIO:跨源 iframe → config(cscript/design)與 do-str 走 postMessage。
 		// 主頁面(localhost ↔ 127.0.0.1)與本 iframe 跨源,卡死只影響本 iframe。
@@ -63,7 +74,7 @@
 				_simConfigWaiters = [];
 			} else if (d.type === "sim-do-str") {
 				if (d.code) {
-					try { _runPyAsync(d.code); } catch (e2) {}
+					try { _runPyQueued(d.code); } catch (e2) {}
 					_simPerfLater();
 				}
 				_simAck();
@@ -75,14 +86,14 @@
 				else if (d.pin) code = "inject_edge(" + JSON.stringify(d.pin) + ")" + (d.step ? "; __step()" : "");
 				else if (d.do) code = d.do;
 				if (code) {
-					try { _runPyAsync(code); } catch (e2) {}
+					try { _runPyQueued(code); } catch (e2) {}
 					_simPerfLater();
 				}
 				_simAck();
 			} else if (d.type === "sim-repl") {
 				// REPL 輸入:直接執行任意 Python(像真機的 REPL)
 				if (d.line) {
-					try { _runPyAsync(d.line); } catch (e2) {}
+					try { _runPyQueued(d.line); } catch (e2) {}
 					_simPerfLater();
 				}
 				_simAck();
